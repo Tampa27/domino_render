@@ -14,10 +14,16 @@ class PlayerView(APIView):
         if id:
             serializer = PlayerSerializer(result)
             return Response({"status":'success',"players":serializer.data},status=200)
+        
         result = Player.objects.all()
         serializer = PlayerSerializer(result,many=True)
         return Response({"status":'success',"players":serializer.data},status=200)
     
+    def get(self, request, *args, **kwargs):  
+        result = Player.objects.all()  
+        serializers = PlayerSerializer(result, many=True)  
+        return Response({'status': 'success', "players":serializers.data}, status=200)  
+
     def post(self, request):  
         serializer = PlayerSerializer(data=request.data)  
         if serializer.is_valid():  
