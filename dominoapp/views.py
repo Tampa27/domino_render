@@ -13,17 +13,12 @@ class PlayerView(APIView):
         result = Player.objects.get(id=id)
         if id:
             serializer = PlayerSerializer(result)
-            return Response({"status":'success',"players":serializer.data},status=200)
+            return Response({"status":'success',"player":serializer.data},status=200)
         
         result = Player.objects.all()
         serializer = PlayerSerializer(result,many=True)
-        return Response({"status":'success',"players":serializer.data},status=200)
+        return Response({"status":'success',"player":serializer.data},status=200)
     
-    def get(self, request, *args, **kwargs):  
-        result = Player.objects.all()  
-        serializers = PlayerSerializer(result, many=True)  
-        return Response({'status': 'success', "players":serializers.data}, status=200)  
-
     def post(self, request):  
         serializer = PlayerSerializer(data=request.data)  
         if serializer.is_valid():  
@@ -45,3 +40,9 @@ class PlayerView(APIView):
         result = get_object_or_404(Player, id=id)  
         result.delete()  
         return Response({"status": "success", "data": "Record Deleted"})    
+    
+class PlayersView(APIView):
+    def get(self, request, *args, **kwargs):  
+        result = Player.objects.all()  
+        serializers = PlayerSerializer(result, many=True)  
+        return Response({'status': 'success', "players":serializers.data}, status=200)  
