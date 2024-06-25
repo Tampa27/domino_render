@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from rest_framework import status 
 from .models import Player
 from .serializers import PlayerSerializer
+from .models import DominoGame
+from .serializers import GameSerializer
 from django.shortcuts import get_object_or_404 
+from rest_framework.decorators import api_view
 
 # Create your views here.
 class PlayerView(APIView):
@@ -46,3 +49,9 @@ class PlayersView(APIView):
         result = Player.objects.all()  
         serializers = PlayerSerializer(result, many=True)  
         return Response({'status': 'success', "players":serializers.data}, status=200)  
+
+@api_view(['GET',])
+def getAllGames(request):
+    result = DominoGame.objects.all()
+    serializer =GameSerializer(result,many=True)
+    return Response({'status': 'success', "games":serializer.data}, status=200)

@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from .models import Player
+from .models import DominoGame
 
 class PlayerSerializer(serializers.ModelSerializer):
     user = serializers.ModelField
     alias = serializers.CharField(max_length=32,required=True)
+    tiles = serializers.CharField(max_length=32)
 
     class Meta:
         model = Player
@@ -20,5 +22,12 @@ class PlayerSerializer(serializers.ModelSerializer):
         """  
         instance.user = validated_data.get('user', instance.user)
         instance.alias = validated_data.get('alias', instance.alias)
+        instance.tiles = validated_data.get('tiles', instance.tiles)
         instance.save()
         return instance     
+    
+class GameSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = DominoGame
+        fields = ('__all__')
