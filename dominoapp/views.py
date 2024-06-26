@@ -57,8 +57,8 @@ def getAllGames(request):
     return Response({'status': 'success', "games":serializer.data}, status=200)
 
 @api_view(['GET',])
-def createGame(request):
-    player1 = Player.objects.get_or_create(alias=request.alias)
+def createGame(request,alias):
+    player1,created = Player.objects.get_or_create(alias=alias)
     game = DominoGame.objects.create(player1=player1)
     game.save()
     serializer = GameSerializer(game)

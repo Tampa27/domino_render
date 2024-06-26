@@ -6,5 +6,5 @@ urlpatterns = [
     path('players/<int:id>/', views.PlayerView.as_view(),name="player"),
     path('players/<int:id>/update/',views.PlayerView.as_view()),
     path('games/',views.getAllGames,name='games'),
-    path(r'^create/',views.createGame,name='new game'),
+    path(r'create/<str:alias>',views.createGame,name='new game'),
 ]
