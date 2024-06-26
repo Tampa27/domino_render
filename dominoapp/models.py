@@ -19,15 +19,15 @@ class DominoGame(models.Model):
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
     player4 = models.ForeignKey(Player,related_name="player4",on_delete=models.CASCADE,null=True,blank=True)                   
     next_player = models.SmallIntegerField(default=-1,null=True,blank=True)
-    board = models.CharField(max_length=200,blank=True)
-    variant = models.CharField(max_length=10,choices=[("d6","Double 6"),("d9","Double 9")])
+    board = models.CharField(max_length=200,blank=True,default="")
+    variant = models.CharField(max_length=10,choices=[("d6","Double 6"),("d9","Double 9")],default="d6")
     start_time = models.DateTimeField(default=timezone.now())
     left_side = models.SmallIntegerField(default=-1,null=True,blank=True)
     right_side = models.SmallIntegerField(default=-1,null=True,blank=True)
     winner = models.SmallIntegerField(default=-1,null=True,blank=True)
     scoreTeam1 = models.IntegerField(default=0,null=True,blank=True)
     scoreTeam2 = models.IntegerField(default=0,null=True,blank=True)
-    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play')])
+    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play')],default="wt")
     maxScore = models.IntegerField(default=100,null=True,blank=True)
 
     def __str__(self) -> str:
