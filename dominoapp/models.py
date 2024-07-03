@@ -22,13 +22,17 @@ class DominoGame(models.Model):
     board = models.CharField(max_length=200,blank=True,default="")
     variant = models.CharField(max_length=10,choices=[("d6","Double 6"),("d9","Double 9")],default="d6")
     start_time = models.DateTimeField(default=timezone.now())
-    left_side = models.SmallIntegerField(default=-1,null=True,blank=True)
-    right_side = models.SmallIntegerField(default=-1,null=True,blank=True)
     winner = models.SmallIntegerField(default=-1,null=True,blank=True)
     scoreTeam1 = models.IntegerField(default=0,null=True,blank=True)
     scoreTeam2 = models.IntegerField(default=0,null=True,blank=True)
-    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play')],default="wt")
+    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play'),('fi','finished')],default="wt")
     maxScore = models.IntegerField(default=100,null=True,blank=True)
+    inPairs = models.BooleanField(default=False)
+    perPoints = models.BooleanField(default=False)
+    startWinner = models.BooleanField(default=True)
+    lostStartInTie = models.BooleanField(default=True)
+    starter = models.SmallIntegerField(default=-1,null=True,blank=True)
+
 
     def __str__(self) -> str:
         return '%s %s %s %s' % (
