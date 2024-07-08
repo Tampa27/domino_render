@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', default='your secret key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True#'RENDER' not in os.environ
+DEBUG = False#'RENDER' not in os.environ
 
-ALLOWED_HOSTS = ["ahmedlp9.pythonanywhere.com"]
+ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com"]
 
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
@@ -83,15 +83,15 @@ WSGI_APPLICATION = 'domino.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    #'default': {
-    #    'ENGINE': 'django.db.backends.sqlite3',
-    #    'NAME': BASE_DIR / 'db.sqlite3',
-    'default': dj_database_url.config(
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    #'default': dj_database_url.config(
         # Replace this value with your local database's connection string.
-        default='sqlite:///db.sqlite3',
-        conn_max_age=600
-    )
-    
+    #    default='sqlite:///db.sqlite3',
+    #    conn_max_age=600
+    #)
+    }
 }
 
 
