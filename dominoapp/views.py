@@ -73,7 +73,9 @@ def createGame(request,alias,variant):
     game = DominoGame.objects.create(player1=player1,variant=variant)
     game.save()
     serializer = GameSerializer(game)
-    return Response({'status': 'success', "game":serializer.data}, status=200)
+    players = [player1]
+    playerSerializer = PlayerSerializer(players,many=True)
+    return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
 @api_view(['GET',])
 def joinGame(request,alias,game_id):
@@ -81,26 +83,34 @@ def joinGame(request,alias,game_id):
     game = DominoGame.objects.get(id=game_id)
     joined = False
     joined_count = 1
+    players = [game.player1]
     if game.player2 is None:
         game.player2 = player
         joined = True
         joined_count+=1
         game.status = "ready"
+        players.append(game.player2)
     elif game.player3 is None:
         game.player3 = player
         joined = True
         joined_count+=2
         game.status = "ready"
+        players.append(game.player2)
+        players.append(game.player3)
     elif game.player4 is None:
         game.player4 = player
         joined = True
         joined_count+=3
         game.status = "ready"
+        players.append(game.player2)
+        players.append(game.player3)
+        players.append(game.player4)
 
     if joined == True:
         game.save()    
         serializerGame = GameSerializer(game)
-        return Response({'status': 'success', "game":serializerGame.data}, status=200)
+        playerSerializer = PlayerSerializer(players,many=True)
+        return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
     else:
         return Response({'status': 'Full players', "game":None}, status=300)
 
@@ -120,7 +130,8 @@ def startGame(request,game_id):
     game.start_time = timezone.now()
     game.save()
     serializerGame = GameSerializer(game)
-    return Response({'status': 'success', "game":serializerGame.data}, status=200)
+    playerSerializer = PlayerSerializer(players,many=True)
+    return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
