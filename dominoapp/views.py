@@ -62,7 +62,9 @@ def getAllGames(request):
 def getGame(request,game_id):
     result = DominoGame.objects.get(id=game_id)
     serializer =GameSerializer(result)
-    return Response({'status': 'success', "games":serializer.data}, status=200)
+    players = playersCount(result)
+    playerSerializer = PlayerSerializer(players,many=True)
+    return Response({'status': 'success', "games":serializer.data,"players":playerSerializer.data}, status=200)
 
 
 @api_view(['GET',])
@@ -110,6 +112,9 @@ def startGame(request,game_id):
     if game.starter == -1:
         game.next_player = random.randint(0,len(players)-1)
         game.starter = game.next_player
+    else:
+        game.next_player = game.starter
+    game.winner=-1    
     game.board = ''    
     game.status = "ru"
     game.start_time = timezone.now()
@@ -125,7 +130,7 @@ def move(request,game_id,alias,tile):
     n = len(players)
     if isPass(tile):
         if checkClosedGame(game,n):
-            winner = getWinner(game,players)
+            winner = getWinner(players)
             game.status = 'fi'
             game.winner = winner
     else:
@@ -150,7 +155,7 @@ def move(request,game_id,alias,tile):
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
-        if player.id == players[i]:
+        if player.id == players[i].id:
             return i
     return -1
 
@@ -205,23 +210,25 @@ def checkClosedGame(game, playersCount):
             lastPasses+=1
             if lastPasses == playersCount-1:
                 return True
-        else:
+        elif len(tile) != 0:
             return False
+    return False
             
 
 def isPass(tile):
-    return tile[0] == '-1'
+    values = tile.split('|')
+    return values[0] == "-1"
 
 def playersCount(game):
     players = []
     if game.player1 is not None:
-        players.append(game.player1.id)
+        players.append(game.player1)
     if game.player2 is not None:
-        players.append(game.player2.id)
+        players.append(game.player2)
     if game.player3 is not None:
-        players.append(game.player3.id)
+        players.append(game.player3)
     if game.player4 is not None:
-        players.append(game.player4.id)
+        players.append(game.player4)
     return players
 
 def shuffle(variant, players):
@@ -239,7 +246,7 @@ def shuffle(variant, players):
     random.shuffle(tiles)
 
     for i in range(len(players)):
-        player = Player.objects.get(id=players[i])
+        player = Player.objects.get(id=players[i].id)
         player.tiles = ""
         for j in range(max):
             player.tiles+=tiles[i*max+j]
