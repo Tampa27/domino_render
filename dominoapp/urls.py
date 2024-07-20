@@ -11,4 +11,5 @@ urlpatterns = [
     path(r'join/<str:alias>/<int:game_id>',views.joinGame,name='join game'),
     path(r'start/<int:game_id>',views.startGame,name='start game'),
     path(r'move/<int:game_id>/<str:alias>/<str:tile>/',views.move,name='movement'),
+    path(r'cleargames/',views.clearGames,name='clear games'),
 ]

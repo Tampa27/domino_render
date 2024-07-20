@@ -64,7 +64,7 @@ def getGame(request,game_id):
     serializer =GameSerializer(result)
     players = playersCount(result)
     playerSerializer = PlayerSerializer(players,many=True)
-    return Response({'status': 'success', "games":serializer.data,"players":playerSerializer.data}, status=200)
+    return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
 
 @api_view(['GET',])
@@ -113,6 +113,11 @@ def joinGame(request,alias,game_id):
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
     else:
         return Response({'status': 'Full players', "game":None}, status=300)
+
+@api_view(['GET',])
+def clearGames(request):
+    DominoGame.objects.all().delete()
+    return Response({'status': 'success', "message":'All games deleted'}, status=200)
 
 @api_view(['GET',])
 def startGame(request,game_id):
