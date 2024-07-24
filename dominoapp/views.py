@@ -70,6 +70,9 @@ def getGame(request,game_id):
 @api_view(['GET',])
 def createGame(request,alias,variant):
     player1,created = Player.objects.get_or_create(alias=alias)
+    if created == False:
+        player1.tiles = ""
+        player1.save()
     game = DominoGame.objects.create(player1=player1,variant=variant)
     game.save()
     serializer = GameSerializer(game)
