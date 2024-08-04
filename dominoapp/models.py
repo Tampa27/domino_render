@@ -32,6 +32,8 @@ class DominoGame(models.Model):
     startWinner = models.BooleanField(default=True)
     lostStartInTie = models.BooleanField(default=True)
     starter = models.SmallIntegerField(default=-1,null=True,blank=True)
+    leftValue = models.SmallIntegerField(default=-1)
+    rightValue = models.SmallIntegerField(default=-1)
 
 
     def __str__(self) -> str:
