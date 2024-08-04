@@ -137,6 +137,8 @@ def startGame(request,game_id):
     game.board = ''    
     game.status = "ru"
     game.start_time = timezone.now()
+    game.leftValue = -1
+    game.rightValue = -1
     game.save()
     serializerGame = GameSerializer(game)
     playerSerializer = PlayerSerializer(players,many=True)
@@ -156,6 +158,7 @@ def move(request,game_id,alias,tile):
         else:
             game.next_player = (game.next_player+1) % n    
     else:
+        updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
         player.save()
@@ -180,6 +183,19 @@ def getPlayerIndex(players,player):
         if player.id == players[i].id:
             return i
     return -1
+
+def updateSides(game,tile):
+    values = tile.split('|')
+    value1 = int(values[0])
+    value2 = int(values[1])
+    if len(game.board) == 0:
+        game.leftValue = value1
+        game.rightValue = value2
+    else:    
+        if value1 == game.leftValue:
+            game.leftValue = value2
+        else:
+            game.rightValue = value2    
 
 def updateTiles(player,tile):
     tiles = player.tiles.split(',')
