@@ -153,6 +153,8 @@ def move(request,game_id,alias,tile):
             winner = getWinner(players)
             game.status = 'fi'
             game.winner = winner
+        else:
+            game.next_player = (game.next_player+1) % n    
     else:
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
@@ -165,7 +167,7 @@ def move(request,game_id,alias,tile):
             game.status = 'fi'
         else:
             game.next_player = (w+1) % n 
-    if(game.winner == -1):             
+    if(game.winner == -1 ):             
         game.board += (tile+',')
     else:
         game.board += tile        
