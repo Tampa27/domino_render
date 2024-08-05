@@ -85,30 +85,31 @@ def joinGame(request,alias,game_id):
     player.tiles = ""
     player.save()
     game = DominoGame.objects.get(id=game_id)
-    joined = False
+    joined = checkPlayerJoined(player,game)
     joined_count = 1
     players = [game.player1]
-    if game.player2 is None:
-        game.player2 = player
-        joined = True
-        joined_count+=1
-        game.status = "ready"
-        players.append(game.player2)
-    elif game.player3 is None:
-        game.player3 = player
-        joined = True
-        joined_count+=2
-        game.status = "ready"
-        players.append(game.player2)
-        players.append(game.player3)
-    elif game.player4 is None:
-        game.player4 = player
-        joined = True
-        joined_count+=3
-        game.status = "ready"
-        players.append(game.player2)
-        players.append(game.player3)
-        players.append(game.player4)
+    if joined != True:
+        if game.player2 is None:
+            game.player2 = player
+            joined = True
+            joined_count+=1
+            game.status = "ready"
+            players.append(game.player2)
+        elif game.player3 is None :
+            game.player3 = player
+            joined = True
+            joined_count+=2
+            game.status = "ready"
+            players.append(game.player2)
+            players.append(game.player3)
+        elif game.player4 is None:
+            game.player4 = player
+            joined = True
+            joined_count+=3
+            game.status = "ready"
+            players.append(game.player2)
+            players.append(game.player3)
+            players.append(game.player4)
 
     if joined == True:
         game.save()    
@@ -117,6 +118,17 @@ def joinGame(request,alias,game_id):
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
     else:
         return Response({'status': 'Full players', "game":None}, status=300)
+
+def checkPlayerJoined(player,game):
+    if game.player1 != None and game.player1.alias == player.alias:
+        return True
+    elif game.player2 != None and game.player2.alias == player.alias:
+        return True
+    elif game.player3 != None and game.player3.alias == player.alias:
+        return True
+    elif game.player4 != None and game.player4.alias == player.alias:
+        return True
+    return False
 
 @api_view(['GET',])
 def clearGames(request):
