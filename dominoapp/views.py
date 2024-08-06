@@ -85,10 +85,11 @@ def joinGame(request,alias,game_id):
     player.tiles = ""
     player.save()
     game = DominoGame.objects.get(id=game_id)
-    joined = checkPlayerJoined(player,game)
-    joined_count = 1
-    players = [game.player1]
+    joined,players = checkPlayerJoined(player,game)
+    joined_count = len(players)
     if joined != True:
+        players = [game.player1]
+        joined_count = 1
         if game.player2 is None:
             game.player2 = player
             joined = True
@@ -120,15 +121,25 @@ def joinGame(request,alias,game_id):
         return Response({'status': 'Full players', "game":None}, status=300)
 
 def checkPlayerJoined(player,game):
-    if game.player1 != None and game.player1.alias == player.alias:
-        return True
-    elif game.player2 != None and game.player2.alias == player.alias:
-        return True
-    elif game.player3 != None and game.player3.alias == player.alias:
-        return True
-    elif game.player4 != None and game.player4.alias == player.alias:
-        return True
-    return False
+    res = False
+    players = []
+    if game.player1 != None:
+        players.append(game.player1)
+        if game.player1.alias == player.alias:
+            res = True
+    if game.player2 != None:
+        players.append(game.player2)
+        if game.player2.alias == player.alias:
+            res = True
+    if game.player3 != None:
+        players.append(game.player3)
+        if game.player3.alias == player.alias:
+            res = True
+    if game.player4 != None:
+        players.append(game.player4)
+        if game.player4.alias == player.alias:
+            res = True
+    return res,players
 
 @api_view(['GET',])
 def clearGames(request):
