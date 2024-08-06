@@ -193,10 +193,8 @@ def move(request,game_id,alias,tile):
             game.status = 'fi'
         else:
             game.next_player = (w+1) % n 
-    if(game.winner == -1 ):             
-        game.board += (tile+',')
-    else:
-        game.board += tile        
+
+    game.board += (tile+',')        
     game.save()
     serializerGame = GameSerializer(game)
     return Response({'status': 'success', "game":serializerGame.data}, status=200)
