@@ -7,6 +7,7 @@ class Player(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE,null=True,blank=True)
     alias = models.CharField(max_length=32) 
     tiles = models.CharField(max_length=50)
+    coins = models.IntegerField(default=0)
     def __str__(self):
         return self.alias
     
@@ -25,7 +26,7 @@ class DominoGame(models.Model):
     winner = models.SmallIntegerField(default=-1,null=True,blank=True)
     scoreTeam1 = models.IntegerField(default=0,null=True,blank=True)
     scoreTeam2 = models.IntegerField(default=0,null=True,blank=True)
-    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play'),('fi','finished')],default="wt")
+    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play'),('fi','finished'),('fg','game_finished'),('pa','paused')],default="wt")
     maxScore = models.IntegerField(default=100,null=True,blank=True)
     inPairs = models.BooleanField(default=False)
     perPoints = models.BooleanField(default=False)
