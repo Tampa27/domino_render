@@ -33,3 +33,9 @@ class GameSerializer(serializers.ModelSerializer):
     class Meta:
         model = DominoGame
         fields = ('__all__')
+
+class MyPlayerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Player
+        fields = ('__all__')

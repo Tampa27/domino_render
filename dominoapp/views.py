@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status 
 from .models import Player
 from .serializers import PlayerSerializer
+from .serializers import MyPlayerSerializer
 from .models import DominoGame
 from .serializers import GameSerializer
 from django.shortcuts import get_object_or_404 
@@ -48,11 +49,12 @@ class PlayerView(APIView):
         return Response({"status": "success", "data": "Record Deleted"})    
 
 class PlayerCreate(generics.CreateAPIView):
-
-    def post(self, request, *args, **kwargs):
-        serializer = PlayerSerializer(data=request.data)  
+    queryset = Player.objects.all()
+    serializer_class = MyPlayerSerializer
+    def post(self, request, *args, **kwargs):    
+        serializer = self.get_serializer(data=request.data)  
         if serializer.is_valid():  
-            serializer.save()  
+            self.perform_create(serializer)  
             return Response({"status": "success", "player": serializer.data}, status=status.HTTP_200_OK)  
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
