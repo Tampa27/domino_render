@@ -48,15 +48,14 @@ class PlayerView(APIView):
         return Response({"status": "success", "data": "Record Deleted"})    
 
 class PlayerCreate(generics.CreateAPIView):
-    queryset = Player.objects.all()
-    serializer_class = PlayerSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            self.perform_create(serializer)
-            return Response({"status":status.HTTP_201_CREATED,"player":serializer.data })
-        return Response({"status":status.HTTP_400_BAD_REQUEST,"error":serializer.errors })
+        serializer = PlayerSerializer(data=request.data)  
+        if serializer.is_valid():  
+            serializer.save()  
+            return Response({"status": "success", "player": serializer.data}, status=status.HTTP_200_OK)  
+        else:  
+            return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 class PlayersView(APIView):
     def get(self, request, *args, **kwargs):  
