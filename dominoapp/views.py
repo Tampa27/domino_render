@@ -59,6 +59,18 @@ class PlayerCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+class PlayerUpdate(generics.CreateAPIView):
+    queryset = Player.objects.all()
+    serializer_class = MyPlayerSerializer        
+    def patch(self, request, alias):  
+        result = Player.objects.get(alias=alias)  
+        serializer = self.get_serializer(result, data = request.data, partial=True)  
+        if serializer.is_valid():  
+            serializer.save()  
+            return Response({"status": "success", "player": serializer.data})  
+        else:  
+            return Response({"status": "error", "data": serializer.errors})      
+
 class PlayersView(APIView):
     def get(self, request, *args, **kwargs):  
         result = Player.objects.all()  
