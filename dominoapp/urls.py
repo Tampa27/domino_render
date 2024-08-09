@@ -12,4 +12,6 @@ urlpatterns = [
     path(r'start/<int:game_id>',views.startGame,name='start game'),
     path(r'move/<int:game_id>/<str:alias>/<str:tile>/',views.move,name='movement'),
     path(r'cleargames/',views.clearGames,name='clear games'),
+    path(r'player/',views.PlayerCreate.as_view(),name='create player'),
+
 ]

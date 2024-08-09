@@ -6,7 +6,7 @@ from django.utils import timezone
 class Player(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE,null=True,blank=True)
     alias = models.CharField(max_length=32) 
-    tiles = models.CharField(max_length=50)
+    tiles = models.CharField(max_length=50,default="")
     coins = models.IntegerField(default=0)
     def __str__(self):
         return self.alias

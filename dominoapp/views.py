@@ -8,6 +8,7 @@ from .models import DominoGame
 from .serializers import GameSerializer
 from django.shortcuts import get_object_or_404 
 from rest_framework.decorators import api_view
+from rest_framework import generics
 from django.utils import timezone
 import random
 
@@ -45,7 +46,18 @@ class PlayerView(APIView):
         result = get_object_or_404(Player, id=id)  
         result.delete()  
         return Response({"status": "success", "data": "Record Deleted"})    
-    
+
+class PlayerCreate(generics.CreateAPIView):
+    queryset = Player.objects.all()
+    serializer_class = PlayerSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            return Response({"status":status.HTTP_201_CREATED,"player":serializer.data })
+        return Response({"status":status.HTTP_400_BAD_REQUEST,"error":serializer.errors })
+
 class PlayersView(APIView):
     def get(self, request, *args, **kwargs):  
         result = Player.objects.all()  
