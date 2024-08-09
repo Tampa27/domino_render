@@ -6,6 +6,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     user = serializers.ModelField
     alias = serializers.CharField(max_length=32,required=True)
     tiles = serializers.CharField(max_length=32)
+    coins = serializers.IntegerField()
 
     class Meta:
         model = Player
@@ -23,6 +24,7 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.user = validated_data.get('user', instance.user)
         instance.alias = validated_data.get('alias', instance.alias)
         instance.tiles = validated_data.get('tiles', instance.tiles)
+        instance.coins = validated_data.get('coins', instance.coins)
         instance.save()
         return instance     
     
