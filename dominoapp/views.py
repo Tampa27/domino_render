@@ -80,11 +80,17 @@ class PlayersView(APIView):
 class GameCreate(generics.CreateAPIView):
     queryset = DominoGame.objects.all()
     serializer_class = GameSerializer
-    def post(self, request, *args, **kwargs):    
+    def post(self, request, alias):    
         serializer = self.get_serializer(data=request.data)  
         if serializer.is_valid():  
             self.perform_create(serializer)  
-            return Response({"status": "success", "game": serializer.data}, status=status.HTTP_200_OK)  
+            player1,created = Player.objects.get_or_create(alias=alias)
+            player1.tiles = ""
+            player1.points=0
+            player1.save()
+            players = [player1]
+            playerSerializer = PlayerSerializer(players,many=True)
+            return Response({"status": "success", "game": serializer.data,"players":playerSerializer.data}, status=status.HTTP_200_OK)  
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 

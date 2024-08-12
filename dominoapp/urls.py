@@ -14,6 +14,6 @@ urlpatterns = [
     path(r'cleargames/',views.clearGames,name='clear games'),
     path(r'player/',views.PlayerCreate.as_view(),name='create player'),
     path(r'player/<str:alias>',views.PlayerUpdate.as_view(),name='update player'),
-    path(r'game/',views.GameCreate.as_view(),name='create game'),
+    path(r'game/<str:alias>',views.GameCreate.as_view(),name='create game'),
     path(r'cleanplayers/',views.cleanPlayers,name='clear games'),
 ]
