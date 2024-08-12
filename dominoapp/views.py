@@ -89,6 +89,9 @@ class GameCreate(generics.CreateAPIView):
             player1.points=0
             player1.save()
             players = [player1]
+            data = serializer.validated_data
+            data['player1']=player1
+            serializer.save(player1=data['player1'])
             playerSerializer = PlayerSerializer(players,many=True)
             return Response({"status": "success", "game": serializer.data,"players":playerSerializer.data}, status=status.HTTP_200_OK)  
         else:  
