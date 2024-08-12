@@ -192,6 +192,12 @@ def clearGames(request):
     return Response({'status': 'success', "message":'All games deleted'}, status=200)
 
 @api_view(['GET',])
+def cleanPlayers(request):
+    Player.objects.all().delete()
+    return Response({'status': 'success', "message":'All players deleted'}, status=200)
+
+
+@api_view(['GET',])
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
