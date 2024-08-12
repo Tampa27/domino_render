@@ -8,6 +8,7 @@ class Player(models.Model):
     alias = models.CharField(max_length=32) 
     tiles = models.CharField(max_length=50,default="")
     coins = models.IntegerField(default=0)
+    points = models.IntegerField(default=0)
     def __str__(self):
         return self.alias
     
@@ -35,6 +36,14 @@ class DominoGame(models.Model):
     starter = models.SmallIntegerField(default=-1,null=True,blank=True)
     leftValue = models.SmallIntegerField(default=-1)
     rightValue = models.SmallIntegerField(default=-1)
+    payPassValue = models.IntegerField(default=0,null=True,blank=True)
+    payWinValue = models.IntegerField(default=0,null=True,blank=True)
+    lastTime1 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
+    lastTime2 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
+    lastTime3 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
+    lastTime4 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
+    startAuto = models.IntegerField(default=2,null=True,blank=True)
+    sumAllPoints = models.BooleanField(default=False,null=True,blank=True)
 
 
     def __str__(self) -> str:

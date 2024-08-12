@@ -77,6 +77,17 @@ class PlayersView(APIView):
         serializers = PlayerSerializer(result, many=True)  
         return Response({'status': 'success', "players":serializers.data}, status=200)  
 
+class GameCreate(generics.CreateAPIView):
+    queryset = DominoGame.objects.all()
+    serializer_class = GameSerializer
+    def post(self, request, *args, **kwargs):    
+        serializer = self.get_serializer(data=request.data)  
+        if serializer.is_valid():  
+            self.perform_create(serializer)  
+            return Response({"status": "success", "game": serializer.data}, status=status.HTTP_200_OK)  
+        else:  
+            return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['GET',])
 def getAllGames(request):
     result = DominoGame.objects.all()
@@ -113,19 +124,27 @@ def joinGame(request,alias,game_id):
     joined,players = checkPlayerJoined(player,game)
     joined_count = len(players)
     if joined != True:
-        players = [game.player1]
-        joined_count = 1
-        if game.player2 is None:
+        players = []
+        joined_count = 0
+        if game.player1 is None:
+            game.player1 = player
+            joined = True
+            joined_count+=1
+            game.status = "wt"
+            players.append(game.player1)
+        elif game.player2 is None:
             game.player2 = player
             joined = True
             joined_count+=1
             game.status = "ready"
+            players.append(game.player1)
             players.append(game.player2)
         elif game.player3 is None :
             game.player3 = player
             joined = True
             joined_count+=2
             game.status = "ready"
+            players.append(game.player1)
             players.append(game.player2)
             players.append(game.player3)
         elif game.player4 is None:
@@ -133,6 +152,7 @@ def joinGame(request,alias,game_id):
             joined = True
             joined_count+=3
             game.status = "ready"
+            players.append(game.player1)
             players.append(game.player2)
             players.append(game.player3)
             players.append(game.player4)
