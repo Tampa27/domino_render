@@ -44,6 +44,7 @@ class DominoGame(models.Model):
     lastTime4 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
     startAuto = models.IntegerField(default=2,null=True,blank=True)
     sumAllPoints = models.BooleanField(default=False,null=True,blank=True)
+    capicua = models.BooleanField(default=False,null=True,blank=True)
 
 
     def __str__(self) -> str:
