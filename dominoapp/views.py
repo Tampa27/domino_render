@@ -256,6 +256,14 @@ def move(request,game_id,alias,tile):
                 updateAllPoints(game,players,winner)                        
         else:
             game.next_player = (w+1) % n 
+    elif checkClosedGame(game,players):
+        winner = getWinner(players)
+        game.status = 'fi'
+        game.winner = winner
+        game.starter = winner
+        game.next_player = winner
+        if game.perPoints and winner < 4:
+            updateAllPoints(game,players,winner)
     else:
         game.next_player = (w+1) % n
     game.board += (tile+',')        
