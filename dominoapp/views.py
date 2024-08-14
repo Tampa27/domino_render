@@ -233,13 +233,12 @@ def move(request,game_id,alias,tile):
     players = playersCount(game)
     player = Player.objects.get(alias=alias)
     n = len(players)
-        
+    w = getPlayerIndex(players,player)    
     if isPass(tile) == False:
         updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
         player.save()
-        w = getPlayerIndex(players,player)
         if tiles_count == 0:
             game.status = 'fi'
             game.winner = w
@@ -257,7 +256,8 @@ def move(request,game_id,alias,tile):
                 updateAllPoints(game,players,winner)                        
         else:
             game.next_player = (w+1) % n 
-
+    else:
+        game.next_player = (w+1) % n
     game.board += (tile+',')        
     game.save()
     serializerGame = GameSerializer(game)
