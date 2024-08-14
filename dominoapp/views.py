@@ -233,24 +233,28 @@ def move(request,game_id,alias,tile):
     players = playersCount(game)
     player = Player.objects.get(alias=alias)
     n = len(players)
-    if isPass(tile):
-        if checkClosedGame(game,n):
-            winner = getWinner(players)
-            game.status = 'fi'
-            game.winner = winner
-        else:
-            game.next_player = (game.next_player+1) % n    
-    else:
+        
+    if isPass(tile) == False:
         updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
         player.save()
         w = getPlayerIndex(players,player)
         if tiles_count == 0:
+            game.status = 'fi'
             game.winner = w
             game.starter = w
             game.next_player = w
+            if game.perPoints:
+                updateAllPoints(game,players,w)
+        elif checkClosedGame(game,players):
+            winner = getWinner(players)
             game.status = 'fi'
+            game.winner = winner
+            game.starter = winner
+            game.next_player = winner
+            if game.perPoints and winner < 4:
+                updateAllPoints(game,players,winner)                        
         else:
             game.next_player = (w+1) % n 
 
@@ -258,6 +262,85 @@ def move(request,game_id,alias,tile):
     game.save()
     serializerGame = GameSerializer(game)
     return Response({'status': 'success', "game":serializerGame.data}, status=200)
+
+@api_view(['GET',])
+def exitGame(request,game_id,alias):
+    game = DominoGame.objects.get(id=game_id)
+    player = Player.objects.get(alias=alias)
+    exited = False
+    if game.player1 != None and game.player1.alias == player.alias:
+        game.player1 = None
+        exited = True
+    elif game.player2 != None and game.player2.alias == player.alias:
+        game.player2 = None
+        exited = True
+    elif game.player3 != None and game.player3.alias == player.alias:
+        game.player3 = None
+        exited = True
+    elif game.player4 != None and game.player4.alias == player.alias:
+        game.player4 = None
+        exited = True
+    player.points = 0
+    player.tiles = ""
+    player.save()
+    if exited:
+        return Response({'status': 'success', "message":'Player exited'}, status=200)
+    return Response({'status': 'error', "message":'Player no found'}, status=300)
+
+def updateTeamScore(game, winner, players, sum_points):
+    if winner == 0 or winner == 2:
+        game.scoreTeam1 += sum_points
+        players[0].points+=sum_points
+        players[2].points+=sum_points
+        players[0].save()
+        players[2].save()
+    else:
+        game.scoreTeam2 += sum_points
+        players[1].points+=sum_points
+        players[3].points+=sum_points
+        players[1].save()
+        players[3].save()
+    if game.scoreTeam1 >= game.maxScore:
+        game.status="fg"
+        game.winner = 5 #Gano el equipo 1
+    elif game.scoreTeam2 >= game.maxScore:
+        game.status="fg"
+        game.winner = 6 #Gano el equipo 2
+    game.winner = winner
+    game.starter = winner    
+
+def updateAllPoints(game,players,winner):
+    sum_points = 0
+    n = len(players)
+    if game.sumAllPoints:
+        for i in range(n):
+            sum_points+=totalPoints(players[i].tiles)     
+        if game.inPairs:
+            updateTeamScore(game,winner,players,sum_points)                
+        else:
+            players[winner].points+=sum_points
+            players[winner].save()
+            if players[winner].points >= game.maxScore:
+                game.status = "fg"
+                game.winner= winner
+                game.starter = winner
+                game.next_player = winner                      
+            else:#En caso en que se sumen los puntos solo de los perdedores
+                for i in range(n):
+                    if i != winner:
+                        sum_points+=totalPoints(players[i].tiles)
+                if game.inPairs:
+                    patner = (winner+2)%4
+                    sum_points-=totalPoints(players[patner].tiles)
+                    updateTeamScore(game,winner,players,sum_points)
+                else:
+                    players[winner].points+=sum_points
+                    players[winner].save()
+                    if players[winner].points >= game.maxScore:
+                        game.status = "fg"
+                        game.winner = winner 
+                        game.starter = winner
+                        game.next_player = winner
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
@@ -306,7 +389,7 @@ def getWinner(players):
             min = pts
             res = i
         elif pts == min:
-            res = 5
+            res = 4
         i+=1    
     return res
 
@@ -333,6 +416,16 @@ def checkClosedGame(game, playersCount):
             return False
     return False
             
+def checkClosedGame(game,players):
+    for player in players:
+        tiles = player.tiles.split(',')
+        for tile in tiles:
+            values = tile.split('|')
+            val0 = int(values[0])
+            val1 = int(values[1])
+            if val0 == game.leftValue or val0 == game.rightValue or val1 == game.leftValue or val1 == game.rightValue:
+                return False
+    return True    
 
 def isPass(tile):
     values = tile.split('|')
