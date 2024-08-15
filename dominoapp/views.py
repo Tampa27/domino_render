@@ -240,7 +240,7 @@ def move(request,game_id,alias,tile):
         player.tiles = tiles
         player.save()
         if tiles_count == 0:
-            game.status = 'fi'
+            game.status = 'fg'
             game.winner = w
             game.starter = w
             game.next_player = w
@@ -248,7 +248,7 @@ def move(request,game_id,alias,tile):
                 updateAllPoints(game,players,w)
         elif checkClosedGame(game,players):
             winner = getWinner(players)
-            game.status = 'fi'
+            game.status = 'fg'
             game.winner = winner
             game.starter = winner
             game.next_player = winner
@@ -258,7 +258,7 @@ def move(request,game_id,alias,tile):
             game.next_player = (w+1) % n 
     elif checkClosedGame(game,players):
         winner = getWinner(players)
-        game.status = 'fi'
+        game.status = 'fg'
         game.winner = winner
         game.starter = winner
         game.next_player = winner
@@ -314,6 +314,8 @@ def updateTeamScore(game, winner, players, sum_points):
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
         game.winner = 6 #Gano el equipo 2
+    else:
+        game.status="fi"    
     game.winner = winner
     game.starter = winner    
 
@@ -330,25 +332,29 @@ def updateAllPoints(game,players,winner):
             players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
-                game.winner= winner
-                game.starter = winner
-                game.next_player = winner                      
-            else:#En caso en que se sumen los puntos solo de los perdedores
-                for i in range(n):
-                    if i != winner:
-                        sum_points+=totalPoints(players[i].tiles)
-                if game.inPairs:
-                    patner = (winner+2)%4
-                    sum_points-=totalPoints(players[patner].tiles)
-                    updateTeamScore(game,winner,players,sum_points)
-                else:
-                    players[winner].points+=sum_points
-                    players[winner].save()
-                    if players[winner].points >= game.maxScore:
-                        game.status = "fg"
-                        game.winner = winner 
-                        game.starter = winner
-                        game.next_player = winner
+            else:
+                game.status = "fi"    
+            game.winner= winner
+            game.starter = winner
+            game.next_player = winner                      
+    else:#En caso en que se sumen los puntos solo de los perdedores
+        for i in range(n):
+            if i != winner:
+                sum_points+=totalPoints(players[i].tiles)
+        if game.inPairs:
+            patner = (winner+2)%4
+            sum_points-=totalPoints(players[patner].tiles)
+            updateTeamScore(game,winner,players,sum_points)
+        else:
+            players[winner].points+=sum_points
+            players[winner].save()
+            if players[winner].points >= game.maxScore:
+                game.status = "fg"
+            else:
+                game.status = "fi"    
+            game.winner = winner 
+            game.starter = winner
+            game.next_player = winner
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
