@@ -210,14 +210,17 @@ def cleanPlayers(request):
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    shuffle(game.variant,players)
+    shuffle(game,players)
     if game.starter == -1:
         game.next_player = random.randint(0,len(players)-1)
         game.starter = game.next_player
     else:
         game.next_player = game.starter
     game.winner=-1    
-    game.board = ''    
+    game.board = ''
+    if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
+        game.scoreTeam1 = 0
+        game.scoreTeam2 = 0    
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
@@ -250,8 +253,9 @@ def move(request,game_id,alias,tile):
             winner = getWinner(players)
             game.status = 'fg'
             game.winner = winner
-            game.starter = winner
-            game.next_player = winner
+            if winner < 4:
+                game.starter = winner
+                game.next_player = winner
             if game.perPoints and winner < 4:
                 updateAllPoints(game,players,winner)                        
         else:
@@ -260,8 +264,9 @@ def move(request,game_id,alias,tile):
         winner = getWinner(players)
         game.status = 'fg'
         game.winner = winner
-        game.starter = winner
-        game.next_player = winner
+        if winner < 4:
+            game.starter = winner
+            game.next_player = winner
         if game.perPoints and winner < 4:
             updateAllPoints(game,players,winner)
     else:
@@ -457,10 +462,10 @@ def playersCount(game):
         players.append(game.player4)
     return players
 
-def shuffle(variant, players):
+def shuffle(game, players):
     tiles = []
     max = 0
-    if variant == "d6":
+    if game.variant == "d6":
         max = 7
     else:
         max = 10
@@ -474,6 +479,8 @@ def shuffle(variant, players):
     for i in range(len(players)):
         player = Player.objects.get(id=players[i].id)
         player.tiles = ""
+        if game.perPoints and (game.status =="ready" or game.status =="fg"):
+            player.points = 0
         for j in range(max):
             player.tiles+=tiles[i*max+j]
             if j < (max-1):
