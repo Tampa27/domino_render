@@ -273,8 +273,8 @@ def move(request,game_id,alias,tile):
         game.next_player = (w+1) % n
     game.board += (tile+',')        
     game.save()
-    serializerGame = GameSerializer(game)
-    return Response({'status': 'success', "game":serializerGame.data}, status=200)
+    #serializerGame = GameSerializer(game)
+    return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
