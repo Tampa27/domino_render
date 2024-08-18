@@ -271,7 +271,8 @@ def move(request,game_id,alias,tile):
     else:
         game.next_player = (w+1) % n
     game.board += (tile+',')
-    player.save()        
+    for p in players:
+        p.save()        
     game.save()
     #serializerGame = GameSerializer(game)
     return Response({'status': 'success'}, status=200)
