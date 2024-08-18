@@ -274,7 +274,7 @@ def move(request,game_id,alias,tile):
     game.board += (tile+',')        
     game.save()
     #serializerGame = GameSerializer(game)
-    return Response({'status': 'success','count':tiles_count,'tiles':tiles}, status=200)
+    return Response({'status': 'success','count':tiles_count,'tiles':player.tiles}, status=200)
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
