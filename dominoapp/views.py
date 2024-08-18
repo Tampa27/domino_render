@@ -241,7 +241,7 @@ def move(request,game_id,alias,tile):
         updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
-        player.force_update()
+        player.save()
         if tiles_count == 0:
             game.status = 'fg'
             game.winner = w
