@@ -241,14 +241,13 @@ def move(request,game_id,alias,tile):
         updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
-        player.save()
         if tiles_count == 0:
             game.status = 'fg'
             game.winner = w
             game.starter = w
             game.next_player = w
-            #if game.perPoints:
-            #    updateAllPoints(game,players,w)
+            if game.perPoints:
+                updateAllPoints(game,players,w)
         elif checkClosedGame(game,players):
             winner = getWinner(players)
             game.status = 'fg'
@@ -259,7 +258,7 @@ def move(request,game_id,alias,tile):
             if game.perPoints and winner < 4:
                 updateAllPoints(game,players,winner)                        
         else:
-            game.next_player = (w+1) % n 
+            game.next_player = (w+1) % n     
     elif checkClosedGame(game,players):
         winner = getWinner(players)
         game.status = 'fg'
@@ -271,7 +270,8 @@ def move(request,game_id,alias,tile):
             updateAllPoints(game,players,winner)
     else:
         game.next_player = (w+1) % n
-    game.board += (tile+',')        
+    game.board += (tile+',')
+    player.save()        
     game.save()
     #serializerGame = GameSerializer(game)
     return Response({'status': 'success','count':tiles_count,'tiles':player.tiles}, status=200)
@@ -334,7 +334,7 @@ def updateAllPoints(game,players,winner):
             updateTeamScore(game,winner,players,sum_points)                
         else:
             players[winner].points+=sum_points
-            players[winner].save()
+            #players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
             else:
@@ -352,7 +352,7 @@ def updateAllPoints(game,players,winner):
             updateTeamScore(game,winner,players,sum_points)
         else:
             players[winner].points+=sum_points
-            players[winner].save()
+            #players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
             else:
