@@ -131,42 +131,29 @@ def joinGame(request,alias,game_id):
     player.save()
     game = DominoGame.objects.get(id=game_id)
     joined,players = checkPlayerJoined(player,game)
-    joined_count = len(players)
     if joined != True:
-        players = []
-        joined_count = 0
         if game.player1 is None:
             game.player1 = player
             joined = True
-            joined_count+=1
-            game.status = "wt"
-            players.append(game.player1)
+            players.insert(0,player)
         elif game.player2 is None:
             game.player2 = player
             joined = True
-            joined_count+=1
-            game.status = "ready"
-            players.append(game.player1)
-            players.append(game.player2)
+            players.insert(1,player)
         elif game.player3 is None :
             game.player3 = player
             joined = True
-            joined_count+=2
-            game.status = "ready"
-            players.append(game.player1)
-            players.append(game.player2)
-            players.append(game.player3)
+            players.insert(2,player)
         elif game.player4 is None:
             game.player4 = player
             joined = True
-            joined_count+=3
-            game.status = "ready"
-            players.append(game.player1)
-            players.append(game.player2)
-            players.append(game.player3)
-            players.append(game.player4)
+            players.insert(3,player)
 
     if joined == True:
+        if len(players) >= 2:
+            game.status = "ready"
+        else:
+            game.status = "wt"    
         game.save()    
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
@@ -299,7 +286,7 @@ def exitGame(request,game_id,alias):
     if exited:
         player.points = 0
         player.tiles = ""
-        if len(players) <= 2:
+        if len(players) < 2:
             game.status = "wt"
         player.save()
         game.save()
