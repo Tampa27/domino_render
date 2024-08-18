@@ -286,7 +286,7 @@ def exitGame(request,game_id,alias):
     if exited:
         player.points = 0
         player.tiles = ""
-        if len(players) < 2:
+        if len(players) <= 2:
             game.status = "wt"
         player.save()
         game.save()
