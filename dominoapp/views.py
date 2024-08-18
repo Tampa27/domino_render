@@ -281,24 +281,21 @@ def move(request,game_id,alias,tile):
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
-    player = Player.objects.get(alias=alias)
+    players = playersCount(game)
+    n = len(players)
     exited = False
-    if game.player1 != None and game.player1.alias == player.alias:
-        game.player1 = None
-        exited = True
-    elif game.player2 != None and game.player2.alias == player.alias:
-        game.player2 = None
-        exited = True
-    elif game.player3 != None and game.player3.alias == player.alias:
-        game.player3 = None
-        exited = True
-    elif game.player4 != None and game.player4.alias == player.alias:
-        game.player4 = None
-        exited = True
-    player.points = 0
-    player.tiles = ""
-    player.save()
+    for player in players:
+        if player.alias == alias:
+            player.tiles=""
+            player.points = 0
+            player.save()
+            exited = True
+            break
+
     if exited:
+        if (n-1) < 2 or game.inPairs:
+            game.status = "wt"
+        game.save()    
         return Response({'status': 'success', "message":'Player exited'}, status=200)
     return Response({'status': 'error', "message":'Player no found'}, status=300)
 
