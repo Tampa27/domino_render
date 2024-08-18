@@ -234,7 +234,9 @@ def startGame(request,game_id):
 def move(request,game_id,alias,tile):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    player = Player.objects.get(alias=alias)
+    for p in players:
+        if p.alias == alias:
+            player = p
     n = len(players)
     w = getPlayerIndex(players,player)    
     if isPass(tile) == False:
@@ -271,9 +273,7 @@ def move(request,game_id,alias,tile):
             updateAllPoints(game,players,winner)
     else:
         game.next_player = (w+1) % n
-    game.board += (tile+',')
-    for p in players:
-        p.save()        
+    game.board += (tile+',')        
     game.save()
     #serializerGame = GameSerializer(game)
     return Response({'status': 'success','count':tiles_count,'tiles':player.tiles}, status=200)
@@ -336,7 +336,7 @@ def updateAllPoints(game,players,winner):
             updateTeamScore(game,winner,players,sum_points)                
         else:
             players[winner].points+=sum_points
-            #players[winner].save()
+            players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
             else:
@@ -354,7 +354,7 @@ def updateAllPoints(game,players,winner):
             updateTeamScore(game,winner,players,sum_points)
         else:
             players[winner].points+=sum_points
-            #players[winner].save()
+            players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
             else:
