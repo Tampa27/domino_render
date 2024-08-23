@@ -237,7 +237,7 @@ def move(request,game_id,alias,tile):
             game.starter = w
             game.next_player = w
             if game.perPoints:
-                updateAllPoints(game,players,w)
+                updateAllPoints(game,players,w,isCapicua=checkCapicua(game,tile))
         elif checkClosedGame(game,players):
             winner = getWinner(players)
             game.status = 'fg'
@@ -266,7 +266,8 @@ def move(request,game_id,alias,tile):
             game.next_player = game.starter    
     else:
         game.next_player = (w+1) % n
-    game.board += (tile+',')        
+    game.board += (tile+',')
+    updateLastPlayerTime(game,alias)        
     game.save()
     #serializerGame = GameSerializer(game)
     return Response({'status': 'success','count':tiles_count,'tiles':player.tiles}, status=200)
@@ -323,12 +324,14 @@ def updateTeamScore(game, winner, players, sum_points):
     game.winner = winner
     game.starter = winner    
 
-def updateAllPoints(game,players,winner):
+def updateAllPoints(game,players,winner,isCapicua=False):
     sum_points = 0
     n = len(players)
     if game.sumAllPoints:
         for i in range(n):
-            sum_points+=totalPoints(players[i].tiles)     
+            sum_points+=totalPoints(players[i].tiles)
+            if isCapicua and game.capicua:
+                sum_points*=2     
         if game.inPairs:
             updateTeamScore(game,winner,players,sum_points)                
         else:
@@ -348,8 +351,12 @@ def updateAllPoints(game,players,winner):
         if game.inPairs:
             patner = (winner+2)%4
             sum_points-=totalPoints(players[patner].tiles)
+            if isCapicua and game.capicua:
+                sum_points*=2
             updateTeamScore(game,winner,players,sum_points)
         else:
+            if isCapicua and game.capicua:
+                sum_points*=2
             players[winner].points+=sum_points
             players[winner].save()
             if players[winner].points >= game.maxScore:
@@ -485,3 +492,22 @@ def shuffle(game, players):
             if j < (max-1):
                 player.tiles+=","
         player.save()    
+
+def checkCapicua(game,tile):
+    if game.leftValue == game.rightValue:
+        return False
+    values = tile.split('|')
+    val1 = int(values[0])
+    val2 = int(values[1])
+    return (val1 == game.leftValue and game.rightValue == val2) or (val2 == game.leftValue and game.rightValue == val1) 
+
+def updateLastPlayerTime(game,alias):
+    if game.player1 != None and game.player1.alias == alias:
+        game.lastTime1 = timezone.now()
+    elif game.player2 != None and game.player2.alias == alias:
+        game.lastTime2 = timezone.now()
+    if game.player3 != None and game.player3.alias == alias:
+        game.lastTime3 = timezone.now()
+    if game.player4 != None and game.player4.alias == alias:
+        game.lastTime4 = timezone.now()             
+
