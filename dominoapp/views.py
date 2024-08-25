@@ -233,9 +233,13 @@ def move(request,game_id,alias,tile):
         player.save()
         if tiles_count == 0:
             game.status = 'fg'
+            if game.startWinner:
+                game.starter = w
+                game.next_player = w
+            else:
+                game.starter = (game.starter+1)%n
+                game.next_player = game.starter    
             game.winner = w
-            game.starter = w
-            game.next_player = w
             if game.perPoints:
                 updateAllPoints(game,players,w,isCapicua=checkCapicua(game,tile))
         elif checkClosedGame(game,players):
@@ -243,13 +247,21 @@ def move(request,game_id,alias,tile):
             game.status = 'fg'
             game.winner = winner
             if winner < 4:
-                game.starter = winner
-                game.next_player = winner    
+                if game.startWinner:
+                    game.starter = winner
+                    game.next_player = winner
+                else:
+                    game.starter = (game.starter+1)%n
+                    game.next_player = game.starter                
             if game.perPoints and winner < 4:
                 updateAllPoints(game,players,winner)
             elif game.perPoints and winner == 4:
                 game.status = "fi"
-                game.next_player = game.starter                            
+                if game.startWinner:
+                    game.next_player = game.starter
+                else:
+                    game.starter = (game.starter+1)%n
+                    game.next_player = game.starter                                    
         else:
             game.next_player = (w+1) % n 
     elif checkClosedGame(game,players):
@@ -257,13 +269,21 @@ def move(request,game_id,alias,tile):
         game.status = 'fg'
         game.winner = winner
         if winner < 4:
-            game.starter = winner
-            game.next_player = winner
+            if game.startWinner:
+                game.starter = winner
+                game.next_player = winner
+            else:
+                game.starter = (game.starter+1)%n
+                game.next_player = game.starter        
         if game.perPoints and winner < 4:
             updateAllPoints(game,players,winner)
         elif game.perPoints and winner == 4:
             game.status = "fi"
-            game.next_player = game.starter    
+            if game.startWinner:
+                game.next_player = game.starter
+            else:    
+                game.starter = (game.starter+1)%n
+                game.next_player = game.starter        
     else:
         game.next_player = (w+1) % n
     game.board += (tile+',')
@@ -301,6 +321,7 @@ def exitGame(request,game_id,alias):
     return Response({'status': 'error', "message":'Player no found'}, status=300)
 
 def updateTeamScore(game, winner, players, sum_points):
+    n = len(players)
     if winner == 0 or winner == 2:
         game.scoreTeam1 += sum_points
         players[0].points+=sum_points
@@ -322,7 +343,12 @@ def updateTeamScore(game, winner, players, sum_points):
     else:
         game.status="fi"    
     game.winner = winner
-    game.starter = winner    
+    if game.startWinner:
+        game.starter = winner
+        game.next_player = winner
+    else:
+        game.starter = (game.starter+1)%n
+        game.next_player = game.starter    
 
 def updateAllPoints(game,players,winner,isCapicua=False):
     sum_points = 0
@@ -342,8 +368,12 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             else:
                 game.status = "fi"    
             game.winner= winner
-            game.starter = winner
-            game.next_player = winner                      
+            if game.startWinner:
+                game.starter = winner
+                game.next_player = winner
+            else:
+                game.starter = (game.starter+1)%n
+                game.next_player = game.starter                          
     else:#En caso en que se sumen los puntos solo de los perdedores
         for i in range(n):
             if i != winner:
@@ -364,8 +394,12 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             else:
                 game.status = "fi"    
             game.winner = winner 
-            game.starter = winner
-            game.next_player = winner
+            if game.startWinner:
+                game.starter = winner
+                game.next_player = winner
+            else:
+                game.starter = (game.starter+1)%n
+                game.next_player = game.starter
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
