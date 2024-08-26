@@ -207,7 +207,9 @@ def startGame(request,game_id):
     game.board = ''
     if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
         game.scoreTeam1 = 0
-        game.scoreTeam2 = 0    
+        game.scoreTeam2 = 0
+    if game.status == "fg":
+        game.rounds = 0        
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
@@ -232,6 +234,7 @@ def move(request,game_id,alias,tile):
         player.tiles = tiles
         player.save()
         if tiles_count == 0:
+            game.rounds+=1
             game.status = 'fg'
             if game.startWinner:
                 game.starter = w
@@ -244,6 +247,7 @@ def move(request,game_id,alias,tile):
                 updateAllPoints(game,players,w,isCapicua=checkCapicua(game,tile))
         elif checkClosedGame(game,players):
             winner = getWinner(players)
+            game.rounds+=1
             game.status = 'fg'
             game.winner = winner
             if winner < 4:
@@ -266,6 +270,7 @@ def move(request,game_id,alias,tile):
             game.next_player = (w+1) % n 
     elif checkClosedGame(game,players):
         winner = getWinner(players)
+        game.rounds+=1
         game.status = 'fg'
         game.winner = winner
         if winner < 4:

@@ -45,7 +45,7 @@ class DominoGame(models.Model):
     startAuto = models.IntegerField(default=2,null=True,blank=True)
     sumAllPoints = models.BooleanField(default=False,null=True,blank=True)
     capicua = models.BooleanField(default=False,null=True,blank=True)
-
+    rounds = models.SmallIntegerField(default=0)
 
     def __str__(self) -> str:
         return '%s %s %s %s' % (
