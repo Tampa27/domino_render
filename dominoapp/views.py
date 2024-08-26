@@ -347,14 +347,7 @@ def updateTeamScore(game, winner, players, sum_points):
         game.winner = 6 #Gano el equipo 2
     else:
         game.status="fi"    
-    game.winner = winner
-    if game.startWinner:
-        game.starter = winner
-        game.next_player = winner
-    else:
-        game.starter = (game.starter+1)%n
-        game.next_player = game.starter    
-
+    
 def updateAllPoints(game,players,winner,isCapicua=False):
     sum_points = 0
     n = len(players)
@@ -371,14 +364,7 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
             else:
-                game.status = "fi"    
-            game.winner= winner
-            if game.startWinner:
-                game.starter = winner
-                game.next_player = winner
-            else:
-                game.starter = (game.starter+1)%n
-                game.next_player = game.starter                          
+                game.status = "fi"                              
     else:#En caso en que se sumen los puntos solo de los perdedores
         for i in range(n):
             if i != winner:
@@ -398,13 +384,6 @@ def updateAllPoints(game,players,winner,isCapicua=False):
                 game.status = "fg"
             else:
                 game.status = "fi"    
-            game.winner = winner 
-            if game.startWinner:
-                game.starter = winner
-                game.next_player = winner
-            else:
-                game.starter = (game.starter+1)%n
-                game.next_player = game.starter
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
