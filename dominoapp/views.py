@@ -440,6 +440,8 @@ def getWinner(players):
     return res
 
 def totalPoints(tiles):
+    if len(tiles) == 0:
+        return 0
     total = 0
     list_tiles = tiles.split(',')
     for tile in list_tiles:

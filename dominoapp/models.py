@@ -43,7 +43,7 @@ class DominoGame(models.Model):
     lastTime3 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
     lastTime4 = models.DateTimeField(default=timezone.now(),null=True,blank=True)
     startAuto = models.IntegerField(default=2,null=True,blank=True)
-    sumAllPoints = models.BooleanField(default=False,null=True,blank=True)
+    sumAllPoints = models.BooleanField(default=False)
     capicua = models.BooleanField(default=False,null=True,blank=True)
     rounds = models.SmallIntegerField(default=0)
 
