@@ -229,6 +229,9 @@ def move(request,game_id,alias,tile):
     n = len(players)
     w = getPlayerIndex(players,player)    
     if isPass(tile) == False:
+        isCapicua = False
+        if game.perPoints:
+            isCapicua = checkCapicua(game,tile)
         updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
@@ -244,7 +247,7 @@ def move(request,game_id,alias,tile):
                 game.next_player = game.starter    
             game.winner = w
             if game.perPoints:
-                updateAllPoints(game,players,w,isCapicua=checkCapicua(game,tile))
+                updateAllPoints(game,players,w,isCapicua)
         elif checkClosedGame(game,players):
             winner = getWinner(players)
             game.rounds+=1
