@@ -111,6 +111,36 @@ def getGame(request,game_id):
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
+@api_view(['GET',])
+def setWinner(request,game_id,winner):
+    game = DominoGame.objects.get(id=game_id)
+    game.winner = winner
+    game.save()
+    return Response({'status': 'success'}, status=200)
+
+@api_view(['GET',])
+def setStarter(request,game_id,starter):
+    game = DominoGame.objects.get(id=game_id)
+    game.starter = starter
+    game.save()
+    return Response({'status': 'success'}, status=200)
+
+@api_view(['GET',])
+def setWinnerStarter(request,game_id,winner,starter):
+    game = DominoGame.objects.get(id=game_id)
+    game.starter = starter
+    game.winner = winner
+    game.save()
+    return Response({'status': 'success'}, status=200)
+
+@api_view(['GET',])
+def setWinnerStarterNext(request,game_id,winner,starter,next_player):
+    game = DominoGame.objects.get(id=game_id)
+    game.starter = starter
+    game.winner = winner
+    game.next_player = next_player
+    game.save()
+    return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
 def createGame(request,alias,variant):
@@ -150,10 +180,16 @@ def joinGame(request,alias,game_id):
             players.insert(3,player)
 
     if joined == True:
-        if len(players) >= 2:
-            game.status = "ready"
-        else:
-            game.status = "wt"    
+        if game.inPairs:
+            if len(players) == 4:
+               game.status = "ready"
+            else:
+                game.status = "wt"
+        else:                
+            if len(players) >= 2:
+                game.status = "ready"
+            else:
+                game.status = "wt"    
         game.save()    
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
