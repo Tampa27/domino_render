@@ -239,7 +239,7 @@ def startGame(request,game_id):
         game.starter = game.next_player
     else:
         game.next_player = game.starter
-    game.winner=-1    
+    #game.winner=-1    
     game.board = ''
     if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
         game.scoreTeam1 = 0
@@ -300,7 +300,7 @@ def move(request,game_id,alias,tile):
                 updateAllPoints(game,players,winner)
             elif game.perPoints and winner == 4:
                 game.status = "fi"
-                if game.startWinner:
+                if game.startWinner and game.lostStartInTie != True and game.inPairs == False:
                     game.next_player = game.starter
                 else:
                     game.starter = (game.starter+1)%n
@@ -323,7 +323,7 @@ def move(request,game_id,alias,tile):
             updateAllPoints(game,players,winner)
         elif game.perPoints and winner == 4:
             game.status = "fi"
-            if game.startWinner:
+            if game.startWinner and game.lostStartInTie != True and game.inPairs == False:
                 game.next_player = game.starter
             else:    
                 game.starter = (game.starter+1)%n
