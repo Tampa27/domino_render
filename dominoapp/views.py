@@ -239,7 +239,13 @@ def startGame(request,game_id):
         game.starter = game.next_player
     else:
         game.next_player = game.starter
-    #game.winner=-1    
+    if game.inPairs and game.winner != 4:
+        if game.starter == 0 or game.starter == 2:
+            game.winner = 5
+        else:
+            game.winner = 6    
+    #game.winner=-1
+        
     game.board = ''
     if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
         game.scoreTeam1 = 0
