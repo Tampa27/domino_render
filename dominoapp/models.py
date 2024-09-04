@@ -32,7 +32,7 @@ class DominoGame(models.Model):
     inPairs = models.BooleanField(default=False)
     perPoints = models.BooleanField(default=False)
     startWinner = models.BooleanField(default=True)
-    lostStartInTie = models.BooleanField(default=True)
+    lostStartInTie = models.BooleanField(default=False)
     starter = models.SmallIntegerField(default=-1,null=True,blank=True)
     leftValue = models.SmallIntegerField(default=-1)
     rightValue = models.SmallIntegerField(default=-1)
