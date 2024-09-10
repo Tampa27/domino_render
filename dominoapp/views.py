@@ -97,11 +97,13 @@ class GameCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-exitTime = 60 #Si en 10 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+exitTime = 600 #Si en 10 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 
 @api_view(['GET',])
 def getAllGames(request):
     result = DominoGame.objects.all()
+    for game in result:
+        checkPlayersTimeOut(game)
     serializer =GameSerializer(result,many=True)
     return Response({'status': 'success', "games":serializer.data}, status=200)
 
