@@ -21,5 +21,5 @@ urlpatterns = [
     path(r'setstarter/<int:game_id>/<int:starter>',views.setStarter,name='set starter'),
     path(r'setwinnerstarter/<int:game_id>/<int:winner>/<int:starter>',views.setWinnerStarter,name='set winner starter'),
     path(r'setwinnerstarternext/<int:game_id>/<int:winner>/<int:starter>/<int:next_player>',views.setWinnerStarterNext,name='set winner starter next'),
-
+    path(r'players/<str:alias>',views.getPlayer,name='get player'),
 ]

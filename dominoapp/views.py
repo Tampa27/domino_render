@@ -97,6 +97,8 @@ class GameCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+exitTime = 60 #Si en 10 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+
 @api_view(['GET',])
 def getAllGames(request):
     result = DominoGame.objects.all()
@@ -108,6 +110,7 @@ def getGame(request,game_id):
     result = DominoGame.objects.get(id=game_id)
     serializer =GameSerializer(result)
     players = playersCount(result)
+    checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
@@ -143,11 +146,18 @@ def setWinnerStarterNext(request,game_id,winner,starter,next_player):
     return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
+def getPlayer(request,alias):
+    player = Player.objects.get_or_create(alias=alias)
+    serializer = PlayerSerializer(player)
+    return Response({'status': 'success', "player":serializer.data}, status=200)
+
+@api_view(['GET',])
 def createGame(request,alias,variant):
     player1,created = Player.objects.get_or_create(alias=alias)
     player1.tiles = ""
     player1.save()
     game = DominoGame.objects.create(player1=player1,variant=variant)
+    updateLastPlayerTime(game,alias)
     game.save()
     serializer = GameSerializer(game)
     players = [player1]
@@ -158,6 +168,7 @@ def createGame(request,alias,variant):
 def joinGame(request,alias,game_id):
     player,created = Player.objects.get_or_create(alias=alias)
     player.tiles = ""
+    player.points = 0
     player.save()
     game = DominoGame.objects.get(id=game_id)
     joined,players = checkPlayerJoined(player,game)
@@ -190,6 +201,7 @@ def joinGame(request,alias,game_id):
                 game.status = "ready"
             else:
                 game.status = "wt"    
+        updateLastPlayerTime(game,alias)
         game.save()    
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
@@ -347,6 +359,18 @@ def exitGame(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     player = Player.objects.get(alias=alias)
     players = playersCount(game)
+    exited = exitPlayer(player,game)
+    if exited:
+        player.points = 0
+        player.tiles = ""
+        if len(players) <= 2 or game.inPairs:
+            game.status = "wt"
+        player.save()
+        game.save()
+        return Response({'status': 'success', "message":'Player exited'}, status=200)
+    return Response({'status': 'error', "message":'Player no found'}, status=300)
+
+def exitPlayer(game,player):
     exited = False
     if game.player1 != None and game.player1.alias == player.alias:
         game.player1 = None
@@ -360,15 +384,7 @@ def exitGame(request,game_id,alias):
     elif game.player4 != None and game.player4.alias == player.alias:
         game.player4 = None
         exited = True
-    if exited:
-        player.points = 0
-        player.tiles = ""
-        if len(players) <= 2 or game.inPairs:
-            game.status = "wt"
-        player.save()
-        game.save()
-        return Response({'status': 'success', "message":'Player exited'}, status=200)
-    return Response({'status': 'error', "message":'Player no found'}, status=300)
+    return exited    
 
 def updateTeamScore(game, winner, players, sum_points):
     n = len(players)
@@ -566,6 +582,45 @@ def checkCapicua(game,tile):
     val2 = int(values[1])
     return (val1 == game.leftValue and game.rightValue == val2) or (val2 == game.leftValue and game.rightValue == val1) 
 
+def checkPlayersTimeOut(game):
+    n = 0
+    players = []
+    if game.player1 != None:
+        timediff = timezone.now() - game.lastTime1
+        if timediff.seconds > exitTime:
+            players.append(game.player1)
+            game.player1 = None
+        else:
+            n+=1        
+    if game.player2 != None:
+        timediff = timezone.now() - game.lastTime2
+        if timediff.seconds > exitTime:
+            players.append(game.player2)
+            game.player2 = None
+        else:
+            n+=1    
+    if game.player3 != None:
+        timediff = timezone.now() - game.lastTime3
+        if timediff.seconds > exitTime:
+            players.append(game.player3)
+            game.player3 = None
+        else:
+            n+=1    
+    if game.player4 != None:
+        timediff = timezone.now() - game.lastTime4
+        if timediff.seconds > exitTime:
+            players.append(game.player4)
+            game.player4 = None
+        else:
+            n+=1
+    if n < 2 or (n < 4 and game.inPairs):
+        game.status = "wt"
+    for player in players:
+        player.tiles = ""
+        player.points = 0
+        player.save()    
+    game.save()                                 
+
 def updateLastPlayerTime(game,alias):
     if game.player1 != None and game.player1.alias == alias:
         game.lastTime1 = timezone.now()
@@ -574,5 +629,4 @@ def updateLastPlayerTime(game,alias):
     if game.player3 != None and game.player3.alias == alias:
         game.lastTime3 = timezone.now()
     if game.player4 != None and game.player4.alias == alias:
-        game.lastTime4 = timezone.now()             
-
+        game.lastTime4 = timezone.now()  
