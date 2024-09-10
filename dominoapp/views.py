@@ -110,7 +110,7 @@ def getAllGames(request):
 @api_view(['GET',])
 def getGame(request,game_id):
     result = DominoGame.objects.get(id=game_id)
-    serializer =GameSerializer(result)
+    serializer = GameSerializer(result)
     players = playersCount(result)
     checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
@@ -214,19 +214,19 @@ def joinGame(request,alias,game_id):
 def checkPlayerJoined(player,game):
     res = False
     players = []
-    if game.player1 != None:
+    if game.player1 is not None:
         players.append(game.player1)
         if game.player1.alias == player.alias:
             res = True
-    if game.player2 != None:
+    if game.player2 is not None:
         players.append(game.player2)
         if game.player2.alias == player.alias:
             res = True
-    if game.player3 != None:
+    if game.player3 is not None:
         players.append(game.player3)
         if game.player3.alias == player.alias:
             res = True
-    if game.player4 != None:
+    if game.player4 is not None:
         players.append(game.player4)
         if game.player4.alias == player.alias:
             res = True
@@ -374,16 +374,16 @@ def exitGame(request,game_id,alias):
 
 def exitPlayer(game,player):
     exited = False
-    if game.player1 != None and game.player1.alias == player.alias:
+    if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
         exited = True
-    elif game.player2 != None and game.player2.alias == player.alias:
+    elif game.player2 is not None and game.player2.alias == player.alias:
         game.player2 = None
         exited = True
-    elif game.player3 != None and game.player3.alias == player.alias:
+    elif game.player3 is not None and game.player3.alias == player.alias:
         game.player3 = None
         exited = True
-    elif game.player4 != None and game.player4.alias == player.alias:
+    elif game.player4 is not None and game.player4.alias == player.alias:
         game.player4 = None
         exited = True
     return exited    
@@ -587,30 +587,34 @@ def checkCapicua(game,tile):
 def checkPlayersTimeOut(game):
     n = 0
     players = []
-    if game.player1 != None and game.lastTime1 != None:
-        timediff = timezone.now() - game.lastTime1
-        if timediff.seconds > exitTime:
+    if game.player1 is not None:
+        if game.lastTime1 is not None:
+            timediff = timezone.now() - game.lastTime1
+        if game.lastTime1 is None or timediff.seconds > exitTime:
             players.append(game.player1)
             game.player1 = None
         else:
             n+=1        
-    if game.player2 != None and game.lastTime2 != None:
-        timediff = timezone.now() - game.lastTime2
-        if timediff.seconds > exitTime:
+    if game.player2 is not None:
+        if game.lastTime2 is not None:
+            timediff = timezone.now() - game.lastTime2
+        if game.lastTime2 is None or timediff.seconds > exitTime:
             players.append(game.player2)
             game.player2 = None
         else:
             n+=1    
-    if game.player3 != None and game.lastTime3 != None:
-        timediff = timezone.now() - game.lastTime3
-        if timediff.seconds > exitTime:
+    if game.player3 is not None:
+        if game.lastTime3 is not None:
+            timediff = timezone.now() - game.lastTime3
+        if game.lastTime3 is None or timediff.seconds > exitTime:
             players.append(game.player3)
             game.player3 = None
         else:
             n+=1    
-    if game.player4 != None and game.lastTime4 != None:
-        timediff = timezone.now() - game.lastTime4
-        if timediff.seconds > exitTime:
+    if game.player4 is not None:
+        if game.lastTime4 is not None:
+            timediff = timezone.now() - game.lastTime4
+        if game.lastTime4 is not None or timediff.seconds > exitTime:
             players.append(game.player4)
             game.player4 = None
         else:
@@ -624,11 +628,11 @@ def checkPlayersTimeOut(game):
     game.save()                                 
 
 def updateLastPlayerTime(game,alias):
-    if game.player1 != None and game.player1.alias == alias:
+    if game.player1 is not None and game.player1.alias == alias:
         game.lastTime1 = timezone.now()
-    elif game.player2 != None and game.player2.alias == alias:
+    elif game.player2 is not None and game.player2.alias == alias:
         game.lastTime2 = timezone.now()
-    if game.player3 != None and game.player3.alias == alias:
+    if game.player3 is not None and game.player3.alias == alias:
         game.lastTime3 = timezone.now()
-    if game.player4 != None and game.player4.alias == alias:
+    if game.player4 is not None and game.player4.alias == alias:
         game.lastTime4 = timezone.now()  
