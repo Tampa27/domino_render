@@ -361,7 +361,7 @@ def exitGame(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     player = Player.objects.get(alias=alias)
     players = playersCount(game)
-    exited = exitPlayer(player,game)
+    exited = exitPlayer(game,player)
     if exited:
         player.points = 0
         player.tiles = ""
