@@ -587,28 +587,28 @@ def checkCapicua(game,tile):
 def checkPlayersTimeOut(game):
     n = 0
     players = []
-    if game.player1 != None:
+    if game.player1 != None and game.lastTime1 != None:
         timediff = timezone.now() - game.lastTime1
         if timediff.seconds > exitTime:
             players.append(game.player1)
             game.player1 = None
         else:
             n+=1        
-    if game.player2 != None:
+    if game.player2 != None and game.lastTime2 != None:
         timediff = timezone.now() - game.lastTime2
         if timediff.seconds > exitTime:
             players.append(game.player2)
             game.player2 = None
         else:
             n+=1    
-    if game.player3 != None:
+    if game.player3 != None and game.lastTime3 != None:
         timediff = timezone.now() - game.lastTime3
         if timediff.seconds > exitTime:
             players.append(game.player3)
             game.player3 = None
         else:
             n+=1    
-    if game.player4 != None:
+    if game.player4 != None and game.lastTime4 != None:
         timediff = timezone.now() - game.lastTime4
         if timediff.seconds > exitTime:
             players.append(game.player4)
