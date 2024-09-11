@@ -614,7 +614,7 @@ def checkPlayersTimeOut(game):
     if game.player4 is not None:
         if game.lastTime4 is not None:
             timediff = timezone.now() - game.lastTime4
-        if game.lastTime4 is not None or timediff.seconds > exitTime:
+        if game.lastTime4 is None or timediff.seconds > exitTime:
             players.append(game.player4)
             game.player4 = None
         else:
