@@ -248,9 +248,10 @@ def cleanPlayers(request):
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
+    n = len(players)
     shuffle(game,players)
-    if game.starter == -1:
-        game.next_player = random.randint(0,len(players)-1)
+    if game.starter == -1 or game.starter >= n:
+        game.next_player = random.randint(0,n)
         game.starter = game.next_player
     else:
         game.next_player = game.starter
