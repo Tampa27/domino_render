@@ -98,6 +98,7 @@ class GameCreate(generics.CreateAPIView):
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 exitTime = 6000 #Si en 100 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+moveTime = 15
 
 @api_view(['GET',])
 def getAllGames(request):
@@ -275,15 +276,54 @@ def startGame(request,game_id):
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
 
-@api_view(['GET',])
-def move(request,game_id,alias,tile):
+@api_view(['POST',])
+def startGame1(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    for p in players:
-        if p.alias == alias:
-            player = p
+    shuffle(game,players)
+    if game.starter == -1:
+        game.next_player = random.randint(0,len(players)-1)
+        game.starter = game.next_player
+    else:
+        game.next_player = game.starter
+    if game.inPairs and game.winner != 4:
+        if game.starter == 0 or game.starter == 2:
+            game.winner = 5
+        else:
+            game.winner = 6    
+    #game.winner=-1
+        
+    game.board = ''
+    if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
+        game.scoreTeam1 = 0
+        game.scoreTeam2 = 0
+    if game.status == "fg":
+        game.rounds = 0        
+    game.status = "ru"
+    game.start_time = timezone.now()
+    game.leftValue = -1
+    game.rightValue = -1
+    game.save()
+    while True:
+        if game.status != "ru":
+            break
+        player = players[game.next_player]
+        if len(game.board) == 0:
+            diff_time = timezone.now() - game.start_time
+            if diff_time >= moveTime:
+                tile = takeRandomTile(player.tiles)
+                movement(game,player,players,tile)
+        else:
+            prevIndex = previusPlayer(game.next_player)
+            diff_time = timezone.now() - getLastPlayerMoveTime(game,prevIndex)
+            if diff_time >= moveTime:
+                tile = takeRandomCorrectTile(player.tiles,game.leftValue,game.rightValue)
+                movement(game,player,players,tile)                
+
+def movement(game,player,players,tile):
     n = len(players)
-    w = getPlayerIndex(players,player)    
+    w = getPlayerIndex(players,player)
+    alias = player.alias    
     if isPass(tile) == False:
         isCapicua = False
         if game.perPoints:
@@ -353,7 +393,16 @@ def move(request,game_id,alias,tile):
     game.board += (tile+',')
     updateLastPlayerTime(game,alias)        
     game.save()
-    #serializerGame = GameSerializer(game)
+
+
+@api_view(['GET',])
+def move(request,game_id,alias,tile):
+    game = DominoGame.objects.get(id=game_id)
+    players = playersCount(game)
+    for p in players:
+        if p.alias == alias:
+            player = p
+    movement(game,player,players,tile)
     return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
@@ -636,3 +685,34 @@ def updateLastPlayerTime(game,alias):
         game.lastTime3 = timezone.now()
     if game.player4 is not None and game.player4.alias == alias:
         game.lastTime4 = timezone.now()  
+
+def takeRandomTile(tiles):
+    list_tiles = tiles.split(',')
+    i = random.randint(0,len(list_tiles)-1)
+    return list_tiles[i]
+
+def takeRandomCorrectTile(tiles,left,right):
+    list_tiles = tiles.split(',')
+    random.shuffle(list_tiles)
+    for tile in list_tiles:
+        values = tile.split('|')
+        val1 = int(values[0])
+        val2 = int(values[1])
+        if val1 == left or val1 == right or val2 == left or val2 == right:
+            return tile
+    return "-1|-1"     
+
+def previusPlayer(pos,n):
+    if pos == 0:
+        return n-1
+    return pos-1
+
+def getLastPlayerMoveTime(game,pos):
+    if pos == 0:
+        return game.lastTime1
+    elif pos == 1:
+        return game.lastTime2
+    elif pos == 2:
+        return game.lastTime3
+    else:
+        return game.lastTime4
