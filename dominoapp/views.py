@@ -324,7 +324,9 @@ def startGame1(request,game_id):
 def movement(game,player,players,tile):
     n = len(players)
     w = getPlayerIndex(players,player)
-    alias = player.alias    
+    alias = player.alias   
+    if isMyTurn(game.board,w,game.starter,n) == False:
+        return 
     if isPass(tile) == False:
         isCapicua = False
         if game.perPoints:
@@ -394,7 +396,6 @@ def movement(game,player,players,tile):
     game.board += (tile+',')
     updateLastPlayerTime(game,alias)        
     game.save()
-
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
@@ -534,7 +535,6 @@ def updateTiles(player,tile):
             res+=','        
     return len(tiles),res
 
-
 def getWinner(players):
     i = 0
     min = 1000
@@ -565,13 +565,13 @@ def getPoints(tile):
 def checkClosedGame(game, playersCount):
     tiles = game.board.split(',')
     lastPasses = 0
-    for tile in reversed(tiles):
-        if(isPass(tile)):
-            lastPasses+=1
-            if lastPasses == playersCount-1:
-                return True
-        elif len(tile) != 0:
-            return False
+    rtiles = reversed(tiles)
+    for tile in rtiles:
+        if len(tile) > 0:
+            if(isPass(tile)):
+                lastPasses+=1
+                if lastPasses == playersCount-1:
+                    return True
     return False
             
 def checkClosedGame(game,players):
@@ -718,3 +718,8 @@ def getLastPlayerMoveTime(game,pos):
         return game.lastTime3
     else:
         return game.lastTime4
+    
+def isMyTurn(board,myPos,starter,n):
+    moves_count = len(board.split(","))-1
+    res = moves_count%n
+    return (starter+res)%n == myPos
