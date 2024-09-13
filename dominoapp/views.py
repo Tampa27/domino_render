@@ -243,7 +243,6 @@ def cleanPlayers(request):
     Player.objects.all().delete()
     return Response({'status': 'success', "message":'All players deleted'}, status=200)
 
-
 @api_view(['GET',])
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
@@ -347,7 +346,7 @@ def movement(game,player,players,tile):
             game.winner = w
             if game.perPoints:
                 updateAllPoints(game,players,w,isCapicua)
-        elif checkClosedGame(game,players):
+        elif checkClosedGame(game,n):
             winner = getWinner(players)
             game.rounds+=1
             game.status = 'fg'
@@ -370,7 +369,7 @@ def movement(game,player,players,tile):
                     game.next_player = game.starter                                    
         else:
             game.next_player = (w+1) % n 
-    elif checkClosedGame(game,players):
+    elif checkClosedGame(game,n):
         winner = getWinner(players)
         game.rounds+=1
         game.status = 'fg'
