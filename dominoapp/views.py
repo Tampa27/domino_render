@@ -346,7 +346,7 @@ def movement(game,player,players,tile):
             game.winner = w
             if game.perPoints:
                 updateAllPoints(game,players,w,isCapicua)
-        elif checkClosedGame(game,n):
+        elif checkClosedGame1(game,n):
             winner = getWinner(players)
             game.rounds+=1
             game.status = 'fg'
@@ -369,7 +369,7 @@ def movement(game,player,players,tile):
                     game.next_player = game.starter                                    
         else:
             game.next_player = (w+1) % n 
-    elif checkClosedGame(game,n):
+    elif checkClosedGame1(game,n):
         winner = getWinner(players)
         game.rounds+=1
         game.status = 'fg'
@@ -404,7 +404,7 @@ def move(request,game_id,alias,tile):
             player = p
     movement(game,player,players,tile)
     game.save()
-    return Response({'status': game.board}, status=200)
+    return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
@@ -561,7 +561,7 @@ def getPoints(tile):
     values = tile.split('|')
     return int(values[0])+int(values[1])    
 
-def checkClosedGame(game, playersCount):
+def checkClosedGame1(game, playersCount):
     tiles = game.board.split(',')
     lastPasses = 0
     rtiles = reversed(tiles)
