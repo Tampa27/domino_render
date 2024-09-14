@@ -394,7 +394,6 @@ def movement(game,player,players,tile):
         game.next_player = (w+1) % n
     game.board += (tile+',')
     updateLastPlayerTime(game,alias)        
-    game.save()
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
@@ -404,6 +403,7 @@ def move(request,game_id,alias,tile):
         if p.alias == alias:
             player = p
     movement(game,player,players,tile)
+    game.save()
     return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
