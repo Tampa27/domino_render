@@ -345,28 +345,7 @@ def movement(game,player,players,tile):
                 game.next_player = game.starter    
             game.winner = w
             if game.perPoints:
-                updateAllPoints(game,players,w,isCapicua)
-        elif checkClosedGame1(game,n):
-            winner = getWinner(players)
-            game.rounds+=1
-            game.status = 'fg'
-            game.winner = winner
-            if winner < 4:
-                if game.startWinner:
-                    game.starter = winner
-                    game.next_player = winner
-                else:
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter                
-            if game.perPoints and winner < 4:
-                updateAllPoints(game,players,winner)
-            elif game.perPoints and winner == 4:
-                game.status = "fi"
-                if game.startWinner and (game.lostStartInTie != True or game.inPairs == False):
-                    game.next_player = game.starter
-                else:
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter                                    
+                updateAllPoints(game,players,w,isCapicua)                                    
         else:
             game.next_player = (w+1) % n 
     elif checkClosedGame1(game,n):
@@ -571,6 +550,8 @@ def checkClosedGame1(game, playersCount):
                 lastPasses+=1
                 if lastPasses == playersCount-1:
                     return True
+            else:
+                return False    
     return False
             
 def checkClosedGame(game,players):
