@@ -250,7 +250,7 @@ def startGame(request,game_id):
     n = len(players)
     shuffle(game,players)
     if game.starter == -1 or game.starter >= n:
-        game.next_player = random.randint(0,n)
+        game.next_player = random.randint(0,n-1)
         game.starter = game.next_player
     else:
         game.next_player = game.starter
