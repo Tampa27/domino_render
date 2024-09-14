@@ -404,7 +404,7 @@ def move(request,game_id,alias,tile):
             player = p
     movement(game,player,players,tile)
     game.save()
-    return Response({'status': 'success'}, status=200)
+    return Response({'status': game.board}, status=200)
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
