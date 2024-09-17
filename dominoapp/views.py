@@ -160,6 +160,7 @@ def createGame(request,alias,variant):
     player1.tiles = ""
     player1.save()
     game = DominoGame.objects.create(player1=player1,variant=variant)
+    game.lastTime1 = timezone.now()
     updateLastPlayerTime(game,alias)
     game.save()
     serializer = GameSerializer(game)
@@ -703,3 +704,4 @@ def isMyTurn(board,myPos,starter,n):
     moves_count = len(board.split(","))-1
     res = moves_count%n
     return (starter+res)%n == myPos
+
