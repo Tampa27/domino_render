@@ -8,6 +8,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     tiles = serializers.CharField(max_length=32)
     coins = serializers.IntegerField()
     points = serializers.IntegerField()
+    lastTimeInSystem = serializers.DateTimeField()
 
     class Meta:
         model = Player
@@ -27,6 +28,7 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.tiles = validated_data.get('tiles', instance.tiles)
         instance.coins = validated_data.get('coins', instance.coins)
         instance.points = validated_data.get('points', instance.coins)
+        instance.lastTimeInSystem = validated_data.get('lastTimeInSystem',instance.lastTimeInSystem)
         instance.save()
         return instance     
     
