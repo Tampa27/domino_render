@@ -101,7 +101,7 @@ exitTime = 6000 #Si en 100 minutos el jugador no hace peticiones a la mesa, se s
 moveTime = 15
 
 @api_view(['GET',])
-def getAllGames(request):
+def getAllGames(request,alias):
     result = DominoGame.objects.all()
     for game in result:
         checkPlayersTimeOut(game)
@@ -109,10 +109,13 @@ def getAllGames(request):
     return Response({'status': 'success', "games":serializer.data}, status=200)
 
 @api_view(['GET',])
-def getGame(request,game_id):
+def getGame(request,game_id,alias):
     result = DominoGame.objects.get(id=game_id)
     serializer = GameSerializer(result)
     players = playersCount(result)
+    for player in players:
+        if player.alias == alias:
+            player.lastTimeInSystem = timezone.now()
     #checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)

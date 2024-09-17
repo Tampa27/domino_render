@@ -9,6 +9,7 @@ class Player(models.Model):
     tiles = models.CharField(max_length=50,default="")
     coins = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
+    lastTimeInSystem = models.DateTimeField(default=timezone.now())
     def __str__(self):
         return self.alias
     
