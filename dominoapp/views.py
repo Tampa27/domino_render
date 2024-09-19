@@ -121,7 +121,7 @@ def getGame(request,game_id,alias):
        lastMoveTime = getLastMoveTime(result,players[result.next_player])
        if lastMoveTime is not None:
            diff_time = timezone.now() - lastMoveTime
-           if diff_time >= (result.moveTime+1):
+           if diff_time.seconds >= (result.moveTime+1):
                tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
                movement(result,player,players,tile)      
     #checkPlayersTimeOut(result)
