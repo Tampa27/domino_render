@@ -116,6 +116,14 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
+    if result.status == 'ru' and len(result.board) > 0:
+       player = players[result.next_player]
+       lastMoveTime = getLastMoveTime(result,players[result.next_player])
+       if lastMoveTime is not None:
+           diff_time = timezone.now - lastMoveTime
+           if diff_time >= (result.moveTime+1):
+               tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
+               movement(result,player,players,tile)      
     #checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
@@ -708,3 +716,13 @@ def isMyTurn(board,myPos,starter,n):
     res = moves_count%n
     return (starter+res)%n == myPos
 
+def getLastMoveTime(game,player):
+    if game.player1 is not None and game.player1.alias == player.alias:
+        return game.lastTime1
+    elif game.player2 is not None and game.player2.alias == player.alias:
+        return game.lastTime2
+    elif game.player3 is not None and game.player3.alias == player.alias:
+        return game.lastTime3
+    elif game.player4 is not None and game.player4.alias == player.alias:
+        return game.lastTime4
+    return None
