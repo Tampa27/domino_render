@@ -116,14 +116,14 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
-    if result.status == 'ru' and len(result.board) > 0:
-       player = players[result.next_player]
-       lastMoveTime = getLastMoveTime(result,players[result.next_player])
-       if lastMoveTime is not None:
-           diff_time = timezone.now() - lastMoveTime
-           if diff_time.seconds >= (result.moveTime+1):
-               tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
-               movement(result,player,players,tile)      
+    #if result.status == 'ru' and len(result.board) > 0:
+    #   player = players[result.next_player]
+    #   lastMoveTime = getLastMoveTime(result,players[result.next_player])
+    #   if lastMoveTime is not None:
+    #       diff_time = timezone.now() - lastMoveTime
+    #       if diff_time.seconds >= (result.moveTime+1):
+    #           tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
+    #           movement(result,player,players,tile)      
     #checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
