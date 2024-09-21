@@ -122,7 +122,7 @@ def getGame(request,game_id,alias):
        player = players[result.next_player]
        lastMoveTime = getLastMoveTime(result,players[result.next_player])
        prevPlayer = previusPlayer(result.next_player,len(players))
-       prevPlayerTime = getLastMoveTime(result,players[previusPlayer])
+       prevPlayerTime = getLastMoveTime(result,players[prevPlayer])
        if len(result.board) == 0:
            diff_time = timezone.now()-result.start_time
            if diff_time.seconds >= (result.moveTime+1) and lastMoveTime is None:
