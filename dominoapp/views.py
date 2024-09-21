@@ -118,27 +118,27 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
-    if result.status == 'ru':
-       player = players[result.next_player]
-       lastMoveTime = getLastMoveTime(result,players[result.next_player])
-       prevPlayer = previusPlayer(result.next_player,len(players))
-       prevPlayerTime = getLastMoveTime(result,players[prevPlayer])
-       if len(result.board) == 0:
-           diff_time = timezone.now()-result.start_time
-           if diff_time.seconds >= (result.moveTime+1) and lastMoveTime is None:
-                tile = takeRandomTile(player.tiles)
-                movement(result,player,players,tile)                
-       elif lastMoveTime is not None:
-           diff_time1 = timezone.now() - prevPlayerTime
-           diff_time = timezone.now() - lastMoveTime
-           if diff_time.seconds >= (result.moveTime+1) and diff_time1.seconds >= (result.moveTime+1):
-               tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
-               movement(result,player,players,tile)
-       else:
-           diff_time1 = timezone.now() - prevPlayerTime
-           if diff_time.seconds >= (result.moveTime+1):
-                tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
-                movement(result,player,players,tile)              
+    #if result.status == 'ru':
+    #   player = players[result.next_player]
+    #   lastMoveTime = getLastMoveTime(result,players[result.next_player])
+    #   prevPlayer = previusPlayer(result.next_player,len(players))
+    #   prevPlayerTime = getLastMoveTime(result,players[prevPlayer])
+    #   if len(result.board) == 0:
+    #       diff_time = timezone.now()-result.start_time
+    #       if diff_time.seconds >= (result.moveTime+1) and lastMoveTime is None:
+    #            tile = takeRandomTile(player.tiles)
+    #            movement(result,player,players,tile)                
+    #   elif lastMoveTime is not None:
+    #       diff_time1 = timezone.now() - prevPlayerTime
+    #       diff_time = timezone.now() - lastMoveTime
+    #       if diff_time.seconds >= (result.moveTime+1) and diff_time1.seconds >= (result.moveTime+1):
+    #           tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
+    #           movement(result,player,players,tile)
+    #   else:
+    #       diff_time1 = timezone.now() - prevPlayerTime
+    #       if diff_time.seconds >= (result.moveTime+1):
+    #            tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
+    #            movement(result,player,players,tile)              
     #checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
