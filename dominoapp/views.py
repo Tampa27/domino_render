@@ -103,6 +103,8 @@ moveTime = 15
 @api_view(['GET',])
 def getAllGames(request,alias):
     result = DominoGame.objects.all()
+    player = Player.objects.get(alias=alias)
+    player.lastTimeInSystem = timezone.now()
     for game in result:
         checkPlayersTimeOut(game)
     serializer =GameSerializer(result,many=True)
@@ -116,14 +118,27 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
-    #if result.status == 'ru' and len(result.board) > 0:
-    #   player = players[result.next_player]
-    #   lastMoveTime = getLastMoveTime(result,players[result.next_player])
-    #   if lastMoveTime is not None:
-    #       diff_time = timezone.now() - lastMoveTime
-    #       if diff_time.seconds >= (result.moveTime+1):
-    #           tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
-    #           movement(result,player,players,tile)      
+    if result.status == 'ru':
+       player = players[result.next_player]
+       lastMoveTime = getLastMoveTime(result,players[result.next_player])
+       prevPlayer = previusPlayer(result.next_player,len(players))
+       prevPlayerTime = getLastMoveTime(result,players[previusPlayer])
+       if len(result.board) == 0:
+           diff_time = timezone.now()-result.start_time
+           if diff_time.seconds >= (result.moveTime+1) and lastMoveTime is None:
+                tile = takeRandomTile(player.tiles)
+                movement(result,player,players,tile)                
+       elif lastMoveTime is not None:
+           diff_time1 = timezone.now() - prevPlayerTime
+           diff_time = timezone.now() - lastMoveTime
+           if diff_time.seconds >= (result.moveTime+1) and diff_time1.seconds >= (result.moveTime+1):
+               tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
+               movement(result,player,players,tile)
+       else:
+           diff_time1 = timezone.now() - prevPlayerTime
+           if diff_time.seconds >= (result.moveTime+1):
+                tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
+                movement(result,player,players,tile)              
     #checkPlayersTimeOut(result)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
@@ -283,6 +298,10 @@ def startGame(request,game_id):
     game.start_time = timezone.now()
     game.leftValue = -1
     game.rightValue = -1
+    game.lastTime1 = None
+    game.lastTime2 = None
+    game.lastTime3 = None
+    game.lastTime4 = None
     game.save()
     serializerGame = GameSerializer(game)
     playerSerializer = PlayerSerializer(players,many=True)
@@ -697,7 +716,7 @@ def takeRandomCorrectTile(tiles,left,right):
     return "-1|-1"     
 
 def previusPlayer(pos,n):
-    if pos == 0:
+    if pos == 0: 
         return n-1
     return pos-1
 
