@@ -99,12 +99,16 @@ class GameCreate(generics.CreateAPIView):
 
 exitTime = 6000 #Si en 100 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 15
+exitTable = 60
 
 @api_view(['GET',])
 def getAllGames(request,alias):
     result = DominoGame.objects.all()
-    player = Player.objects.get(alias=alias)
+    player,created = Player.objects.get_or_create(alias=alias)
+    if created:
+        player.coins = 100
     player.lastTimeInSystem = timezone.now()
+    player.save()
     for game in result:
         checkPlayersTimeOut(game)
     serializer =GameSerializer(result,many=True)
@@ -118,6 +122,10 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
+        else:
+            diff_time = timezone.now() - player.lastTimeInSystem
+            if(diff_time.seconds >= exitTable):
+                exitPlayer(result,player,players)    
     #if result.status == 'ru':
     #   player = players[result.next_player]
     #   lastMoveTime = getLastMoveTime(result,players[result.next_player])
@@ -184,6 +192,7 @@ def getPlayer(request,alias):
 def createGame(request,alias,variant):
     player1,created = Player.objects.get_or_create(alias=alias)
     player1.tiles = ""
+    player1.lastTimeInSystem = timezone.now()
     player1.save()
     game = DominoGame.objects.create(player1=player1,variant=variant)
     game.lastTime1 = timezone.now()
@@ -199,6 +208,7 @@ def joinGame(request,alias,game_id):
     player,created = Player.objects.get_or_create(alias=alias)
     player.tiles = ""
     player.points = 0
+    player.lastTimeInSystem = timezone.now()
     player.save()
     game = DominoGame.objects.get(id=game_id)
     joined,players = checkPlayerJoined(player,game)
@@ -421,18 +431,12 @@ def exitGame(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     player = Player.objects.get(alias=alias)
     players = playersCount(game)
-    exited = exitPlayer(game,player)
+    exited = exitPlayer(game,player,players)
     if exited:
-        player.points = 0
-        player.tiles = ""
-        if len(players) <= 2 or game.inPairs:
-            game.status = "wt"
-        player.save()
-        game.save()
         return Response({'status': 'success', "message":'Player exited'}, status=200)
     return Response({'status': 'error', "message":'Player no found'}, status=300)
 
-def exitPlayer(game,player):
+def exitPlayer(game,player,players):
     exited = False
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
@@ -446,6 +450,15 @@ def exitPlayer(game,player):
     elif game.player4 is not None and game.player4.alias == player.alias:
         game.player4 = None
         exited = True
+    if exited:
+        player.points = 0
+        player.tiles = ""
+        if len(players) <= 2 or game.inPairs:
+            game.status = "wt"
+        elif len(players) > 2 and not game.inPairs:
+            game.status = "ready"    
+        player.save()
+        game.save()    
     return exited    
 
 def updateTeamScore(game, winner, players, sum_points):
