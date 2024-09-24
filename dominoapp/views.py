@@ -99,7 +99,7 @@ class GameCreate(generics.CreateAPIView):
 
 exitTime = 6000 #Si en 100 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 15
-exitTable = 60
+exitTable = 15
 
 @api_view(['GET',])
 def getAllGames(request,alias):
