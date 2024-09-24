@@ -122,6 +122,7 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
+            player.save()
         else:
             diff_time = timezone.now() - player.lastTimeInSystem
             if(diff_time.seconds >= exitTable):
