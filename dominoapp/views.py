@@ -129,7 +129,7 @@ def getGame(request,game_id,alias):
             diff_time = timezone.now() - player.lastTimeInSystem
             if(diff_time.seconds >= exitTable):
                 exitPlayer(result,player,players)    
-        playerSerializer = PlayerSerializer(players,many=True)
+    playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
 @api_view(['GET',])
