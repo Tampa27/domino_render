@@ -113,7 +113,8 @@ def getAllGames(request,alias):
     for game in result:
         checkPlayersTimeOut(game)
     serializer =GameSerializer(result,many=True)
-    return Response({'status': 'success', "games":serializer.data}, status=200)
+    playerSerializer = PlayerSerializer(player)
+    return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data}, status=200)
 
 @api_view(['GET',])
 def getGame(request,game_id,alias):
@@ -128,29 +129,7 @@ def getGame(request,game_id,alias):
             diff_time = timezone.now() - player.lastTimeInSystem
             if(diff_time.seconds >= exitTable):
                 exitPlayer(result,player,players)    
-    #if result.status == 'ru':
-    #   player = players[result.next_player]
-    #   lastMoveTime = getLastMoveTime(result,players[result.next_player])
-    #   prevPlayer = previusPlayer(result.next_player,len(players))
-    #   prevPlayerTime = getLastMoveTime(result,players[prevPlayer])
-    #   if len(result.board) == 0:
-    #       diff_time = timezone.now()-result.start_time
-    #       if diff_time.seconds >= (result.moveTime+1) and lastMoveTime is None:
-    #            tile = takeRandomTile(player.tiles)
-    #            movement(result,player,players,tile)                
-    #   elif lastMoveTime is not None:
-    #       diff_time1 = timezone.now() - prevPlayerTime
-    #       diff_time = timezone.now() - lastMoveTime
-    #       if diff_time.seconds >= (result.moveTime+1) and diff_time1.seconds >= (result.moveTime+1):
-    #           tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
-    #           movement(result,player,players,tile)
-    #   else:
-    #       diff_time1 = timezone.now() - prevPlayerTime
-    #       if diff_time1.seconds >= (result.moveTime+1):
-    #            tile = takeRandomCorrectTile(player.tiles,result.leftValue,result.rightValue)
-    #            movement(result,player,players,tile)              
-    #checkPlayersTimeOut(result)
-    playerSerializer = PlayerSerializer(players,many=True)
+        playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
 @api_view(['GET',])
