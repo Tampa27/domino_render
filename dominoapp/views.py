@@ -87,6 +87,7 @@ class GameCreate(generics.CreateAPIView):
             player1,created = Player.objects.get_or_create(alias=alias)
             player1.tiles = ""
             player1.points=0
+            player1.lastTimeInSystem = timezone.now()
             player1.save()
             players = [player1]
             data = serializer.validated_data
