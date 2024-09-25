@@ -222,7 +222,7 @@ def joinGame(request,alias,game_id):
                 game.status = "ready"
             else:
                 game.status = "wt"    
-        updateLastPlayerTime(game,alias)
+        #updateLastPlayerTime(game,alias)
         game.save()    
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
