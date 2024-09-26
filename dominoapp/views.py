@@ -100,7 +100,7 @@ class GameCreate(generics.CreateAPIView):
 
 exitTime = 6000 #Si en 100 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 15
-exitTable = 30
+exitTable = 45
 
 @api_view(['GET',])
 def getAllGames(request,alias):
@@ -111,7 +111,7 @@ def getAllGames(request,alias):
     player.lastTimeInSystem = timezone.now()
     player.save()
     for game in result:
-        checkPlayersTimeOut(game)
+        checkPlayersTimeOut1(game)
     serializer =GameSerializer(result,many=True)
     playerSerializer = PlayerSerializer(player)
     return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data}, status=200)
@@ -682,6 +682,58 @@ def checkPlayersTimeOut(game):
         player.points = 0
         player.save()    
     game.save()                                 
+
+def checkPlayersTimeOut1(game):
+    n = 0
+    players = []
+    if game.player1 is not None:
+        if game.player1.lastTimeInSystem is not None:
+            timediff = timezone.now() - game.player1.lastTimeInSystem
+            if timediff.seconds > exitTime:
+                players.append(game.player1)
+                game.player1 = None
+            else:
+                n+=1
+        else:
+            n+=1                
+    if game.player2 is not None:
+        if game.player2.lastTimeInSystem is not None:
+            timediff = timezone.now() - game.player2.lastTimeInSystem
+            if timediff.seconds > exitTime:
+                players.append(game.player2)
+                game.player2 = None
+            else:
+                n+=1
+        else:
+            n+=1            
+    if game.player3 is not None:
+        if game.player3.lastTimeInSystem is not None:
+            timediff = timezone.now() - game.player3.lastTimeInSystem
+            if timediff.seconds > exitTime:
+                players.append(game.player3)
+                game.player3 = None
+            else:
+                n+=1
+        else:
+            n+=1            
+    if game.player4 is not None:
+        if game.player4.lastTimeInSystem is not None:
+            timediff = timezone.now() - game.player4.lastTimeInSystem
+            if timediff.seconds > exitTime:
+                players.append(game.player4)
+                game.player4 = None
+            else:
+                n+=1
+        else:
+            n+=1        
+    if n < 2 or (n < 4 and game.inPairs):
+        game.status = "wt"
+        game.starter=-1
+    for player in players:
+        player.tiles = ""
+        player.points = 0
+        player.save()    
+    game.save()
 
 def updateLastPlayerTime(game,alias):
     if game.player1 is not None and game.player1.alias == alias:
