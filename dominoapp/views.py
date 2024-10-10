@@ -98,9 +98,9 @@ class GameCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-exitTime = 6000 #Si en 100 minutos el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+exitTime = 90 #Si en 1 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 15
-exitTable = 45
+exitTable = 35
 
 @api_view(['GET',])
 def getAllGames(request,alias):
@@ -110,11 +110,14 @@ def getAllGames(request,alias):
         player.coins = 100
     player.lastTimeInSystem = timezone.now()
     player.save()
+    game_id = -1
     for game in result:
-        checkPlayersTimeOut1(game)
+        inGame = checkPlayersTimeOut1(game,alias)
+        if inGame:
+            game_id = game.id
     serializer =GameSerializer(result,many=True)
     playerSerializer = PlayerSerializer(player)
-    return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data}, status=200)
+    return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data,"game_id":game_id}, status=200)
 
 @api_view(['GET',])
 def getGame(request,game_id,alias):
@@ -683,9 +686,10 @@ def checkPlayersTimeOut(game):
         player.save()    
     game.save()                                 
 
-def checkPlayersTimeOut1(game):
+def checkPlayersTimeOut1(game,alias):
     n = 0
     players = []
+    inGame = False
     if game.player1 is not None:
         if game.player1.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player1.lastTimeInSystem
@@ -693,8 +697,12 @@ def checkPlayersTimeOut1(game):
                 players.append(game.player1)
                 game.player1 = None
             else:
+                if game.player1.alias == alias:
+                    inGame = True
                 n+=1
         else:
+            if game.player1.alias == alias:
+                inGame = True
             n+=1                
     if game.player2 is not None:
         if game.player2.lastTimeInSystem is not None:
@@ -703,8 +711,12 @@ def checkPlayersTimeOut1(game):
                 players.append(game.player2)
                 game.player2 = None
             else:
+                if game.player2.alias == alias:
+                    inGame = True
                 n+=1
         else:
+            if game.player2.alias == alias:
+                inGame = True
             n+=1            
     if game.player3 is not None:
         if game.player3.lastTimeInSystem is not None:
@@ -713,8 +725,12 @@ def checkPlayersTimeOut1(game):
                 players.append(game.player3)
                 game.player3 = None
             else:
+                if game.player3.alias == alias:
+                    inGame = True
                 n+=1
         else:
+            if game.player3.alias == alias:
+                inGame = True
             n+=1            
     if game.player4 is not None:
         if game.player4.lastTimeInSystem is not None:
@@ -723,8 +739,12 @@ def checkPlayersTimeOut1(game):
                 players.append(game.player4)
                 game.player4 = None
             else:
+                if game.player4.alias == alias:
+                    inGame = True
                 n+=1
         else:
+            if game.player4.alias == alias:
+                inGame = True
             n+=1        
     if n < 2 or (n < 4 and game.inPairs):
         game.status = "wt"
@@ -732,8 +752,9 @@ def checkPlayersTimeOut1(game):
     for player in players:
         player.tiles = ""
         player.points = 0
-        player.save()    
+        player.save()        
     game.save()
+    return inGame
 
 def updateLastPlayerTime(game,alias):
     if game.player1 is not None and game.player1.alias == alias:
