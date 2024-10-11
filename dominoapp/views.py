@@ -190,6 +190,8 @@ def createGame(request,alias,variant):
 @api_view(['GET',])
 def joinGame(request,alias,game_id):
     player,created = Player.objects.get_or_create(alias=alias)
+    player.tiles = ""
+    player.points = 0
     player.lastTimeInSystem = timezone.now()
     player.save()
     game = DominoGame.objects.get(id=game_id)
@@ -267,7 +269,6 @@ def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
     n = len(players)
-    shuffle(game,players)
     if game.starter == -1 or game.starter >= n:
         game.next_player = random.randint(0,n-1)
         game.starter = game.next_player
@@ -286,9 +287,9 @@ def startGame(request,game_id):
         game.scoreTeam2 = 0
         for player in players:
             player.points = 0
-            player.save()
     if game.status == "fg":
-        game.rounds = 0        
+        game.rounds = 0  
+    shuffle(game,players)          
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
@@ -306,7 +307,6 @@ def startGame(request,game_id):
 def startGame1(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    shuffle(game,players)
     if game.starter == -1:
         game.next_player = random.randint(0,len(players)-1)
         game.starter = game.next_player
@@ -325,9 +325,9 @@ def startGame1(request,game_id):
         game.scoreTeam2 = 0
         for player in players:
             player.points = 0
-            player.save()
     if game.status == "fg":
-        game.rounds = 0        
+        game.rounds = 0
+    shuffle(game,players)            
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
