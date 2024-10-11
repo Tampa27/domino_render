@@ -214,14 +214,14 @@ def joinGame(request,alias,game_id):
 
     if joined == True:
         if game.inPairs:
-            if len(players) == 4:
+            if len(players) == 4 and game.status != "ru":
                game.status = "ready"
-            else:
+            elif game.status != "ru":
                 game.status = "wt"
         else:                
-            if len(players) >= 2:
+            if len(players) >= 2 and game.status != "ru":
                 game.status = "ready"
-            else:
+            elif game.status != "ru":
                 game.status = "wt"    
         #updateLastPlayerTime(game,alias)
         game.save()    
