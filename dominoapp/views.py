@@ -190,8 +190,6 @@ def createGame(request,alias,variant):
 @api_view(['GET',])
 def joinGame(request,alias,game_id):
     player,created = Player.objects.get_or_create(alias=alias)
-    player.tiles = ""
-    player.points = 0
     player.lastTimeInSystem = timezone.now()
     player.save()
     game = DominoGame.objects.get(id=game_id)
@@ -283,9 +281,12 @@ def startGame(request,game_id):
     #game.winner=-1
         
     game.board = ''
-    if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
+    if game.perPoints and (game.status =="ready" or game.status =="fg"):
         game.scoreTeam1 = 0
         game.scoreTeam2 = 0
+        for player in players:
+            player.points = 0
+            player.save()
     if game.status == "fg":
         game.rounds = 0        
     game.status = "ru"
@@ -319,9 +320,12 @@ def startGame1(request,game_id):
     #game.winner=-1
         
     game.board = ''
-    if game.perPoints and (game.status =="ready" or game.status =="fg") and game.inPairs:
+    if game.perPoints and (game.status =="ready" or game.status =="fg"):
         game.scoreTeam1 = 0
         game.scoreTeam2 = 0
+        for player in players:
+            player.points = 0
+            player.save()
     if game.status == "fg":
         game.rounds = 0        
     game.status = "ru"
