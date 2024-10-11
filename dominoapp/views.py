@@ -190,8 +190,6 @@ def createGame(request,alias,variant):
 @api_view(['GET',])
 def joinGame(request,alias,game_id):
     player,created = Player.objects.get_or_create(alias=alias)
-    player.tiles = ""
-    player.points = 0
     player.lastTimeInSystem = timezone.now()
     player.save()
     game = DominoGame.objects.get(id=game_id)
