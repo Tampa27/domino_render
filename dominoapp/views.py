@@ -543,18 +543,25 @@ def updateTiles(player,tile):
             res+=','        
     return len(tiles),res
 
-def getWinner(players):
+def getWinner(players,inPairs):
     i = 0
     min = 1000
     res = -1
+    points = []
     for player in players:
         pts = totalPoints(player.tiles)
+        points.append(pts)
         if pts < min:
             min = pts
             res = i
         elif pts == min:
             res = 4
-        i+=1    
+        i+=1
+    if res == 4 and inPairs:
+        if points[0] == points[2] and points[2] == min and points[1] != min and points[3] != min:
+            res = 0
+        elif points[1] == points[3] and points[1] == min and points[0] != min and points[2] != min:
+            res = 1 
     return res
 
 def totalPoints(tiles):
