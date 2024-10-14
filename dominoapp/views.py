@@ -376,7 +376,7 @@ def movement(game,player,players,tile):
         else:
             game.next_player = (w+1) % n 
     elif checkClosedGame1(game,n):
-        winner = getWinner(players)
+        winner = getWinner(players,game.inPairs)
         game.rounds+=1
         game.status = 'fg'
         game.winner = winner
