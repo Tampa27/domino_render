@@ -130,7 +130,7 @@ def getGame(request,game_id,alias):
             player.save()
         else:
             diff_time = timezone.now() - player.lastTimeInSystem
-            if(diff_time.seconds >= exitTable):
+            if(diff_time.seconds >= exitTable) and result.status != "ru" and result.status != "fi":
                 exitPlayer(result,player,players)    
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
@@ -399,7 +399,7 @@ def movement(game,player,players,tile):
     else:
         game.next_player = (w+1) % n
     game.board += (tile+',')
-    updateLastPlayerTime(game,alias)        
+    #updateLastPlayerTime(game,alias)        
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
@@ -702,7 +702,7 @@ def checkPlayersTimeOut1(game,alias):
     if game.player1 is not None:
         if game.player1.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player1.lastTimeInSystem
-            if timediff.seconds > exitTime:
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
                 players.append(game.player1)
                 game.player1 = None
             else:
