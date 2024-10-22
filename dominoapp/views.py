@@ -716,7 +716,7 @@ def checkPlayersTimeOut1(game,alias):
     if game.player2 is not None:
         if game.player2.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player2.lastTimeInSystem
-            if timediff.seconds > exitTime:
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
                 players.append(game.player2)
                 game.player2 = None
             else:
@@ -730,7 +730,7 @@ def checkPlayersTimeOut1(game,alias):
     if game.player3 is not None:
         if game.player3.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player3.lastTimeInSystem
-            if timediff.seconds > exitTime:
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
                 players.append(game.player3)
                 game.player3 = None
             else:
@@ -744,7 +744,7 @@ def checkPlayersTimeOut1(game,alias):
     if game.player4 is not None:
         if game.player4.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player4.lastTimeInSystem
-            if timediff.seconds > exitTime:
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
                 players.append(game.player4)
                 game.player4 = None
             else:
