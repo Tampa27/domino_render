@@ -285,8 +285,8 @@ def startGame(request,game_id):
         game.scoreTeam2 = 0
         for player in players:
             player.points = 0
-    if game.status == "fg":
-        game.rounds = 0  
+        game.rounds = 0    
+          
     shuffle(game,players)          
     game.status = "ru"
     game.start_time = timezone.now()
@@ -323,7 +323,6 @@ def startGame1(request,game_id):
         game.scoreTeam2 = 0
         for player in players:
             player.points = 0
-    if game.status == "fg":
         game.rounds = 0
     shuffle(game,players)            
     game.status = "ru"
@@ -421,6 +420,25 @@ def exitGame(request,game_id,alias):
     if exited:
         return Response({'status': 'success', "message":'Player exited'}, status=200)
     return Response({'status': 'error', "message":'Player no found'}, status=300)
+
+@api_view(['GET',])
+def setPatner(request,game_id,alias):
+    game = DominoGame.objects.get(game_id=game_id)
+    players = playersCount(game)
+    for player in players:
+        if player.alias == alias:
+            patner = player
+            break
+    aux = game.player3
+    if game.player2.alias == alias:
+        game.player2 = aux
+        game.player3 = patner
+    elif game.player4.alias == alias:
+        game.player4 = aux
+        game.player3 = patner
+    return Response({'status': 'success'}, status=200)         
+
+
 
 def exitPlayer(game,player,players):
     exited = False
