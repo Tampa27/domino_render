@@ -99,8 +99,8 @@ class GameCreate(generics.CreateAPIView):
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 exitTime = 90 #Si en 1 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
-moveTime = 15
-exitTable = 35
+moveTime = 20
+exitTable = 40
 
 @api_view(['GET',])
 def getAllGames(request,alias):
@@ -423,7 +423,7 @@ def exitGame(request,game_id,alias):
 
 @api_view(['GET',])
 def setPatner(request,game_id,alias):
-    game = DominoGame.objects.get(game_id=game_id)
+    game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
     for player in players:
         if player.alias == alias:
