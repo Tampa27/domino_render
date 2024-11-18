@@ -101,6 +101,7 @@ class GameCreate(generics.CreateAPIView):
 exitTime = 90 #Si en 1 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 20
 exitTable = 40
+fgTime = 5
 
 @api_view(['GET',])
 def getAllGames(request,alias):
@@ -130,8 +131,11 @@ def getGame(request,game_id,alias):
             player.save()
         else:
             diff_time = timezone.now() - player.lastTimeInSystem
-            if(diff_time.seconds >= exitTable) and result.status != "ru" and result.status != "fi":
+            diff_time2 = timezone.now()- result.start_time
+            if(diff_time.seconds >= exitTable) and result.status != "ru" and result.status != "fi" and result.status != "fg":
                 exitPlayer(result,player,players)    
+            elif result.status == "fg" and (diff_time.seconds >= exitTable) and (diff_time2.seconds >= fgTime):
+                exitPlayer(result,player,players)   
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
@@ -363,6 +367,7 @@ def movement(game,player,players,tile):
         if tiles_count == 0:
             game.rounds+=1
             game.status = 'fg'
+            game.start_time = timezone.now()
             if game.startWinner:
                 game.starter = w
                 game.next_player = w
@@ -378,6 +383,7 @@ def movement(game,player,players,tile):
         winner = getWinner(players,game.inPairs)
         game.rounds+=1
         game.status = 'fg'
+        game.start_time = timezone.now()
         game.winner = winner
         if winner < 4:
             if game.startWinner:
@@ -439,7 +445,6 @@ def setPatner(request,game_id,alias):
     return Response({'status': 'success'}, status=200)         
 
 
-
 def exitPlayer(game,player,players):
     exited = False
     if game.player1 is not None and game.player1.alias == player.alias:
@@ -481,9 +486,11 @@ def updateTeamScore(game, winner, players, sum_points):
         players[3].save()
     if game.scoreTeam1 >= game.maxScore:
         game.status="fg"
+        game.start_time = timezone.now()
         game.winner = 5 #Gano el equipo 1
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
+        game.start_time = timezone.now()
         game.winner = 6 #Gano el equipo 2
     else:
         game.status="fi"    
@@ -717,12 +724,16 @@ def checkPlayersTimeOut1(game,alias):
     n = 0
     players = []
     inGame = False
+    diff_time2 = timezone.now()- game.start_time
     if game.player1 is not None:
         if game.player1.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player1.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi" and game.status != "fg":
                 players.append(game.player1)
                 game.player1 = None
+            elif game.status == "fg" and (timediff.seconds >= exitTable) and (diff_time2.seconds >= fgTime):
+                players.append(game.player1)
+                game.player1 = None    
             else:
                 if game.player1.alias == alias:
                     inGame = True
@@ -734,9 +745,12 @@ def checkPlayersTimeOut1(game,alias):
     if game.player2 is not None:
         if game.player2.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player2.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fg" and game.status != "fi":
                 players.append(game.player2)
                 game.player2 = None
+            elif game.status == "fg" and (timediff.seconds >= exitTable) and (diff_time2.seconds >= fgTime):
+                players.append(game.player2)
+                game.player2 = None     
             else:
                 if game.player2.alias == alias:
                     inGame = True
@@ -748,9 +762,12 @@ def checkPlayersTimeOut1(game,alias):
     if game.player3 is not None:
         if game.player3.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player3.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
+            if timediff.seconds > exitTime and game.status != "fg" and game.status != "ru" and game.status != "fi":
                 players.append(game.player3)
                 game.player3 = None
+            elif game.status == "fg" and (timediff.seconds >= exitTable) and (diff_time2.seconds >= fgTime):
+                players.append(game.player3)
+                game.player3 = None     
             else:
                 if game.player3.alias == alias:
                     inGame = True
@@ -762,9 +779,12 @@ def checkPlayersTimeOut1(game,alias):
     if game.player4 is not None:
         if game.player4.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player4.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi":
+            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi" and game.status != "fg":
                 players.append(game.player4)
                 game.player4 = None
+            elif game.status == "fg" and (timediff.seconds >= exitTable) and (diff_time2.seconds >= fgTime):
+                players.append(game.player4)
+                game.player4 = None     
             else:
                 if game.player4.alias == alias:
                     inGame = True
