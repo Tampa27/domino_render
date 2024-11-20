@@ -443,6 +443,7 @@ def setPatner(request,game_id,alias):
     elif game.player4.alias == alias:
         game.player4 = aux
         game.player3 = patner
+    game.save()    
     return Response({'status': 'success'}, status=200)         
 
 
