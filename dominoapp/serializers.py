@@ -8,6 +8,10 @@ class PlayerSerializer(serializers.ModelSerializer):
     tiles = serializers.CharField(max_length=32)
     coins = serializers.IntegerField()
     points = serializers.IntegerField()
+    dataWins = serializers.IntegerField()
+    dataLoss = serializers.IntegerField()
+    matchWins = serializers.IntegerField()
+    matchLoss = serializers.IntegerField()
     lastTimeInSystem = serializers.DateTimeField()
 
     class Meta:
@@ -27,7 +31,11 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.alias = validated_data.get('alias', instance.alias)
         instance.tiles = validated_data.get('tiles', instance.tiles)
         instance.coins = validated_data.get('coins', instance.coins)
-        instance.points = validated_data.get('points', instance.coins)
+        instance.points = validated_data.get('points', instance.points)
+        instance.dataWins = validated_data.get('dataWins', instance.dataWins)
+        instance.dataLoss = validated_data.get('dataLoss', instance.dataLoss)
+        instance.matchWins = validated_data.get('matchWins', instance.matchWins)
+        instance.matchLoss = validated_data.get('matchLoss', instance.matchLoss)
         instance.lastTimeInSystem = validated_data.get('lastTimeInSystem',instance.lastTimeInSystem)
         instance.save()
         return instance     
