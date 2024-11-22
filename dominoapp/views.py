@@ -377,7 +377,9 @@ def movement(game,player,players,tile):
                 game.next_player = game.starter    
             game.winner = w
             if game.perPoints:
-                updateAllPoints(game,players,w,isCapicua)                                    
+                updateAllPoints(game,players,w,isCapicua)
+            else:
+                updatePlayersData(game,players,w,"fi")                                        
         else:
             game.next_player = (w+1) % n 
     elif checkClosedGame1(game,n):
@@ -401,11 +403,39 @@ def movement(game,player,players,tile):
                 game.next_player = game.starter
             else:    
                 game.starter = (game.starter+1)%n
-                game.next_player = game.starter        
+                game.next_player = game.starter
+        else:
+            updatePlayersData(game,players,winner,"fi")                
     else:
         game.next_player = (w+1) % n
     game.board += (tile+',')
     #updateLastPlayerTime(game,alias)        
+
+def updatePlayersData(game,players,w,status):
+    if game.inPairs:
+        for i in range(len(players)):
+            if i == w or i == ((w+2)%4):
+                players[i].dataWins+=1
+                if status == "fg":
+                    players[i].matchWins+=1
+                players[i].save()
+            else:
+                players[i].dataLoss+=1
+                if status == "fg":
+                    players[i].matchLoss+=1
+                players[i].save()
+    else:
+        for i in range(len(players)):
+            if i == w:
+                players[i].dataWins+=1
+                if status == "fg":
+                    players[i].matchWins+=1
+                players[i].save()
+            else:
+                players[i].dataLoss+=1
+                if status == "fg":
+                    players[i].matchLoss+=1
+                players[i].save()                                    
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
@@ -488,13 +518,16 @@ def updateTeamScore(game, winner, players, sum_points):
         players[3].save()
     if game.scoreTeam1 >= game.maxScore:
         game.status="fg"
+        updatePlayersData(game,players,winner,"fg")
         game.start_time = timezone.now()
         game.winner = 5 #Gano el equipo 1
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
+        updatePlayersData(game,players,winner,"fg")
         game.start_time = timezone.now()
         game.winner = 6 #Gano el equipo 2
     else:
+        updatePlayersData(game,players,winner,"fi")
         game.status="fi"    
     
 def updateAllPoints(game,players,winner,isCapicua=False):
@@ -512,8 +545,10 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
+                updatePlayersData(game,players,winner,"fg")
             else:
-                game.status = "fi"                              
+                game.status = "fi"
+                updatePlayersData(game,players,winner,"fi")                              
     else:#En caso en que se sumen los puntos solo de los perdedores
         for i in range(n):
             if i != winner:
@@ -531,8 +566,10 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
+                updatePlayersData(game,players,winner,"fg")
             else:
-                game.status = "fi"    
+                game.status = "fi"
+                updatePlayersData(game,players,winner,"fi")    
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
