@@ -105,6 +105,12 @@ exitTable2 = 10
 fgTime = 10
 
 @api_view(['GET',])
+def getPlayer(request,id):
+    result = DominoGame.objects.get(id=id)
+    serializer =PlayerSerializer(result)
+    return Response({'status': 'success', "player":serializer.data,}, status=200)
+
+@api_view(['GET',])
 def getAllGames(request,alias):
     result = DominoGame.objects.all()
     player,created = Player.objects.get_or_create(alias=alias)
