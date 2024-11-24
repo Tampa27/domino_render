@@ -424,11 +424,15 @@ def updatePlayersData(game,players,w,status):
                 players[i].dataWins+=1
                 if status == "fg":
                     players[i].matchWins+=1
+                    if game.payMatchValue > 0:
+                        players[i].coins+=game.payMatchValue
                 players[i].save()
             else:
                 players[i].dataLoss+=1
                 if status == "fg":
                     players[i].matchLoss+=1
+                    if game.payMatchValue > 0:
+                        players[i].coins-=game.payMatchValue
                 players[i].save()
     else:
         for i in range(len(players)):
@@ -436,11 +440,15 @@ def updatePlayersData(game,players,w,status):
                 players[i].dataWins+=1
                 if status == "fg":
                     players[i].matchWins+=1
+                    if game.payMatchValue > 0:
+                        players[i].coins+=game.payMatchValue
                 players[i].save()
             else:
                 players[i].dataLoss+=1
                 if status == "fg":
                     players[i].matchLoss+=1
+                    if game.payMatchValue > 0:
+                        players[i].coins-=game.payMatchValue
                 players[i].save()                                    
 
 @api_view(['GET',])
