@@ -422,6 +422,8 @@ def updatePlayersData(game,players,w,status):
         for i in range(len(players)):
             if i == w or i == ((w+2)%4):
                 players[i].dataWins+=1
+                if game.payWinValue > 0:
+                    players[i].coins+=game.payWinValue        
                 if status == "fg":
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -429,6 +431,8 @@ def updatePlayersData(game,players,w,status):
                 players[i].save()
             else:
                 players[i].dataLoss+=1
+                if game.payWinValue > 0:
+                    players[i].coins-=game.payWinValue
                 if status == "fg":
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0:
@@ -438,6 +442,8 @@ def updatePlayersData(game,players,w,status):
         for i in range(len(players)):
             if i == w:
                 players[i].dataWins+=1
+                if game.payWinValue > 0:
+                    players[i].coins+=game.payWinValue
                 if status == "fg":
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -445,6 +451,8 @@ def updatePlayersData(game,players,w,status):
                 players[i].save()
             else:
                 players[i].dataLoss+=1
+                if game.payWinValue > 0:
+                    players[i].coins-=game.payWinValue
                 if status == "fg":
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0:
