@@ -413,6 +413,8 @@ def movement(game,player,players,tile):
         else:
             updatePlayersData(game,players,winner,"fi")                
     else:
+        if game.payPassValue > 0:
+            updatePassCoins(w,game,players)
         game.next_player = (w+1) % n
     game.board += (tile+',')
     #updateLastPlayerTime(game,alias)        
@@ -458,6 +460,43 @@ def updatePlayersData(game,players,w,status):
                     if game.payMatchValue > 0:
                         players[i].coins-=game.payMatchValue
                 players[i].save()                                    
+
+def updatePassCoins(pos,game,players):
+    tiles = game.board.split(',')
+    rtiles = reversed(tiles)
+    prev = 1
+    n = len(players)
+    for tile in rtiles:
+        if len(tile) > 0:
+            if isPass(tile):
+                prev+=1
+            else:
+                if prev == 1 or prev == 3:
+                    if (pos - prev) < 0:
+                        pos1 = pos + (n-prev)
+                        players[pos].coins-=game.payPassValue
+                        players[pos1].coins+=game.payPassValue
+                        players[pos].save()
+                        players[pos1].save()
+                    else:
+                        pos1 = pos - prev
+                        players[pos].coins-=game.payPassValue
+                        players[pos1].coins+=game.payPassValue
+                        players[pos].save()
+                        players[pos1].save()
+                elif prev == 2 and game.inPairs == False:
+                    if (pos - 2) < 0:
+                        pos1 = pos + (n-prev)
+                        players[pos].coins-=game.payPassValue
+                        players[pos1].coins+=game.payPassValue
+                        players[pos].save()
+                        players[pos1].save()
+                    else:        
+                        pos1 = pos - prev
+                        players[pos].coins-=game.payPassValue
+                        players[pos1].coins+=game.payPassValue
+                        players[pos].save()
+                        players[pos1].save()                    
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
@@ -920,3 +959,4 @@ def getLastMoveTime(game,player):
     elif game.player4 is not None and game.player4.alias == player.alias:
         return game.lastTime4
     return None
+
