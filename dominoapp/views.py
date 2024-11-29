@@ -496,7 +496,8 @@ def updatePassCoins(pos,game,players):
                         players[pos].coins-=game.payPassValue
                         players[pos1].coins+=game.payPassValue
                         players[pos].save()
-                        players[pos1].save()                    
+                        players[pos1].save()
+                break                            
 
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
