@@ -897,6 +897,7 @@ def checkPlayersTimeOut1(game,alias):
     if n < 2 or (n < 4 and game.inPairs):
         game.status = "wt"
         game.starter=-1
+        game.board = ""
     for player in players:
         player.tiles = ""
         player.points = 0
