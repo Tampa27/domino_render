@@ -389,7 +389,7 @@ def movement(game,player,players,tile):
         else:
             game.next_player = (w+1) % n 
     elif checkClosedGame1(game,n):
-        winner = getWinner(players,game.inPairs)
+        winner = getWinner(players,game.inPairs,game.variant)
         game.rounds+=1
         game.status = 'fg'
         game.start_time = timezone.now()
@@ -544,7 +544,7 @@ def rechargeBalance(request,alias,coins):
     player.coins+=coins
     player.save()
     return Response({'status': 'success', "message":'Balance recharged'}, status=200)
-    
+
 def exitPlayer(game,player,players):
     exited = False
     if game.player1 is not None and game.player1.alias == player.alias:
@@ -675,7 +675,7 @@ def updateTiles(player,tile):
             res+=','        
     return len(tiles),res
 
-def getWinner(players,inPairs):
+def getWinner(players,inPairs,variant):
     i = 0
     min = 1000
     res = -1
@@ -689,11 +689,26 @@ def getWinner(players,inPairs):
         elif pts == min:
             res = 4
         i+=1
-    if res == 4 and inPairs:
+    if variant == "d6" and inPairs:
+        sum1 = points[0]+points[2]
+        sum2 = points[1]+points[3]
+        if sum1 < sum2:
+            if points[0] < points[2]:
+                return 0
+            else:
+                return 2
+        elif sum1 > sum2:
+            if points[1] < points[3]:
+                return 1
+            else:
+                return 3
+        else:
+            return 4        
+    elif res == 4 and inPairs:
         if points[0] == points[2] and points[2] == min and points[1] != min and points[3] != min:
             res = 0
         elif points[1] == points[3] and points[1] == min and points[0] != min and points[2] != min:
-            res = 1 
+            res = 1         
     return res
 
 def totalPoints(tiles):
