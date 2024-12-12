@@ -538,7 +538,13 @@ def setPatner(request,game_id,alias):
     game.save()    
     return Response({'status': 'success'}, status=200)         
 
-
+@api_view(['GET',])
+def rechargeBalance(request,alias,coins):
+    player = Player.objects.get(alias=alias)
+    player.coins+=coins
+    player.save()
+    return Response({'status': 'success', "message":'Balance recharged'}, status=200)
+    
 def exitPlayer(game,player,players):
     exited = False
     if game.player1 is not None and game.player1.alias == player.alias:
@@ -961,4 +967,5 @@ def getLastMoveTime(game,player):
     elif game.player4 is not None and game.player4.alias == player.alias:
         return game.lastTime4
     return None
+
 
