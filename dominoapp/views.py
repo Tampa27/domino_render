@@ -372,7 +372,6 @@ def movement(game,player,players,tile):
         player.tiles = tiles
         player.save()
         if tiles_count == 0:
-            game.rounds+=1
             game.status = 'fg'
             game.start_time = timezone.now()
             if game.startWinner:
@@ -383,6 +382,7 @@ def movement(game,player,players,tile):
                 game.next_player = game.starter    
             game.winner = w
             if game.perPoints:
+                game.rounds+=1
                 updateAllPoints(game,players,w,isCapicua)
             else:
                 updatePlayersData(game,players,w,"fi")                                        
@@ -390,10 +390,11 @@ def movement(game,player,players,tile):
             game.next_player = (w+1) % n 
     elif checkClosedGame1(game,n):
         winner = getWinner(players,game.inPairs,game.variant)
-        game.rounds+=1
         game.status = 'fg'
         game.start_time = timezone.now()
         game.winner = winner
+        if game.perPoints:
+            game.rounds+=1
         if winner < 4:
             if game.startWinner:
                 game.starter = winner
