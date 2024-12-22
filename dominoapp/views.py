@@ -192,6 +192,7 @@ def createGame(request,alias,variant):
     game = DominoGame.objects.create(player1=player1,variant=variant)
     game.lastTime1 = timezone.now()
     updateLastPlayerTime(game,alias)
+    game.created_time = timezone.now()
     game.save()
     serializer = GameSerializer(game)
     players = [player1]

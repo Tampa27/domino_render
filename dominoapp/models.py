@@ -53,6 +53,9 @@ class DominoGame(models.Model):
     capicua = models.BooleanField(default=False)
     rounds = models.SmallIntegerField(default=0)
     moveTime = models.SmallIntegerField(default=10)
+    created_time = models.DateTimeField(default=timezone.now(),null=True,blank=True)
+    password = models.CharField(max_length=20,default="")
+    days_active = models.IntegerField(default=0)
 
     def __str__(self) -> str:
         return '%s %s %s %s' % (
