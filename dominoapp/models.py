@@ -54,7 +54,7 @@ class DominoGame(models.Model):
     rounds = models.SmallIntegerField(default=0)
     moveTime = models.SmallIntegerField(default=10)
     created_time = models.DateTimeField(default=timezone.now(),null=True,blank=True)
-    password = models.CharField(max_length=20,default="")
+    password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
 
     def __str__(self) -> str:
