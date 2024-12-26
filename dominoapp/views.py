@@ -269,7 +269,7 @@ def checkPlayerJoined(player,game):
 def clearGames(request):
     DominoGame.objects.all().delete()
     with connection.cursor() as cursor:
-        cursor.execute("DELETE FROM sqlite_sequence WHERE name='dominoapp_dominogame';")
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='domino_dominogame';")
     return Response({'status': 'success', "message":'All games deleted'}, status=200)
 
 @api_view(['GET',])
