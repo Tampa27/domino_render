@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework import generics
 from django.utils import timezone
+from django.db import connection
 import random
 
 # Create your views here.
@@ -267,6 +268,8 @@ def checkPlayerJoined(player,game):
 @api_view(['GET',])
 def clearGames(request):
     DominoGame.objects.all().delete()
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='dominoapp_dominogame';")
     return Response({'status': 'success', "message":'All games deleted'}, status=200)
 
 @api_view(['GET',])
