@@ -113,20 +113,23 @@ def getPlayer(request,id):
 
 @api_view(['GET',])
 def getAllGames(request,alias):
-    result = DominoGame.objects.all()
+    needUpdate = False
     player,created = Player.objects.get_or_create(alias=alias)
     if created:
         player.coins = 100
     player.lastTimeInSystem = timezone.now()
     player.save()
     game_id = -1
+    playerSerializer = PlayerSerializer(player)
+    if needUpdate:
+        return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":needUpdate}, status=200)
+    result = DominoGame.objects.all()
     for game in result:
         inGame = checkPlayersTimeOut1(game,alias)
         if inGame:
             game_id = game.id
     serializer =GameSerializer(result,many=True)
-    playerSerializer = PlayerSerializer(player)
-    return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data,"game_id":game_id}, status=200)
+    return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data,"game_id":game_id,"update":needUpdate}, status=200)
 
 @api_view(['GET',])
 def getGame(request,game_id,alias):
@@ -268,8 +271,6 @@ def checkPlayerJoined(player,game):
 @api_view(['GET',])
 def clearGames(request):
     DominoGame.objects.all().delete()
-    with connection.cursor() as cursor:
-        cursor.execute("DELETE FROM sqlite_sequence WHERE name='domino_dominogame';")
     return Response({'status': 'success', "message":'All games deleted'}, status=200)
 
 @api_view(['GET',])
