@@ -113,7 +113,7 @@ def getPlayer(request,id):
 
 @api_view(['GET',])
 def getAllGames(request,alias):
-    needUpdate = False
+    needUpdate = True
     player,created = Player.objects.get_or_create(alias=alias)
     if created:
         player.coins = 100
