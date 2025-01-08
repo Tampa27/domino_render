@@ -8,6 +8,7 @@ from .serializers import MyPlayerSerializer
 from .models import DominoGame
 from .models import Bank
 from .serializers import GameSerializer
+from .serializers import BankSerializer
 from django.shortcuts import get_object_or_404 
 from rest_framework.decorators import api_view
 from rest_framework import generics
@@ -318,6 +319,12 @@ def startGame(request,game_id):
     serializerGame = GameSerializer(game)
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+
+@api_view(['GET',])
+def getBank(request):
+    bank = Bank.objects.get_or_create(id=1)
+    serializerBank = BankSerializer(bank)
+    return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 @api_view(['POST',])
 def startGame1(request,game_id):
