@@ -65,3 +65,12 @@ class DominoGame(models.Model):
             self.start_time
         )
     
+class Bank(models.Model):
+    balance = models.PositiveIntegerField(default=10000)
+    created_coins = models.PositiveIntegerField(default=0)
+    extracted_coins = models.PositiveIntegerField(default=0)
+    buy_coins = models.PositiveIntegerField(default=0)
+    ads_coins = models.PositiveIntegerField(default=0)
+    datas_coins = models.PositiveIntegerField(default=0)
+    matches_coins = models.PositiveIntegerField(default=0)
+    private_tables_coins = models.PositiveIntegerField(default=0)

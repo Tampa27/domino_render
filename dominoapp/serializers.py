@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Player
 from .models import DominoGame
+from .models import Bank
 
 class PlayerSerializer(serializers.ModelSerializer):
     user = serializers.ModelField
@@ -50,4 +51,10 @@ class MyPlayerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
+        fields = ('__all__')
+
+class BankSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Bank
         fields = ('__all__')

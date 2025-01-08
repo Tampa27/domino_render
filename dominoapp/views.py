@@ -6,6 +6,7 @@ from .models import Player
 from .serializers import PlayerSerializer
 from .serializers import MyPlayerSerializer
 from .models import DominoGame
+from .models import Bank
 from .serializers import GameSerializer
 from django.shortcuts import get_object_or_404 
 from rest_framework.decorators import api_view
@@ -104,6 +105,7 @@ moveTime = 20
 exitTable = 40
 exitTable2 = 10
 fgTime = 10
+percent = 10
 
 @api_view(['GET',])
 def getPlayer(request,id):
@@ -426,16 +428,27 @@ def movement(game,player,players,tile):
     #updateLastPlayerTime(game,alias)        
 
 def updatePlayersData(game,players,w,status):
+    bank = Bank.objects.get_or_create(id=1)
+    bank_coins = 0
+    n = len(players)
     if game.inPairs:
-        for i in range(len(players)):
+        for i in range(n):
             if i == w or i == ((w+2)%4):
                 players[i].dataWins+=1
                 if game.payWinValue > 0:
-                    players[i].coins+=game.payWinValue        
+                    bank_coins = int(game.payWinValue*percent/100)
+                    bank.datas_coins+=bank_coins
+                    player_coins = (game.payWinValue-bank_coins)
+                    bank.balance+=(bank_coins-player_coins)
+                    players[i].coins+= player_coins       
                 if status == "fg":
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
-                        players[i].coins+=game.payMatchValue
+                        bank_coins = int(game.payMatchValue*percent/100)
+                        bank.matches_coins+=bank_coins
+                        player_coins = (game.payMatchValue-bank_coins)
+                        bank.balance+=(bank_coins-player_coins)
+                        players[i].coins+= player_coins
                 players[i].save()
             else:
                 players[i].dataLoss+=1
@@ -447,9 +460,14 @@ def updatePlayersData(game,players,w,status):
                         players[i].coins-=game.payMatchValue
                 players[i].save()
     else:
-        for i in range(len(players)):
+        for i in range(n):
             if i == w:
                 players[i].dataWins+=1
+                bank_coins = int(game.payWinValue*percent/100)*(n-1)
+                bank.datas_coins+=bank_coins
+                player_coins = (game.payWinValue*(n-1)-bank_coins)
+                bank.balance+=(bank_coins-player_coins)
+                players[i].coins+= player_coins
                 if game.payWinValue > 0:
                     players[i].coins+=game.payWinValue
                 if status == "fg":
@@ -466,6 +484,7 @@ def updatePlayersData(game,players,w,status):
                     if game.payMatchValue > 0:
                         players[i].coins-=game.payMatchValue
                 players[i].save()                                    
+    bank.save()
 
 def updatePassCoins(pos,game,players):
     tiles = game.board.split(',')
