@@ -14,6 +14,7 @@ from rest_framework.decorators import api_view
 from rest_framework import generics
 from django.utils import timezone
 from django.db import connection
+from django.core.exceptions import ObjectDoesNotExist
 import random
 
 # Create your views here.
@@ -322,7 +323,7 @@ def startGame(request,game_id):
 
 @api_view(['GET',])
 def getBank(request):
-    bank = Bank.objects.get_or_create(id=1)
+    bank = Bank.objects.get(id=1)
     serializerBank = BankSerializer(bank)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
@@ -435,7 +436,10 @@ def movement(game,player,players,tile):
     #updateLastPlayerTime(game,alias)        
 
 def updatePlayersData(game,players,w,status):
-    bank = Bank.objects.get_or_create(id=1)
+    try:
+        bank = Bank.objects.get(id=1)
+    except ObjectDoesNotExist:
+        bank = Bank.objects.create()
     bank_coins = 0
     n = len(players)
     if game.inPairs:
