@@ -119,8 +119,15 @@ def getPlayer(request,id):
 def getAllGames(request,alias):
     needUpdate = False
     player,created = Player.objects.get_or_create(alias=alias)
+    try:
+        bank = Bank.objects.get(id=1)
+    except ObjectDoesNotExist:
+        bank = Bank.objects.create()
     if created:
         player.coins = 100
+        bank.balance-=100
+        bank.created_coins+=100
+    bank.save()    
     player.lastTimeInSystem = timezone.now()
     player.save()
     game_id = -1
@@ -323,7 +330,7 @@ def startGame(request,game_id):
 
 @api_view(['GET',])
 def getBank(request):
-    bank = Bank.objects.get(id=1)
+    bank = Bank.objects.get_or_create(id=1)
     serializerBank = BankSerializer(bank)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
@@ -450,7 +457,7 @@ def updatePlayersData(game,players,w,status):
                     bank_coins = int(game.payWinValue*percent/100)
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue-bank_coins)
-                    bank.balance+=(bank_coins-player_coins)
+                    bank.balance+=(bank_coins)
                     players[i].coins+= player_coins       
                 if status == "fg":
                     players[i].matchWins+=1
@@ -458,7 +465,7 @@ def updatePlayersData(game,players,w,status):
                         bank_coins = int(game.payMatchValue*percent/100)
                         bank.matches_coins+=bank_coins
                         player_coins = (game.payMatchValue-bank_coins)
-                        bank.balance+=(bank_coins-player_coins)
+                        bank.balance+=(bank_coins)
                         players[i].coins+= player_coins
                 players[i].save()
             else:
@@ -477,7 +484,7 @@ def updatePlayersData(game,players,w,status):
                 bank_coins = int(game.payWinValue*percent/100)*(n-1)
                 bank.datas_coins+=bank_coins
                 player_coins = (game.payWinValue*(n-1)-bank_coins)
-                bank.balance+=(bank_coins-player_coins)
+                bank.balance+=(bank_coins)
                 players[i].coins+= player_coins
                 if game.payWinValue > 0:
                     players[i].coins+=game.payWinValue
@@ -578,6 +585,13 @@ def setPatner(request,game_id,alias):
 def rechargeBalance(request,alias,coins):
     player = Player.objects.get(alias=alias)
     player.coins+=coins
+    try:
+        bank = Bank.objects.get(id=1)
+    except ObjectDoesNotExist:
+        bank = Bank.objects.create()
+    bank.balance+=coins
+    bank.buy_coins+=coins
+    bank.save()    
     player.save()
     return Response({'status': 'success', "message":'Balance recharged'}, status=200)
 
