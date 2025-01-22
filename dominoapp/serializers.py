@@ -28,7 +28,7 @@ class PlayerSerializer(serializers.ModelSerializer):
         return Player.objects.create(**validated_data)  
     def update(self, instance, validated_data):  
         """ 
-        Update and return an existing `Students` instance, given the validated data. 
+        
         """  
         instance.alias = validated_data.get('alias', instance.alias)
         instance.tiles = validated_data.get('tiles', instance.tiles)
