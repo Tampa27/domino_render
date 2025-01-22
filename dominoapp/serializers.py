@@ -14,6 +14,9 @@ class PlayerSerializer(serializers.ModelSerializer):
     matchWins = serializers.IntegerField()
     matchLoss = serializers.IntegerField()
     lastTimeInSystem = serializers.DateTimeField()
+    email = serializers.CharField()
+    photo_url = serializers.CharField()
+    name = serializers.CharField()
 
     class Meta:
         model = Player

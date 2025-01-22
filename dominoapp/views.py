@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
@@ -16,6 +15,8 @@ from django.utils import timezone
 from django.db import connection
 from django.core.exceptions import ObjectDoesNotExist
 import random
+from django.conf import settings
+from django.views import View
 
 # Create your views here.
 class PlayerView(APIView):
@@ -116,18 +117,30 @@ def getPlayer(request,id):
     return Response({'status': 'success', "player":serializer.data,}, status=200)
 
 @api_view(['GET',])
-def getAllGames(request,alias):
-    needUpdate = False
+def login(request,alias,email,photo_url,name):
     player,created = Player.objects.get_or_create(alias=alias)
-    try:
-        bank = Bank.objects.get(id=1)
-    except ObjectDoesNotExist:
-        bank = Bank.objects.create()
     if created:
+        player.email = email
+        player.photo_url = photo_url
+        player.name = name
+        try:
+            bank = Bank.objects.get(id=1)
+        except ObjectDoesNotExist:
+            bank = Bank.objects.create()
         player.coins = 100
         bank.balance-=100
         bank.created_coins+=100
-    bank.save()    
+        bank.save()
+    player.lastTimeInSystem = timezone.now()
+    player.save()
+    serializer =PlayerSerializer(player)
+    return Response({'status': 'success', "player":serializer.data,}, status=200)        
+
+
+@api_view(['GET',])
+def getAllGames(request,alias):
+    needUpdate = False
+    player,created = Player.objects.get_or_create(alias=alias)
     player.lastTimeInSystem = timezone.now()
     player.save()
     game_id = -1

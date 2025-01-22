@@ -4,8 +4,7 @@ from django.utils import timezone
 # Create your models here.
 
 class Player(models.Model):
-    user = models.ForeignKey(User,on_delete=models.CASCADE,null=True,blank=True)
-    alias = models.CharField(max_length=32) 
+    alias = models.CharField(max_length=50) 
     tiles = models.CharField(max_length=50,default="")
     coins = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
@@ -14,6 +13,9 @@ class Player(models.Model):
     matchWins = models.IntegerField(default=0)
     matchLoss = models.IntegerField(default=0)
     lastTimeInSystem = models.DateTimeField(default=timezone.now())
+    email = models.CharField(max_length=250, unique=True, null=True, blank=True)
+    photo_url = models.CharField(max_length=250, unique=True, null=True, blank=True)
+    name = models.CharField(max_length=32,null=True, blank=True)
     def __str__(self):
         return self.alias
     
