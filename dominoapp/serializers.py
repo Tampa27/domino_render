@@ -4,7 +4,6 @@ from .models import DominoGame
 from .models import Bank
 
 class PlayerSerializer(serializers.ModelSerializer):
-    user = serializers.ModelField
     alias = serializers.CharField(max_length=32,required=True)
     tiles = serializers.CharField(max_length=32)
     coins = serializers.IntegerField()
@@ -31,7 +30,6 @@ class PlayerSerializer(serializers.ModelSerializer):
         """ 
         Update and return an existing `Students` instance, given the validated data. 
         """  
-        instance.user = validated_data.get('user', instance.user)
         instance.alias = validated_data.get('alias', instance.alias)
         instance.tiles = validated_data.get('tiles', instance.tiles)
         instance.coins = validated_data.get('coins', instance.coins)
@@ -41,6 +39,9 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.matchWins = validated_data.get('matchWins', instance.matchWins)
         instance.matchLoss = validated_data.get('matchLoss', instance.matchLoss)
         instance.lastTimeInSystem = validated_data.get('lastTimeInSystem',instance.lastTimeInSystem)
+        instance.email = validated_data.get('email', instance.email)
+        instance.photo_url = validated_data.get('photo_url', instance.photo_url)
+        instance.name = validated_data.get('name', instance.name)
         instance.save()
         return instance     
     
