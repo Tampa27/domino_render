@@ -134,7 +134,7 @@ def login(request,alias,email,photo_url,name):
     player.lastTimeInSystem = timezone.now()
     player.save()
     serializer =PlayerSerializer(player)
-    return Response({'status': 'success', "player":serializer.data,}, status=200)        
+    return Response({'status': 'success', "player":serializer.data}, status=200)        
 
 
 @api_view(['GET',])
