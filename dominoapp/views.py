@@ -89,7 +89,10 @@ class GameCreate(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)  
         if serializer.is_valid():  
             self.perform_create(serializer)  
-            player1,created = Player.objects.get_or_create(alias=alias)
+            try:
+                player1 = Player.objects.get(alias=alias)
+            except ObjectDoesNotExist:
+                return Response ({'status': 'error'},status=400)
             player1.tiles = ""
             player1.points=0
             player1.lastTimeInSystem = timezone.now()
@@ -140,7 +143,10 @@ def login(request,alias,email,photo_url,name):
 @api_view(['GET',])
 def getAllGames(request,alias):
     needUpdate = False
-    player,created = Player.objects.get_or_create(alias=alias)
+    try:
+        player = Player.objects.get(alias=alias)
+    except ObjectDoesNotExist:
+        return Response ({'status': 'error'},status=400)    
     player.lastTimeInSystem = timezone.now()
     player.save()
     game_id = -1
@@ -207,13 +213,19 @@ def setWinnerStarterNext(request,game_id,winner,starter,next_player):
 
 @api_view(['GET',])
 def getPlayer(request,alias):
-    player = Player.objects.get_or_create(alias=alias)
+    try:
+        player = Player.objects.get(alias=alias)
+    except ObjectDoesNotExist:
+        return Response ({'status': 'error'},status=400)
     serializer = PlayerSerializer(player)
     return Response({'status': 'success', "player":serializer.data}, status=200)
 
 @api_view(['GET',])
 def createGame(request,alias,variant):
-    player1,created = Player.objects.get_or_create(alias=alias)
+    try:
+        player1 = Player.objects.get(alias=alias)
+    except ObjectDoesNotExist:
+        return Response ({'status': 'error'},status=400)
     player1.tiles = ""
     player1.lastTimeInSystem = timezone.now()
     player1.save()
@@ -229,7 +241,10 @@ def createGame(request,alias,variant):
 
 @api_view(['GET',])
 def joinGame(request,alias,game_id):
-    player,created = Player.objects.get_or_create(alias=alias)
+    try:
+        player = Player.objects.get(alias=alias)
+    except ObjectDoesNotExist:
+        return Response ({'status': 'error'},status=400)
     player.lastTimeInSystem = timezone.now()
     player.save()
     game = DominoGame.objects.get(id=game_id)

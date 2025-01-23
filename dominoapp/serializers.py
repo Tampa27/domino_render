@@ -16,6 +16,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     email = serializers.CharField()
     photo_url = serializers.CharField()
     name = serializers.CharField()
+    isPlaying = serializers.BooleanField()
 
     class Meta:
         model = Player
