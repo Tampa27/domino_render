@@ -642,8 +642,8 @@ def exitPlayer(game,player,players):
         player.tiles = ""
         if len(players) <= 2 or game.inPairs:
             game.status = "wt"
-        #elif len(players) > 2 and not game.inPairs:
-        #    game.status = "ready"    
+        elif len(players) > 2 and not game.inPairs and game.perPoints:
+            game.status = "ready"    
         player.save()
         game.save()    
     return exited    
