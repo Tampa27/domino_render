@@ -179,7 +179,7 @@ def getGame(request,game_id,alias):
                 exitPlayer(result,player,players)    
             elif result.status == "fg" and (diff_time.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
                 exitPlayer(result,player,players)
-        if result.payMatchValue > 0 or result.payWinValue > 0 and result.status == "fg":
+        if (result.payMatchValue > 0 or result.payWinValue > 0) and result.status == "fg":
             min_entry = result.payMatchValue
             min_entry += result.payWinValue
             if result.variant == 'd6':
