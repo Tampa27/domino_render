@@ -112,6 +112,8 @@ exitTable = 40
 exitTable2 = 10
 fgTime = 10
 percent = 10
+max_passes_d6 = 3
+max_passes_d9 = 5
 
 @api_view(['GET',])
 def getPlayer(request,id):
@@ -176,7 +178,16 @@ def getGame(request,game_id,alias):
             if(diff_time.seconds >= exitTable) and result.status != "ru" and result.status != "fi" and result.status != "fg":
                 exitPlayer(result,player,players)    
             elif result.status == "fg" and (diff_time.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
-                exitPlayer(result,player,players)   
+                exitPlayer(result,player,players)
+        if result.payMatchValue > 0 or result.payWinValue > 0:
+            min_entry = result.payMatchValue
+            min_entry += result.payWinValue
+            if result.variant == 'd6':
+                min_entry += (max_passes_d6)*result.payPassValue        
+            else:
+                min_entry += (max_passes_d9)*result.payPassValue
+            if min_entry > player.coins:
+                exitPlayer(result,player,players)            
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
