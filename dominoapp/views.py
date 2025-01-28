@@ -627,25 +627,45 @@ def rechargeBalance(request,alias,coins):
 
 def exitPlayer(game,player,players):
     exited = False
+    isStarter = False
+    pos = -1
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
         exited = True
+        isStarter = (game.starter == 0)
+        pos+=1
     elif game.player2 is not None and game.player2.alias == player.alias:
         game.player2 = None
         exited = True
+        isStarter = (game.starter == 1)
+        pos+=2
     elif game.player3 is not None and game.player3.alias == player.alias:
         game.player3 = None
         exited = True
+        isStarter = (game.starter == 2)
+        pos+=3
     elif game.player4 is not None and game.player4.alias == player.alias:
         game.player4 = None
         exited = True
+        isStarter = (game.starter == 3)
+        pos+=4
     if exited:
         player.points = 0
         player.tiles = ""
         if len(players) <= 2 or game.inPairs:
             game.status = "wt"
-        elif len(players) > 2 and not game.inPairs and game.perPoints:
-            game.status = "ready"    
+            game.starter = -1
+        elif (len(players) > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
+            game.status = "ready"
+            game.starter = -1
+        elif len(players) > 2 and not game.inPairs and game.status == "fg":
+            if isStarter and game.startWinner:
+                game.starter = -1
+            elif not isStarter:
+                if game.starter > pos:
+                    game.starter-=1
+            if game.winner < 4 and game.winner > pos:
+                game.winner-=1    
         player.save()
         game.save()    
     return exited    
