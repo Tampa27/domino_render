@@ -369,8 +369,8 @@ def startGame(request,game_id):
 
 @api_view(['GET',])
 def getBank(request):
-    bank = Bank.objects.get_or_create(id=1)
-    serializerBank = BankSerializer(bank)
+    bank = Bank.objects.all()
+    serializerBank = BankSerializer(bank,many=True)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 @api_view(['POST',])
