@@ -653,7 +653,8 @@ def exitPlayer(game,player,players):
         player.points = 0
         player.tiles = ""
         if game.status == "ru" or game.status == "fi" and (game.payWinValue > 0 or game.payMatchValue):
-            coins = (game.payWinValue+game.payMatchValue)
+            loss_coins = (game.payWinValue+game.payMatchValue)
+            coins = loss_coins
             try:
                 bank = Bank.objects.get(id=1)
             except ObjectDoesNotExist:
@@ -672,6 +673,7 @@ def exitPlayer(game,player,players):
                     if p.alias != player.alias:
                         p.coins+= (coins/n)
                         p.save()
+            player-=loss_coins            
             bank.save()                               
         if len(players) <= 2 or game.inPairs:
             game.status = "wt"
