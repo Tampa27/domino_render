@@ -652,6 +652,27 @@ def exitPlayer(game,player,players):
     if exited:
         player.points = 0
         player.tiles = ""
+        if game.status == "ru" or game.status == "fi" and (game.payWinValue > 0 or game.payMatchValue):
+            coins = (game.payWinValue+game.payMatchValue)
+            try:
+                bank = Bank.objects.get(id=1)
+            except ObjectDoesNotExist:
+                bank = Bank.objects.create()
+            bank_coins = int(coins*percent/100)
+            bank.balance+=bank_coins
+            coins -= bank_coins
+            if game.inPairs:
+                players[(pos+1)%4].coins+=coins/2
+                players[(pos+3)%4].coins+=coins/2
+                players[(pos+1)%4].save()
+                players[(pos+3)%4].save()     
+            else:
+                n = len(players)-1
+                for p in players:
+                    if p.alias != player.alias:
+                        p.coins+= (coins/n)
+                        p.save()
+            bank.save()                               
         if len(players) <= 2 or game.inPairs:
             game.status = "wt"
             game.starter = -1
@@ -665,7 +686,7 @@ def exitPlayer(game,player,players):
                 if game.starter > pos:
                     game.starter-=1
             if game.winner < 4 and game.winner > pos:
-                game.winner-=1    
+                game.winner-=1            
         player.save()
         game.save()    
     return exited    
