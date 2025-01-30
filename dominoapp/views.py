@@ -673,7 +673,7 @@ def exitPlayer(game,player,players):
                     if p.alias != player.alias:
                         p.coins+= (coins/n)
                         p.save()
-            player-=loss_coins            
+            player.coins-=loss_coins            
             bank.save()                               
         if len(players) <= 2 or game.inPairs:
             game.status = "wt"
