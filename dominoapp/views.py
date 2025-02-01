@@ -326,7 +326,7 @@ def startGame(request,game_id):
     if game.status != 'fi':
         for player in players:
             player.isPlaying = True
-    players_ru = filter(lambda p: p.isPlaying,players)        
+    players_ru = list(filter(lambda p: p.isPlaying,players))        
     n = len(players_ru)
     if game.starter == -1 or game.starter >= n:
         game.next_player = random.randint(0,n-1)
@@ -371,7 +371,7 @@ def getBank(request):
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game,player,players,tile):
-    players_ru = filter(lambda p: p.isPlaying, players)
+    players_ru = list(filter(lambda p: p.isPlaying, players))
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
     alias = player.alias   
@@ -538,7 +538,7 @@ def updatePassCoins(pos,game,players):
 def move(request,game_id,alias,tile):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    players_ru = filter(lambda p: p.isPlaying,players)
+    players_ru = list(filter(lambda p: p.isPlaying,players))
     for p in players:
         if p.alias == alias:
             player = p
@@ -551,7 +551,7 @@ def exitGame(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     player = Player.objects.get(alias=alias)
     players = playersCount(game)
-    players_ru = filter(lambda p: p.isPlaying,players)
+    players_ru = list(filter(lambda p: p.isPlaying,players))
     exited = exitPlayer(game,player,players_ru)
     if exited:
         return Response({'status': 'success', "message":'Player exited'}, status=200)
