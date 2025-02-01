@@ -323,11 +323,17 @@ def cleanPlayers(request):
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    n = len(players)
+    if game.status != 'fi':
+        for player in players:
+            player.isPlaying = True
+    players_ru = filter(lambda p: p.isPlaying,players)        
+    n = len(players_ru)
     if game.starter == -1 or game.starter >= n:
         game.next_player = random.randint(0,n-1)
         game.starter = game.next_player
     else:
+        if players[game.starter].alias != players_ru[game.starter].alias:
+            game.starter = getPlayerIndex(players_ru,players[game.starter])
         game.next_player = game.starter
     if game.inPairs and game.winner != 4:
         if game.starter == 0 or game.starter == 2:
@@ -344,7 +350,7 @@ def startGame(request,game_id):
             player.points = 0
         game.rounds = 0    
           
-    shuffle(game,players)          
+    shuffle(game,players_ru)          
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
@@ -364,54 +370,10 @@ def getBank(request):
     serializerBank = BankSerializer(bank,many=True)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
-@api_view(['POST',])
-def startGame1(request,game_id):
-    game = DominoGame.objects.get(id=game_id)
-    players = playersCount(game)
-    if game.starter == -1:
-        game.next_player = random.randint(0,len(players)-1)
-        game.starter = game.next_player
-    else:
-        game.next_player = game.starter
-    if game.inPairs and game.winner != 4:
-        if game.starter == 0 or game.starter == 2:
-            game.winner = 5
-        else:
-            game.winner = 6    
-    #game.winner=-1
-        
-    game.board = ''
-    if game.perPoints and (game.status =="ready" or game.status =="fg"):
-        game.scoreTeam1 = 0
-        game.scoreTeam2 = 0
-        for player in players:
-            player.points = 0
-        game.rounds = 0
-    shuffle(game,players)            
-    game.status = "ru"
-    game.start_time = timezone.now()
-    game.leftValue = -1
-    game.rightValue = -1
-    game.save()
-    while True:
-        if game.status != "ru":
-            break
-        player = players[game.next_player]
-        if len(game.board) == 0:
-            diff_time = timezone.now() - game.start_time
-            if diff_time >= moveTime:
-                tile = takeRandomTile(player.tiles)
-                movement(game,player,players,tile)
-        else:
-            prevIndex = previusPlayer(game.next_player)
-            diff_time = timezone.now() - getLastPlayerMoveTime(game,prevIndex)
-            if diff_time >= moveTime:
-                tile = takeRandomCorrectTile(player.tiles,game.leftValue,game.rightValue)
-                movement(game,player,players,tile)                
-
 def movement(game,player,players,tile):
-    n = len(players)
-    w = getPlayerIndex(players,player)
+    players_ru = filter(lambda p: p.isPlaying, players)
+    n = len(players_ru)
+    w = getPlayerIndex(players_ru,player)
     alias = player.alias   
     if isMyTurn(game.board,w,game.starter,n) == False:
         return 
@@ -576,10 +538,11 @@ def updatePassCoins(pos,game,players):
 def move(request,game_id,alias,tile):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
+    players_ru = filter(lambda p: p.isPlaying,players)
     for p in players:
         if p.alias == alias:
             player = p
-    movement(game,player,players,tile)
+    movement(game,player,players_ru,tile)
     game.save()
     return Response({'status': 'success'}, status=200)
 
@@ -588,7 +551,8 @@ def exitGame(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     player = Player.objects.get(alias=alias)
     players = playersCount(game)
-    exited = exitPlayer(game,player,players)
+    players_ru = filter(lambda p: p.isPlaying,players)
+    exited = exitPlayer(game,player,players_ru)
     if exited:
         return Response({'status': 'success', "message":'Player exited'}, status=200)
     return Response({'status': 'error', "message":'Player no found'}, status=300)
@@ -627,32 +591,24 @@ def rechargeBalance(request,alias,coins):
 
 def exitPlayer(game,player,players):
     exited = False
-    isStarter = False
-    pos = -1
+    pos = getPlayerIndex(player,players)
+    isStarter = (game.starter == pos)
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
         exited = True
-        isStarter = (game.starter == 0)
-        pos+=1
     elif game.player2 is not None and game.player2.alias == player.alias:
         game.player2 = None
         exited = True
-        isStarter = (game.starter == 1)
-        pos+=2
     elif game.player3 is not None and game.player3.alias == player.alias:
         game.player3 = None
         exited = True
-        isStarter = (game.starter == 2)
-        pos+=3
     elif game.player4 is not None and game.player4.alias == player.alias:
         game.player4 = None
         exited = True
-        isStarter = (game.starter == 3)
-        pos+=4
     if exited:
         player.points = 0
         player.tiles = ""
-        if game.status == "ru" or game.status == "fi" and (game.payWinValue > 0 or game.payMatchValue):
+        if (game.status == "ru" or game.status == "fi") and (game.payWinValue > 0 or game.payMatchValue > 0) and player.isPlaying:
             loss_coins = (game.payWinValue+game.payMatchValue)
             coins = loss_coins
             try:
@@ -678,17 +634,18 @@ def exitPlayer(game,player,players):
         if len(players) <= 2 or game.inPairs:
             game.status = "wt"
             game.starter = -1
-        elif (len(players) > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
+        elif ((len(players) > 2 and not game.inPairs and game.perPoints) or game.status == "ru") and player.isPlaying:
             game.status = "ready"
             game.starter = -1
-        elif len(players) > 2 and not game.inPairs and game.status == "fg":
+        elif len(players) > 2 and not game.inPairs and game.status == "fg" and player.isPlaying:
             if isStarter and game.startWinner:
                 game.starter = -1
             elif not isStarter:
                 if game.starter > pos:
                     game.starter-=1
             if game.winner < 4 and game.winner > pos:
-                game.winner-=1            
+                game.winner-=1
+        player.isPlaying = False                    
         player.save()
         game.save()    
     return exited    
@@ -906,7 +863,7 @@ def shuffle(game, players):
         player = Player.objects.get(id=players[i].id)
         player.tiles = ""
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
-            player.points = 0
+            player.points = 0  
         for j in range(max):
             player.tiles+=tiles[i*max+j]
             if j < (max-1):
