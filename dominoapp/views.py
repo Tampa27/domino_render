@@ -609,44 +609,45 @@ def exitPlayer(game,player,players):
     if exited:
         player.points = 0
         player.tiles = ""
-        if (game.status == "ru" or game.status == "fi") and (game.payWinValue > 0 or game.payMatchValue > 0) and player.isPlaying:
-            loss_coins = (game.payWinValue+game.payMatchValue)
-            coins = loss_coins
-            try:
-                bank = Bank.objects.get(id=1)
-            except ObjectDoesNotExist:
-                bank = Bank.objects.create()
-            bank_coins = int(coins*percent/100)
-            bank.balance+=bank_coins
-            coins -= bank_coins
-            if game.inPairs:
-                players[(pos+1)%4].coins+=coins/2
-                players[(pos+3)%4].coins+=coins/2
-                players[(pos+1)%4].save()
-                players[(pos+3)%4].save()     
-            else:
-                n = len(players)-1
-                for p in players:
-                    if p.alias != player.alias:
-                        p.coins+= (coins/n)
-                        p.save()
-            player.coins-=loss_coins            
-            bank.save()                               
-        if len(players) <= 2 or game.inPairs:
-            game.status = "wt"
-            game.starter = -1
-        elif ((len(players) > 2 and not game.inPairs and game.perPoints) or game.status == "ru") and player.isPlaying:
-            game.status = "ready"
-            game.starter = -1
-        elif len(players) > 2 and not game.inPairs and game.status == "fg" and player.isPlaying:
-            if isStarter and game.startWinner:
+        if player.isPlaying:
+            if (game.status == "ru" or game.status == "fi") and (game.payWinValue > 0 or game.payMatchValue > 0):
+                loss_coins = (game.payWinValue+game.payMatchValue)
+                coins = loss_coins
+                try:
+                    bank = Bank.objects.get(id=1)
+                except ObjectDoesNotExist:
+                    bank = Bank.objects.create()
+                bank_coins = int(coins*percent/100)
+                bank.balance+=bank_coins
+                coins -= bank_coins
+                if game.inPairs:
+                    players[(pos+1)%4].coins+=coins/2
+                    players[(pos+3)%4].coins+=coins/2
+                    players[(pos+1)%4].save()
+                    players[(pos+3)%4].save()     
+                else:
+                    n = len(players)-1
+                    for p in players:
+                        if p.alias != player.alias:
+                            p.coins+= (coins/n)
+                            p.save()
+                player.coins-=loss_coins            
+                bank.save()                               
+            if len(players) <= 2 or game.inPairs:
+                game.status = "wt"
                 game.starter = -1
-            elif not isStarter:
-                if game.starter > pos:
-                    game.starter-=1
-            if game.winner < 4 and game.winner > pos:
-                game.winner-=1
-        player.isPlaying = False                    
+            elif (len(players) > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
+                game.status = "ready"
+                game.starter = -1
+            elif len(players) > 2 and not game.inPairs and game.status == "fg":
+                if isStarter and game.startWinner:
+                    game.starter = -1
+                elif not isStarter:
+                    if game.starter > pos:
+                        game.starter-=1
+                if game.winner < 4 and game.winner > pos:
+                    game.winner-=1
+            player.isPlaying = False                    
         player.save()
         game.save()    
     return exited    
