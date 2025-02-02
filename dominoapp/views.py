@@ -592,7 +592,7 @@ def rechargeBalance(request,alias,coins):
 
 def exitPlayer(game,player,players):
     exited = False
-    pos = getPlayerIndex(player,players)
+    pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
