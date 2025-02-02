@@ -553,7 +553,7 @@ def exitGame(request,game_id,alias):
     player = Player.objects.get(alias=alias)
     players = playersCount(game)
     players_ru = list(filter(lambda p: p.isPlaying,players))
-    exited = exitPlayer(game,player,players_ru)
+    exited = exitPlayer(game,player,players_ru,len(players))
     if exited:
         return Response({'status': 'success', "message":'Player exited'}, status=200)
     return Response({'status': 'error', "message":'Player no found'}, status=300)
@@ -590,7 +590,7 @@ def rechargeBalance(request,alias,coins):
     player.save()
     return Response({'status': 'success', "message":'Balance recharged'}, status=200)
 
-def exitPlayer(game,player,players):
+def exitPlayer(game,player,players,totalPlayers):
     exited = False
     pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)
@@ -647,7 +647,11 @@ def exitPlayer(game,player,players):
                         game.starter-=1
                 if game.winner < 4 and game.winner > pos:
                     game.winner-=1
-            player.isPlaying = False                    
+            player.isPlaying = False
+        else:
+            if totalPlayers <= 2 or game.inPairs:
+                game.status = "wt"
+                game.starter = -1                             
         player.save()
         game.save()    
     return exited    
