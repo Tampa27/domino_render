@@ -176,9 +176,9 @@ def getGame(request,game_id,alias):
             diff_time = timezone.now() - player.lastTimeInSystem
             diff_time2 = timezone.now()- result.start_time
             if(diff_time.seconds >= exitTable) and result.status != "ru" and result.status != "fi" and result.status != "fg":
-                exitPlayer(result,player,players)    
+                exitPlayer(result,player,players,len(players))    
             elif result.status == "fg" and (diff_time.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
-                exitPlayer(result,player,players)           
+                exitPlayer(result,player,players,len(players))           
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
 
