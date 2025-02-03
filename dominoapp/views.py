@@ -106,7 +106,7 @@ class GameCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-exitTime = 90 #Si en 1 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+exitTime = 60 #Si en 1 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 20
 exitTable = 40
 exitTable2 = 10
@@ -1008,6 +1008,7 @@ def checkPlayersTimeOut1(game,alias):
     for player in players:
         player.tiles = ""
         player.points = 0
+        player.isPlaying = False
         player.save()        
     game.save()
     return inGame
