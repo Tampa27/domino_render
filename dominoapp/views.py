@@ -633,13 +633,13 @@ def exitPlayer(game,player,players,totalPlayers):
                             p.save()
                 player.coins-=loss_coins            
                 bank.save()                               
-            if len(players) <= 2 or game.inPairs:
+            if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1
-            elif (len(players) > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
+            elif (totalPlayers > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
                 game.status = "ready"
                 game.starter = -1
-            elif len(players) > 2 and not game.inPairs and game.status == "fg":
+            elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
                 if isStarter and game.startWinner:
                     game.starter = -1
                 elif not isStarter:
