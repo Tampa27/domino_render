@@ -653,13 +653,15 @@ def exitPlayer(game,player,players,totalPlayers):
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1
-        reorderPlayers(game,players,pos)                                                       
+        reorderPlayers(game,player)                                                       
         player.save()
         game.save()    
     return exited    
 
-def reorderPlayers(game,players,pos):
+def reorderPlayers(game,player):
     k = 0
+    players = playersCount(game)
+    pos = getPlayerIndex(players,player)
     n = len(players)
     game.player1 = None
     game.player2 = None
