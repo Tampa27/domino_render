@@ -653,22 +653,30 @@ def exitPlayer(game,player,players,totalPlayers):
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1
-        k = 0
-        n = len(players)
-        for i in range(n):
-            if i != pos:
-                if k == 0:
-                    game.player1 = players[i]
-                elif k == 1:
-                    game.player2 = players[i]
-                elif k == 2:
-                    game.player3 = players[i]
-                elif k == 3:
-                    game.player4 = players[i]
-                k+=1                                                       
+        reorderPlayers(game,players,pos)                                                       
         player.save()
         game.save()    
     return exited    
+
+def reorderPlayers(game,players,pos):
+    k = 0
+    n = len(players)
+    game.player1 = None
+    game.player2 = None
+    game.player3 = None
+    game.player4 = None
+    for i in range(n):
+        if i != pos:
+            if k == 0:
+                game.player1 = players[i]
+            elif k == 1:
+                game.player2 = players[i]
+            elif k == 2:
+                game.player3 = players[i]
+            elif k == 3:
+                game.player4 = players[i]
+            k+=1
+
 
 def updateTeamScore(game, winner, players, sum_points):
     n = len(players)
