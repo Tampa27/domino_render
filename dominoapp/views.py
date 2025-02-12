@@ -652,7 +652,20 @@ def exitPlayer(game,player,players,totalPlayers):
         else:
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
-                game.starter = -1                             
+                game.starter = -1
+        k = 0
+        n = len(players)
+        for i in range(n):
+            if i != pos:
+                if k == 0:
+                    game.player1 = players[i]
+                elif k == 1:
+                    game.player2 = players[i]
+                elif k == 2:
+                    game.player3 = players[i]
+                elif k == 3:
+                    game.player4 = players[i]
+                k+=1                                                       
         player.save()
         game.save()    
     return exited    
