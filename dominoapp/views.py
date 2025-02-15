@@ -322,49 +322,51 @@ def cleanPlayers(request):
 @api_view(['GET',])
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
-    players = playersCount(game)
-    if game.status != "fi":
-        for player in players:
-            if player.isPlaying == False:
-                player.isPlaying = True
-                player.save()
-    players_ru = list(filter(lambda p: p.isPlaying,players))        
-    n = len(players_ru)
-    if game.starter == -1 or game.starter >= n:
-        game.next_player = random.randint(0,n-1)
-        game.starter = game.next_player
-    else:
-        if players[game.starter].alias != players_ru[game.starter].alias:
-            game.starter = getPlayerIndex(players_ru,players[game.starter])
-        game.next_player = game.starter
-    if game.inPairs and game.winner != 4:
-        if game.starter == 0 or game.starter == 2:
-            game.winner = 5
+    if game.status != "wt":
+        players = playersCount(game)
+        if game.status != "fi":
+            for player in players:
+                if player.isPlaying == False:
+                    player.isPlaying = True
+                    player.save()
+        players_ru = list(filter(lambda p: p.isPlaying,players))        
+        n = len(players_ru)
+        if game.starter == -1 or game.starter >= n:
+            game.next_player = random.randint(0,n-1)
+            game.starter = game.next_player
         else:
-            game.winner = 6    
-    #game.winner=-1
-        
-    game.board = ''
-    if game.perPoints and (game.status =="ready" or game.status =="fg"):
-        game.scoreTeam1 = 0
-        game.scoreTeam2 = 0
-        for player in players:
-            player.points = 0
-        game.rounds = 0    
-          
-    shuffle(game,players_ru)          
-    game.status = "ru"
-    game.start_time = timezone.now()
-    game.leftValue = -1
-    game.rightValue = -1
-    game.lastTime1 = None
-    game.lastTime2 = None
-    game.lastTime3 = None
-    game.lastTime4 = None
-    game.save()
-    serializerGame = GameSerializer(game)
-    playerSerializer = PlayerSerializer(players,many=True)
-    return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+            if players[game.starter].alias != players_ru[game.starter].alias:
+                game.starter = getPlayerIndex(players_ru,players[game.starter])
+            game.next_player = game.starter
+        if game.inPairs and game.winner != 4:
+            if game.starter == 0 or game.starter == 2:
+                game.winner = 5
+            else:
+                game.winner = 6    
+        #game.winner=-1
+            
+        game.board = ''
+        if game.perPoints and (game.status =="ready" or game.status =="fg"):
+            game.scoreTeam1 = 0
+            game.scoreTeam2 = 0
+            for player in players:
+                player.points = 0
+            game.rounds = 0    
+            
+        shuffle(game,players_ru)          
+        game.status = "ru"
+        game.start_time = timezone.now()
+        game.leftValue = -1
+        game.rightValue = -1
+        game.lastTime1 = None
+        game.lastTime2 = None
+        game.lastTime3 = None
+        game.lastTime4 = None
+        game.save()
+        serializerGame = GameSerializer(game)
+        playerSerializer = PlayerSerializer(players,many=True)
+        return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+    return Response ({'status': 'error'},status=400)
 
 @api_view(['GET',])
 def getBank(request):
