@@ -543,7 +543,7 @@ def updatePassCoins(pos,game,players):
 def move(request,game_id,alias,tile):
     try:
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update.get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
             players = playersCount(game)
             players_ru = list(filter(lambda p: p.isPlaying,players))
             for p in players:
