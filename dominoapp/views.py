@@ -542,16 +542,16 @@ def updatePassCoins(pos,game,players):
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
     try:
-        with transaction.atomic():
-            game = DominoGame.objects.select_for_update(id=game_id)
-            players = playersCount(game)
-            players_ru = list(filter(lambda p: p.isPlaying,players))
-            for p in players:
-                if p.alias == alias:
-                    player = p
-            movement(game,player,players_ru,tile)
-            game.save()
-            return Response({'status': 'success'}, status=200)
+        
+        game = DominoGame.objects.select_for_update(id=game_id)
+        players = playersCount(game)
+        players_ru = list(filter(lambda p: p.isPlaying,players))
+        for p in players:
+            if p.alias == alias:
+                player = p
+        movement(game,player,players_ru,tile)
+        game.save()
+        return Response({'status': 'success'}, status=200)
     except Exception as e:        
         return Response({'status': str(e)}, status=404)    
 
