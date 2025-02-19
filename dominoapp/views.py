@@ -373,7 +373,6 @@ def startGame(request,game_id):
         game.lastTime3 = None
         game.lastTime4 = None
         game.save()
-        threading.Thread(target=checkingMove(game)).start()
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
