@@ -19,6 +19,8 @@ from django.conf import settings
 from django.views import View
 from django.db import transaction
 import asyncio
+import threading
+import time
 
 # Create your views here.
 class PlayerView(APIView):
@@ -321,14 +323,14 @@ def cleanPlayers(request):
     Player.objects.all().delete()
     return Response({'status': 'success', "message":'All players deleted'}, status=200)
 
-async def checkingMove(game):
+def checkingMove(game):
     while game.status == 'ru':
         game.hours_active+=1
         game.save()
-        await asyncio.sleep(1000)
+        time.sleep(1000)
 
 @api_view(['GET',])
-async def startGame(request,game_id):
+def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     if game.status != "wt":
         players = playersCount(game)
@@ -371,7 +373,7 @@ async def startGame(request,game_id):
         game.lastTime3 = None
         game.lastTime4 = None
         game.save()
-        asyncio.create_task(checkingMove(game))
+        threading.Thread(target=checkingMove(game)).start()
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
