@@ -330,7 +330,6 @@ async def checkingMove(game):
 @api_view(['GET',])
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
-    checkingMove(game)
     if game.status != "wt":
         players = playersCount(game)
         if game.status != "fi":
@@ -372,6 +371,7 @@ def startGame(request,game_id):
         game.lastTime3 = None
         game.lastTime4 = None
         game.save()
+        checkingMove(game)
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
