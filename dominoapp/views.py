@@ -327,7 +327,7 @@ def checkingMove(game):
     while game.status == 'ru':
         game.hours_active+=1
         game.save()
-        time.sleep(1000)
+        time.sleep(1)
 
 @api_view(['GET',])
 def startGame(request,game_id):
@@ -373,7 +373,7 @@ def startGame(request,game_id):
         game.lastTime3 = None
         game.lastTime4 = None
         game.save()
-        #threading.Thread(target=checkingMove(game)).start()
+        threading.Thread(target=checkingMove(game)).start()
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
