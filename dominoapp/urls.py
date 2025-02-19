@@ -24,6 +24,7 @@ urlpatterns = [
     path(r'players/<str:alias>',views.getPlayer,name='get player'),
     path(r'setpatner/<int:game_id>/<str:alias>',views.setPatner,name='set patner'),
     path(r'recharge/<str:alias>/<int:coins>',views.rechargeBalance,name='recharge coins'),
+    path(r'payment/<str:alias>/<int:coins>',views.payment,name='payment'),
     path(r'bank/',views.getBank,name='get bank'),
     path(r'login/<str:alias>/<str:email>/<str:photo_url>/<str:name>',views.login,name='login'),
 ]

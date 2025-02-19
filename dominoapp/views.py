@@ -18,6 +18,7 @@ import random
 from django.conf import settings
 from django.views import View
 from django.db import transaction
+import asyncio
 
 # Create your views here.
 class PlayerView(APIView):
@@ -320,9 +321,16 @@ def cleanPlayers(request):
     Player.objects.all().delete()
     return Response({'status': 'success', "message":'All players deleted'}, status=200)
 
+async def checkingMove(game):
+    while game.status == 'ru':
+        game.hours_active+=1
+        game.save()
+        await asyncio.sleep(1000)
+
 @api_view(['GET',])
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
+    checkingMove(game)
     if game.status != "wt":
         players = playersCount(game)
         if game.status != "fi":
@@ -598,6 +606,20 @@ def rechargeBalance(request,alias,coins):
     player.save()
     return Response({'status': 'success', "message":'Balance recharged'}, status=200)
 
+@api_view(['GET',])
+def payment(request,alias,coins):
+    player = Player.objects.get(alias=alias)
+    player.coins-=coins
+    try:
+        bank = Bank.objects.get(id=1)
+    except ObjectDoesNotExist:
+        bank = Bank.objects.create()
+    bank.balance-=coins
+    bank.extracted_coins+=coins
+    bank.save()    
+    player.save()
+    return Response({'status': 'success', "message":'Payment done!!'}, status=200)
+
 def exitPlayer(game,player,players,totalPlayers):
     exited = False
     pos = getPlayerIndex(players,player)
@@ -685,7 +707,6 @@ def reorderPlayers(game,player):
             elif k == 3:
                 game.player4 = players[i]
             k+=1
-
 
 def updateTeamScore(game, winner, players, sum_points):
     n = len(players)
