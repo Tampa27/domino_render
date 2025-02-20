@@ -388,10 +388,11 @@ def movement(game,player,players,tile):
     players_ru = list(filter(lambda p: p.isPlaying, players))
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
-    alias = player.alias   
-    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile):
+    alias = player.alias
+    isPass = isPass(tile)   
+    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (isPass and (game.status == 'fi' or game.status == 'fg')):
         return 
-    if isPass(tile) == False:
+    if isPass == False:
         isCapicua = False
         if game.perPoints:
             isCapicua = checkCapicua(game,tile)
