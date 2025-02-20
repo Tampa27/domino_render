@@ -389,10 +389,10 @@ def movement(game,player,players,tile):
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
     alias = player.alias
-    isPass = isPass(tile)   
-    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (isPass and (game.status == 'fi' or game.status == 'fg')):
+    passTile = isPass(tile)   
+    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')):
         return 
-    if isPass == False:
+    if passTile == False:
         isCapicua = False
         if game.perPoints:
             isCapicua = checkCapicua(game,tile)
