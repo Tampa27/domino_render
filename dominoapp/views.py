@@ -314,12 +314,12 @@ def checkPlayerJoined(player,game):
     return res,players
 
 @api_view(['GET',])
-def clearGames(request):
+def clearGames(request,alias):
     DominoGame.objects.all().delete()
     return Response({'status': 'success', "message":'All games deleted'}, status=200)
 
 @api_view(['GET',])
-def cleanPlayers(request):
+def cleanPlayers(request,alias):
     Player.objects.all().delete()
     return Response({'status': 'success', "message":'All players deleted'}, status=200)
 
