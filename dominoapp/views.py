@@ -169,7 +169,7 @@ def getAllGames(request,alias):
 
 @api_view(['GET',])
 def deleteTable(request,game_id):
-    DominoGame.objects.delete(id = game_id)
+    DominoGame.objects.all().delete(id = game_id)
     return Response({'status': 'game deleted'}, status=200)
 
 @api_view(['GET',])
