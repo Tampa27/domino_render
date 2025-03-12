@@ -168,6 +168,11 @@ def getAllGames(request,alias):
     return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data,"game_id":game_id,"update":needUpdate}, status=200)
 
 @api_view(['GET',])
+def deleteTable(request,game_id)
+    DominoGame.objects.delete(id = game_id)
+    return Response({'status': 'game deleted'}, status=200)
+
+@api_view(['GET',])
 def getGame(request,game_id,alias):
     result = DominoGame.objects.get(id=game_id)
     serializer = GameSerializer(result)

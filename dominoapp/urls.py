@@ -27,4 +27,5 @@ urlpatterns = [
     path(r'payment/<str:alias>/<int:coins>',views.payment,name='payment'),
     path(r'bank/',views.getBank,name='get bank'),
     path(r'login/<str:alias>/<str:email>/<str:photo_url>/<str:name>',views.login,name='login'),
+    path(r'deletetable/<int:game_id>',views.deleteTable,name='delete table'),
 ]
