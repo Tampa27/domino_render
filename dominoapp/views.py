@@ -136,9 +136,9 @@ def login(request,alias,email,photo_url,name):
             bank = Bank.objects.get(id=1)
         except ObjectDoesNotExist:
             bank = Bank.objects.create()
-        player.coins = 100
-        bank.balance-=100
-        bank.created_coins+=100
+        player.coins = 50
+        bank.balance-=50
+        bank.created_coins+=50
         bank.save()
     player.lastTimeInSystem = timezone.now()
     player.save()
