@@ -589,6 +589,7 @@ def move(request,game_id,alias,tile):
                 if p.alias == alias:
                     player = p
             movement(game,player,players_ru,tile)
+            updateLastPlayerTime(game,alias)
             game.save()
             return Response({'status': 'success'}, status=200)
     except Exception as e:        
@@ -655,6 +656,11 @@ def exitPlayer(game,player,players,totalPlayers):
     exited = False
     pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)
+    lastTimeMove = getLastMoveTime(game,player)
+    timediff = timezone.now() - lastTimeMove
+    noActivity = False
+    if timediff.seconds >= 60:
+        noActivity = True
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
         exited = True
@@ -671,7 +677,7 @@ def exitPlayer(game,player,players,totalPlayers):
         player.points = 0
         player.tiles = ""
         if player.isPlaying:
-            if (game.status == "ru" or game.status == "fi") and (game.payWinValue > 0 or game.payMatchValue > 0):
+            if (game.status == "ru" or game.status == "fi") and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
                 loss_coins = (game.payWinValue+game.payMatchValue)
                 coins = loss_coins
                 try:
