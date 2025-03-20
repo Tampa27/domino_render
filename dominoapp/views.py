@@ -373,6 +373,10 @@ def startGame(request,game_id):
         game.start_time = timezone.now()
         game.leftValue = -1
         game.rightValue = -1
+        game.lastTime1 = None
+        game.lastTime2 = None
+        game.lastTime3 = None
+        game.lastTime4 = None
         game.save()
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
