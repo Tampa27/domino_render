@@ -373,10 +373,6 @@ def startGame(request,game_id):
         game.start_time = timezone.now()
         game.leftValue = -1
         game.rightValue = -1
-        game.lastTime1 = None
-        game.lastTime2 = None
-        game.lastTime3 = None
-        game.lastTime4 = None
         game.save()
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
@@ -657,10 +653,11 @@ def exitPlayer(game,player,players,totalPlayers):
     pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)
     lastTimeMove = getLastMoveTime(game,player)
-    timediff = timezone.now() - lastTimeMove
     noActivity = False
-    if timediff.seconds >= 60:
-        noActivity = True
+    if lastTimeMove is not None:
+        timediff = timezone.now() - lastTimeMove
+        if timediff.seconds >= 60:
+            noActivity = True
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
         exited = True
