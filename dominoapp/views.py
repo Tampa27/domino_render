@@ -662,13 +662,15 @@ def payment(request,alias,coins):
 
 @api_view(['GET',])
 def deleteInactivePlayers(request,alias):
-    player = Player.objects.get(alias=alias)
-    if player.lastTimeInSystem is not None:
-        timediff = timezone.now() - player.lastTimeInSystem
-        if timediff.days > inactive_player_days:
-            Player.objects.get(id = player.id).delete()
-            return Response({'status': 'player deleted'}, status=200)
-    return Response({'status': 'player NO deleted'}, status=200)    
+    players = Player.objects.all()
+    total_deleted = 0
+    for player in players:
+        if player.lastTimeInSystem is not None:
+            timediff = timezone.now() - player.lastTimeInSystem
+            if timediff.days > inactive_player_days:
+                Player.objects.get(id = player.id).delete()
+                total_deleted+=1
+    return Response({'status': str(total_deleted)' players deleted'}, status=200)    
 
 
 
