@@ -670,7 +670,7 @@ def deleteInactivePlayers(request,alias):
             if timediff.days > inactive_player_days:
                 Player.objects.get(id = player.id).delete()
                 total_deleted+=1
-    return Response({'status': str(total_deleted)' players deleted'}, status=200)    
+    return Response({'status': str(total_deleted)+' players deleted'}, status=200)    
 
 
 
