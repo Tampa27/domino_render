@@ -285,9 +285,9 @@ def joinGame(request,alias,game_id):
             elif game.status != "ru":
                 game.status = "wt"
         else:                
-            if len(players) >= 2 and game.status != "ru":
+            if len(players) >= 2 and game.status != "ru" and game.status != "fi":
                 game.status = "ready"
-            elif game.status != "ru":
+            elif game.status != "ru" and game.status != "fi":
                 game.status = "wt"    
         #updateLastPlayerTime(game,alias)
         game.save()    
@@ -446,7 +446,7 @@ def movement(game,player,players,tile):
                 game.starter = (game.starter+1)%n
                 game.next_player = game.starter
         else:
-            updatePlayersData(game,players,winner,"fi")                
+            updatePlayersData(game,players,winner,"fg")                
     else:
         if game.payPassValue > 0:
             updatePassCoins(w,game,players)
@@ -484,6 +484,10 @@ def updatePlayersData(game,players,w,status):
     except ObjectDoesNotExist:
         bank = Bank.objects.create()
     bank_coins = 0
+    n_p = 0
+    for i in range(n):
+        if players[i].isPlaying == True:
+            n_p+=1
     n = len(players)
     if game.inPairs:
         for i in range(n):
@@ -517,23 +521,23 @@ def updatePlayersData(game,players,w,status):
         for i in range(n):
             if i == w:
                 players[i].dataWins+=1
-                bank_coins = int(game.payWinValue*percent/100)*(n-1)
+                bank_coins = int(game.payWinValue*percent/100)*(n_p-1)
                 bank.datas_coins+=bank_coins
-                player_coins = (game.payWinValue*(n-1)-bank_coins)
+                player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                 bank.balance+=(bank_coins)
                 players[i].coins+= player_coins
                 if game.payWinValue > 0:
                     players[i].coins+=game.payWinValue
-                if status == "fg":
+                if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
                         players[i].coins+=game.payMatchValue
                 players[i].save()
-            else:
+            elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
                 if game.payWinValue > 0:
                     players[i].coins-=game.payWinValue
-                if status == "fg":
+                if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0:
                         players[i].coins-=game.payMatchValue
