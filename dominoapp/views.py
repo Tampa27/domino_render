@@ -499,7 +499,7 @@ def updatePlayersData(game,players,w,status):
                     player_coins = (game.payWinValue-bank_coins)
                     bank.balance+=(bank_coins)
                     players[i].coins+= player_coins       
-                if status == "fg":
+                if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
                         bank_coins = int(game.payMatchValue*percent/100)
@@ -512,7 +512,7 @@ def updatePlayersData(game,players,w,status):
                 players[i].dataLoss+=1
                 if game.payWinValue > 0:
                     players[i].coins-=game.payWinValue
-                if status == "fg":
+                if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0:
                         players[i].coins-=game.payMatchValue
