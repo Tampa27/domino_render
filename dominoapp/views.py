@@ -485,10 +485,10 @@ def updatePlayersData(game,players,w,status):
         bank = Bank.objects.create()
     bank_coins = 0
     n_p = 0
+    n = len(players)
     for i in range(n):
         if players[i].isPlaying == True:
             n_p+=1
-    n = len(players)
     if game.inPairs:
         for i in range(n):
             if i == w or i == ((w+2)%4):
