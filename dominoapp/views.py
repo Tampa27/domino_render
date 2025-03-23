@@ -419,7 +419,7 @@ def movement(game,player,players,tile):
                 game.rounds+=1
                 updateAllPoints(game,players,w,isCapicua)
             else:
-                updatePlayersData(game,players,w,"fi")                                        
+                updatePlayersData(game,players,w,"fg")                                        
         else:
             game.next_player = (w+1) % n 
     elif checkClosedGame1(game,n):
