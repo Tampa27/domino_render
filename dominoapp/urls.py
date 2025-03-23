@@ -29,5 +29,5 @@ urlpatterns = [
     path(r'login/<str:alias>/<str:email>/<str:photo_url>/<str:name>',views.login,name='login'),
     path(r'deletetable/<int:game_id>',views.deleteTable,name='delete table'),
     path(r'deleteinactiveplayers/<str:alias>',views.deleteInactivePlayers,name='delete inactive players'),
-    path(r'delete_nactive_tables/<str:alias>',views.deleteInactiveTables,name='delete inactive tables'),
+    path(r'delete_inactive_tables/<str:alias>',views.deleteInactiveTables,name='delete inactive tables'),
 ]
