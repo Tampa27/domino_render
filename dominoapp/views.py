@@ -118,6 +118,7 @@ fgTime = 10
 percent = 10
 max_passes_d6 = 3
 max_passes_d9 = 5
+inactive_player_days = 9
 
 @api_view(['GET',])
 def getPlayer(request,id):
@@ -658,6 +659,18 @@ def payment(request,alias,coins):
     bank.save()    
     player.save()
     return Response({'status': 'success', "message":'Payment done!!'}, status=200)
+
+@api_view(['GET',])
+def deleteInactivePlayers(request,alias):
+    player = Player.objects.get(alias=alias)
+    if player.lastTimeInSystem is not None:
+        timediff = timezone.now() - player.lastTimeInSystem
+        if timediff.days > inactive_player_days:
+            Player.objects.get(id = player.id).delete()
+            return Response({'status': 'player deleted'}, status=200)
+    return Response({'status': 'player NO deleted'}, status=200)    
+
+
 
 def exitPlayer(game,player,players,totalPlayers):
     exited = False

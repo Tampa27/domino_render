@@ -28,4 +28,5 @@ urlpatterns = [
     path(r'bank/',views.getBank,name='get bank'),
     path(r'login/<str:alias>/<str:email>/<str:photo_url>/<str:name>',views.login,name='login'),
     path(r'deletetable/<int:game_id>',views.deleteTable,name='delete table'),
+    path(r'deleteinactiveplayers/<str:alias>',views.deleteInactivePlayers,name='delete inactive players'),
 ]
