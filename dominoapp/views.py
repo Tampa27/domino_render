@@ -521,17 +521,20 @@ def updatePlayersData(game,players,w,status):
         for i in range(n):
             if i == w:
                 players[i].dataWins+=1
-                bank_coins = int(game.payWinValue*percent/100)*(n_p-1)
-                bank.datas_coins+=bank_coins
-                player_coins = (game.payWinValue*(n_p-1)-bank_coins)
-                bank.balance+=(bank_coins)
-                players[i].coins+= player_coins
                 if game.payWinValue > 0:
-                    players[i].coins+=game.payWinValue
+                    bank_coins = int(game.payWinValue*percent/100)*(n_p-1)
+                    bank.datas_coins+=bank_coins
+                    player_coins = (game.payWinValue*(n_p-1)-bank_coins)
+                    bank.balance+=(bank_coins)
+                    players[i].coins+= player_coins
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
-                        players[i].coins+=game.payMatchValue
+                        bank_coins = int(game.payMatchValue*percent/100)*(n_p-1)
+                        bank.matches_coins+=bank_coins
+                        player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
+                        bank.balance+=(bank_coins)
+                        players[i].coins+= player_coins
                 players[i].save()
             elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
