@@ -119,6 +119,7 @@ percent = 10
 max_passes_d6 = 3
 max_passes_d9 = 5
 inactive_player_days = 9
+inactive_tables_days = 9
 
 @api_view(['GET',])
 def getPlayer(request,id):
@@ -672,6 +673,17 @@ def deleteInactivePlayers(request,alias):
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' players deleted'}, status=200)    
 
+@api_view(['GET',])
+def deleteInactiveTables(request,alias):
+    games = DominoGame.objects.all()
+    total_deleted = 0
+    for game in games:
+        if game.start_time is not None:
+            timediff = timezone.now() - game.start_time
+            if timediff.days > inactive_tables_days and (game.payMatchValue > 0 or game.payWinValue > 0):
+                DominoGame.objects.get(id = game.id).delete()
+                total_deleted+=1
+    return Response({'status': str(total_deleted)+' tables deleted'}, status=200)    
 
 
 def exitPlayer(game,player,players,totalPlayers):
