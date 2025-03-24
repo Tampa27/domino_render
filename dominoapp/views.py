@@ -119,7 +119,7 @@ percent = 10
 max_passes_d6 = 3
 max_passes_d9 = 5
 inactive_player_days = 9
-inactive_tables_days = 9
+inactive_tables_days = 2
 
 @api_view(['GET',])
 def getPlayer(request,id):
@@ -673,9 +673,12 @@ def deleteInactivePlayers(request,alias):
     players = Player.objects.all()
     total_deleted = 0
     for player in players:
-        if player.lastTimeInSystem is not None:
+        if player.email is None:
+            Player.objects.get(id = player.id).delete()
+            total_deleted+=1
+        elif player.lastTimeInSystem is not None:
             timediff = timezone.now() - player.lastTimeInSystem
-            if timediff.days > inactive_player_days:
+            if timediff.days > inactive_player_days and player.coins >= 50 and player.coins <=100:
                 Player.objects.get(id = player.id).delete()
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' players deleted'}, status=200)    
