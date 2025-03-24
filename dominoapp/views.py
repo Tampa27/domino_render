@@ -128,22 +128,20 @@ def getPlayer(request,id):
     return Response({'status': 'success', "player":serializer.data,}, status=200)
 
 @api_view(['GET',])
-def login(request,alias,email,photo_url,name):
-    if alias is None or email is None:
-        return Response({'status': 'error'}, status=300)    
+def login(request,alias,email,photo_url,name):    
     player,created = Player.objects.get_or_create(alias=alias)
     if created:
         player.email = email
         player.photo_url = photo_url
         player.name = name
-        try:
-            bank = Bank.objects.get(id=1)
-        except ObjectDoesNotExist:
-            bank = Bank.objects.create()
+        #try:
+        #    bank = Bank.objects.get(id=1)
+        #except ObjectDoesNotExist:
+        #    bank = Bank.objects.create()
         player.coins = 30
-        bank.balance-=30
-        bank.created_coins+=30
-        bank.save()
+        #bank.balance-=30
+        #bank.created_coins+=30
+        #bank.save()
     player.lastTimeInSystem = timezone.now()
     player.save()
     serializer =PlayerSerializer(player)
@@ -696,7 +694,6 @@ def deleteInactiveTables(request,days):
                 DominoGame.objects.get(id = game.id).delete()
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' tables deleted'}, status=200)    
-
 
 def exitPlayer(game,player,players,totalPlayers):
     exited = False
