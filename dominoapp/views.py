@@ -138,15 +138,12 @@ def login(request,alias,email,photo_url,name):
         #    bank = Bank.objects.get(id=1)
         #except ObjectDoesNotExist:
         #    bank = Bank.objects.create()
-        player.coins = 30
-        #bank.balance-=30
         #bank.created_coins+=30
         #bank.save()
     player.lastTimeInSystem = timezone.now()
     player.save()
     serializer =PlayerSerializer(player)
     return Response({'status': 'success', "player":serializer.data}, status=200)        
-
 
 @api_view(['GET',])
 def getAllGames(request,alias):
