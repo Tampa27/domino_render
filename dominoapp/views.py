@@ -129,6 +129,8 @@ def getPlayer(request,id):
 
 @api_view(['GET',])
 def login(request,alias,email,photo_url,name):
+    if alias is None or email is None:
+        return Response({'status': 'error'}, status=300)    
     player,created = Player.objects.get_or_create(alias=alias)
     if created:
         player.email = email
@@ -138,9 +140,9 @@ def login(request,alias,email,photo_url,name):
             bank = Bank.objects.get(id=1)
         except ObjectDoesNotExist:
             bank = Bank.objects.create()
-        player.coins = 50
-        bank.balance-=50
-        bank.created_coins+=50
+        player.coins = 30
+        bank.balance-=30
+        bank.created_coins+=30
         bank.save()
     player.lastTimeInSystem = timezone.now()
     player.save()
