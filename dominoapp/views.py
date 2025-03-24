@@ -619,17 +619,24 @@ def exitGame(request,game_id,alias):
 def setPatner(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
-    for player in players:
-        if player.alias == alias:
-            patner = player
-            break
-    aux = game.player3
-    if game.player2.alias == alias:
-        game.player2 = aux
-        game.player3 = patner
-    elif game.player4.alias == alias:
-        game.player4 = aux
-        game.player3 = patner
+    if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
+        random.shuffle([players])
+        game.player1 = players[0]
+        game.player2 = players[1]
+        game.player3 = players[2]
+        game.player4 = players[3]
+    else:    
+        for player in players:
+            if player.alias == alias:
+                patner = player
+                break
+        aux = game.player3
+        if game.player2.alias == alias:
+            game.player2 = aux
+            game.player3 = patner
+        elif game.player4.alias == alias:
+            game.player4 = aux
+            game.player3 = patner
     game.save()    
     return Response({'status': 'success'}, status=200)         
 
