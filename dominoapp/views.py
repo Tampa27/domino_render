@@ -691,7 +691,7 @@ def deleteInactiveTables(request,days):
     return Response({'status': str(total_deleted)+' tables deleted'}, status=200)    
 
 def shuffleCouples(game,players):
-    random.shuffle([players])
+    random.shuffle(players)
     game.player1 = players[0]
     game.player2 = players[1]
     game.player3 = players[2]
