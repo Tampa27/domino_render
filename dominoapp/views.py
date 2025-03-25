@@ -366,7 +366,8 @@ def startGame(request,game_id):
             for player in players:
                 player.points = 0
             game.rounds = 0    
-            
+        if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
+            shuffleCouples(game,players)    
         shuffle(game,players_ru)          
         game.status = "ru"
         game.start_time = timezone.now()
@@ -617,11 +618,8 @@ def setPatner(request,game_id,alias):
     game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
     if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
-        random.shuffle([players])
-        game.player1 = players[0]
-        game.player2 = players[1]
-        game.player3 = players[2]
-        game.player4 = players[3]
+        #shuffleCouples(game,players)
+        return
     else:    
         for player in players:
             if player.alias == alias:
@@ -691,6 +689,13 @@ def deleteInactiveTables(request,days):
                 DominoGame.objects.get(id = game.id).delete()
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' tables deleted'}, status=200)    
+
+def shuffleCouples(game,players):
+    random.shuffle([players])
+    game.player1 = players[0]
+    game.player2 = players[1]
+    game.player3 = players[2]
+    game.player4 = players[3]
 
 def exitPlayer(game,player,players,totalPlayers):
     exited = False
