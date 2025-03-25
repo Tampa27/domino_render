@@ -367,7 +367,7 @@ def startGame(request,game_id):
                 player.points = 0
             game.rounds = 0    
         if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
-            shuffleCouples(game,players)    
+            shuffleCouples(game,players_ru)    
         shuffle(game,players_ru)          
         game.status = "ru"
         game.start_time = timezone.now()
