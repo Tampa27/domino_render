@@ -619,7 +619,7 @@ def setPatner(request,game_id,alias):
     players = playersCount(game)
     if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
         #shuffleCouples(game,players)
-        return
+        return Response({'status': 'success'}, status=200)  
     else:    
         for player in players:
             if player.alias == alias:
