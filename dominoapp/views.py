@@ -395,7 +395,7 @@ def movement(game,player,players,tile):
     w = getPlayerIndex(players_ru,player)
     alias = player.alias
     passTile = isPass(tile)   
-    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or len(game.board) == 0:
+    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or (len(game.board) == 0 and passTile):
         return 
     if passTile == False:
         isCapicua = False
