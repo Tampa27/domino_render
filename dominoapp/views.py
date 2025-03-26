@@ -97,6 +97,8 @@ class GameCreate(generics.CreateAPIView):
                 player1 = Player.objects.get(alias=alias)
             except ObjectDoesNotExist:
                 return Response ({'status': 'error'},status=400)
+            if player1.coins == 0:
+                return Response ({'status': 'error'},status=400)
             player1.tiles = ""
             player1.points=0
             player1.lastTimeInSystem = timezone.now()
@@ -291,7 +293,11 @@ def joinGame(request,alias,game_id):
             if len(players) >= 2 and game.status != "ru" and game.status != "fi":
                 game.status = "ready"
             elif game.status != "ru" and game.status != "fi":
-                game.status = "wt"    
+                game.status = "wt"
+        if game.status == "wt" or game.status == "ready":
+            for player in players:
+                player.tiles=""
+                player.save()            
         #updateLastPlayerTime(game,alias)
         game.save()    
         serializerGame = GameSerializer(game)
