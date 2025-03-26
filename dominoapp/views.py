@@ -366,8 +366,8 @@ def startGame(request,game_id):
             for player in players:
                 player.points = 0
             game.rounds = 0    
-        if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
-            shuffleCouples(game,players_ru)    
+        #if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
+        #    shuffleCouples(game,players_ru)    
         shuffle(game,players_ru)          
         game.status = "ru"
         game.start_time = timezone.now()
@@ -395,7 +395,7 @@ def movement(game,player,players,tile):
     w = getPlayerIndex(players_ru,player)
     alias = player.alias
     passTile = isPass(tile)   
-    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')):
+    if isMyTurn(game.board,w,game.starter,n) == False or isPlayingTile(game,tile) or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or len(game.board) == 0:
         return 
     if passTile == False:
         isCapicua = False
