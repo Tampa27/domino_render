@@ -1,8 +1,3 @@
-import time
-import sys
-import os
-from dominoapp import views
-from dominoapp.models import Player
 #from django.core.management.base import BaseCommand
 
 #class Command(BaseCommand):
@@ -18,6 +13,8 @@ import time
 import sys
 import os
 import django
+from dominoapp import views
+from dominoapp.models import Player
 
 # Configurar entorno Django
 #sys.path.append('/homa/a/tu/proyecto_django')  # Ruta absoluta a tu proyecto
