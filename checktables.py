@@ -13,13 +13,16 @@ import time
 import sys
 import os
 import django
+
+
+sys.path.append('/home/ahmedlp9/domino_render')  # Ruta absoluta a tu proyecto
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
+django.setup()
+
 from dominoapp import views
 from dominoapp.models import Player
 
 # Configurar entorno Django
-sys.path.append('/home/ahmedlp9/domino_render')  # Ruta absoluta a tu proyecto
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
-django.setup()
 
 # Importar tus módulos después de configurar Django
 #from tu_app import tasks  # Ejemplo de importación

@@ -27,14 +27,11 @@ from dominoapp.models import Player
 
 def main():
     while True:
-        try:
-            # Ejecutar tus tareas
-            #tasks.mi_tarea()  # Ejemplo de llamada a otro archivo
-            print("Tarea ejecutada correctamente")
-        except Exception as e:
-            print(f"Error: {str(e)}")
+        player = Player.objects.get(alias="mariocondepr")
+        player.coins-=1
+        player.save()
+        time.sleep(10)
         
-        time.sleep(10)  # Esperar 5 segundos
 
 if __name__ == "__main__":
     main()      
