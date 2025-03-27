@@ -150,6 +150,7 @@ def login(request,alias,email,photo_url,name):
 @api_view(['GET',])
 def getAllGames(request,alias):
     needUpdate = False
+    return Response ({'status': 'error'},status=400)
     try:
         player = Player.objects.get(alias=alias)
     except ObjectDoesNotExist:
