@@ -18,8 +18,6 @@ import random
 from django.conf import settings
 from django.views import View
 from django.db import transaction
-import asyncio
-import threading
 import time
 
 # Create your views here.
@@ -106,7 +104,10 @@ class GameCreate(generics.CreateAPIView):
             players = [player1]
             data = serializer.validated_data
             data['player1']=player1
-            serializer.save(player1=data['player1'])
+            data['payWinValue']=0
+            data['payPassValue']=0
+            data['payMatchValue']=0
+            serializer.save(player1=data['player1'],payWinValue=0,payPassValue=0,payMatchValue=0)
             playerSerializer = PlayerSerializer(players,many=True)
             return Response({"status": "success", "game": serializer.data,"players":playerSerializer.data}, status=status.HTTP_200_OK)  
         else:  
@@ -150,7 +151,7 @@ def login(request,alias,email,photo_url,name):
 @api_view(['GET',])
 def getAllGames(request,alias):
     needUpdate = False
-    return Response ({'status': 'error'},status=400)
+    #return Response ({'status': 'error'},status=400)
     try:
         player = Player.objects.get(alias=alias)
     except ObjectDoesNotExist:
@@ -199,10 +200,13 @@ def getGame(request,game_id,alias):
 
 @api_view(['GET',])
 def setWinner(request,game_id,winner):
+    setWinner1(game_id,winner)
+    return Response({'status': 'success'}, status=200)
+
+def setWinner1(game_id,winner):
     game = DominoGame.objects.get(id=game_id)
     game.winner = winner
     game.save()
-    return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
 def setStarter(request,game_id,starter):
@@ -221,12 +225,15 @@ def setWinnerStarter(request,game_id,winner,starter):
 
 @api_view(['GET',])
 def setWinnerStarterNext(request,game_id,winner,starter,next_player):
+    setWinnerStarterNext1(game_id,winner,starter,next_player)
+    return Response({'status': 'success'}, status=200)
+
+def setWinnerStarterNext1(game_id,winner,starter,next_player):
     game = DominoGame.objects.get(id=game_id)
     game.starter = starter
     game.winner = winner
     game.next_player = next_player
     game.save()
-    return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
 def getPlayer(request,alias):
@@ -603,18 +610,21 @@ def updatePassCoins(pos,game,players):
 def move(request,game_id,alias,tile):
     try:
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
-            players = playersCount(game)
-            players_ru = list(filter(lambda p: p.isPlaying,players))
-            for p in players:
-                if p.alias == alias:
-                    player = p
-            movement(game,player,players_ru,tile)
-            updateLastPlayerTime(game,alias)
-            game.save()
+            move1(game_id,alias,tile)
             return Response({'status': 'success'}, status=200)
     except Exception as e:        
         return Response({'status': str(e)}, status=404)    
+
+def move1(game_id,alias,tile):
+    game = DominoGame.objects.select_for_update().get(id=game_id)
+    players = playersCount(game)
+    players_ru = list(filter(lambda p: p.isPlaying,players))
+    for p in players:
+        if p.alias == alias:
+            player = p
+    movement(game,player,players_ru,tile)
+    updateLastPlayerTime(game,alias)
+    game.save()
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
@@ -699,7 +709,7 @@ def deleteInactiveTables(request,days):
     for game in games:
         if game.start_time is not None:
             timediff = timezone.now() - game.start_time
-            if timediff.days > days and (game.payMatchValue > 0 or game.payWinValue > 0):
+            if (game.payMatchValue > 0 or game.payWinValue > 0):
                 DominoGame.objects.get(id = game.id).delete()
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' tables deleted'}, status=200)    
@@ -1184,9 +1194,15 @@ def takeRandomCorrectTile(tiles,left,right):
         values = tile.split('|')
         val1 = int(values[0])
         val2 = int(values[1])
-        if val1 == left or val1 == right or val2 == left or val2 == right:
+        if val1 == left or val1 == right:
             return tile
-    return "-1|-1"     
+        elif val2 == left or val2 == right:
+            return swapTile(tile)
+    return "-1|-1"
+
+def swapTile(tile):
+    values = tile.split('|')
+    return (values[1]+'|'+values[0])   
 
 def previusPlayer(pos,n):
     if pos == 0: 
