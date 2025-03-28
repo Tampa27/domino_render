@@ -29,7 +29,6 @@ def main():
             players = views.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
-                logger.info("Juego corriendo")
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
                     automaticCoupleStarter(game,players)
