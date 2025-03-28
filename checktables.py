@@ -54,7 +54,7 @@ def automaticMove(game,players):
     next = game.next_player
     player_w = players[next]
     moveTime = game.moveTime
-    time_diff = timezone.now() - player_w.lastTimeInSystem
+    time_diff = timezone.now() - lastMove(game)
     if len(game.board) == 0:
         tile = views.takeRandomTile(player_w.tiles)
         if time_diff.seconds > (moveTime+moveWait): 
@@ -70,6 +70,18 @@ def automaticMove(game,players):
             views.movement(game,player_w,players,tile)
             views.updateLastPlayerTime(game,player_w.alias)        
     game.save()
+
+def lastMove(game):
+    res = game.start_time
+    if game.lastTime1 is not None and game.lastTime1 > res:
+        res = game.lastTime1
+    if game.lastTime12 is not None and game.lastTime2 > res:
+        res = game.lastTime2
+    if game.lastTime3 is not None and game.lastTime3 > res:
+        res = game.lastTime3
+    if game.lastTime4 is not None and game.lastTime4 > res:
+        res = game.lastTime4
+    return res                
 
 if __name__ == "__main__":
     main()      
