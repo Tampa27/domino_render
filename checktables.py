@@ -75,7 +75,7 @@ def lastMove(game):
     res = game.start_time
     if game.lastTime1 is not None and game.lastTime1 > res:
         res = game.lastTime1
-    if game.lastTime12 is not None and game.lastTime2 > res:
+    if game.lastTime2 is not None and game.lastTime2 > res:
         res = game.lastTime2
     if game.lastTime3 is not None and game.lastTime3 > res:
         res = game.lastTime3
