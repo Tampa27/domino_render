@@ -206,6 +206,7 @@ def setWinner(request,game_id,winner):
 def setWinner1(game_id,winner):
     game = DominoGame.objects.get(id=game_id)
     game.winner = winner
+    game.start_time = timezone.now()
     game.save()
 
 @api_view(['GET',])
@@ -233,6 +234,7 @@ def setWinnerStarterNext1(game_id,winner,starter,next_player):
     game.starter = starter
     game.winner = winner
     game.next_player = next_player
+    game.start_time = timezone.now()
     game.save()
 
 @api_view(['GET',])
