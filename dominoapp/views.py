@@ -362,6 +362,7 @@ def startGame(request,game_id):
             for player in players:
                 if player.isPlaying == False:
                     player.isPlaying = True
+                    player.save()
         players_ru = list(filter(lambda p: p.isPlaying,players))        
         n = len(players_ru)
         if game.starter == -1 or game.starter >= n:
