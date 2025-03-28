@@ -1045,50 +1045,6 @@ def checkCapicua(game,tile):
     val2 = int(values[1])
     return (val1 == game.leftValue and game.rightValue == val2) or (val2 == game.leftValue and game.rightValue == val1) 
 
-def checkPlayersTimeOut(game):
-    n = 0
-    players = []
-    if game.player1 is not None:
-        if game.lastTime1 is not None:
-            timediff = timezone.now() - game.lastTime1
-        if game.lastTime1 is None or timediff.seconds > exitTime:
-            players.append(game.player1)
-            game.player1 = None
-        else:
-            n+=1        
-    if game.player2 is not None:
-        if game.lastTime2 is not None:
-            timediff = timezone.now() - game.lastTime2
-        if game.lastTime2 is None or timediff.seconds > exitTime:
-            players.append(game.player2)
-            game.player2 = None
-        else:
-            n+=1    
-    if game.player3 is not None:
-        if game.lastTime3 is not None:
-            timediff = timezone.now() - game.lastTime3
-        if game.lastTime3 is None or timediff.seconds > exitTime:
-            players.append(game.player3)
-            game.player3 = None
-        else:
-            n+=1    
-    if game.player4 is not None:
-        if game.lastTime4 is not None:
-            timediff = timezone.now() - game.lastTime4
-        if game.lastTime4 is None or timediff.seconds > exitTime:
-            players.append(game.player4)
-            game.player4 = None
-        else:
-            n+=1
-    if n < 2 or (n < 4 and game.inPairs):
-        game.status = "wt"
-        game.starter=-1
-    for player in players:
-        player.tiles = ""
-        player.points = 0
-        player.save()    
-    game.save()                                 
-
 def checkPlayersTimeOut1(game,alias):
     n = 0
     players = []
