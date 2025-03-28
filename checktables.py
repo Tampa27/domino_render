@@ -20,6 +20,10 @@ moveWait = 2
 waitPatner = 7
 waitWinner = 7
 passWait = 2
+
+import logging
+logger = logging.getLogger('custom_logger')
+
 def main():
     while True:
         games = DominoGame.objects.all()
@@ -27,7 +31,7 @@ def main():
             players = views.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
-                print("Juego corriendo")
+                logger.info("Juego corriendo")
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
                     automaticCoupleStarter(game,players)
@@ -44,7 +48,7 @@ def automaticCoupleStarter(game,players):
     starter = game.starter
     lastMoveTime = lastMove(game)
     time_diff1 = timezone.now() - lastMoveTime
-    print("Entro a automaticCouple")
+    logger.info("Entro a automaticCouple")
     if time_diff1.seconds > waitPatner and starter == next:
         views.setWinner1(game.id,next)
     elif time_diff1.seconds > waitWinner*2 and starter != next:
