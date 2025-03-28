@@ -365,7 +365,8 @@ def startGame(request,game_id):
                     #player.save()
         players_ru = []
         for player in players:
-            players_ru.append(player)       
+            if player.isPlaying:
+                players_ru.append(player)       
         n = len(players_ru)
         if game.starter == -1 or game.starter >= n:
             game.next_player = random.randint(0,n-1)
