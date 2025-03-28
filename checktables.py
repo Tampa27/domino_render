@@ -22,7 +22,7 @@ waitWinner = 7
 passWait = 2
 
 import logging
-logger = logging.getLogger('custom_logger')
+logger = logging.getLogger('ahmedlp9.pythonanywhere.com.error.log')
 
 def main():
     while True:

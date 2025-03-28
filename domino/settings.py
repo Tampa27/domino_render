@@ -159,21 +159,3 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGGING = {
-         'version': 1,
-         'disable_existing_loggers': False,
-         'handlers': {
-             'file': {
-                 'level': 'DEBUG',  # Nivel de registro (DEBUG, INFO, WARNING, ERROR)
-                 'class': 'logging.FileHandler',
-                 'filename': '/home/ahmedlp9/logs/django.log',  # Ruta personalizada
-             },
-         },
-         'loggers': {
-             'custom_logger': {  # Nombre personalizado para tu logger
-                 'handlers': ['file'],
-                 'level': 'DEBUG',
-                 'propagate': True,
-             },
-         },
-     }
