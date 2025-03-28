@@ -50,7 +50,6 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 INSTALLED_APPS = [
     'jazzmin',
-    'django_celery_beat'
     'dominoapp.apps.DominoappConfig',
     'rest_framework',
     'django.contrib.admin',
