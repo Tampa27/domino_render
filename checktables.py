@@ -24,7 +24,7 @@ def main():
     while True:
         games = DominoGame.objects.all()
         for game in games:
-            players = views.playersCount(players)
+            players = views.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
