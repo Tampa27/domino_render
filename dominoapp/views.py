@@ -362,8 +362,10 @@ def startGame(request,game_id):
             for player in players:
                 if player.isPlaying == False:
                     player.isPlaying = True
-                    player.save()
-        players_ru = list(filter(lambda p: p.isPlaying,players))        
+                    #player.save()
+        players_ru = []
+        for player in players:
+            players_ru.append(player)       
         n = len(players_ru)
         if game.starter == -1 or game.starter >= n:
             game.next_player = random.randint(0,n-1)
@@ -1027,7 +1029,7 @@ def shuffle(game, players):
     random.shuffle(tiles)
 
     for i in range(len(players)):
-        player = Player.objects.get(id=players[i].id)
+        player = players[i]
         player.tiles = ""
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
             player.points = 0  
