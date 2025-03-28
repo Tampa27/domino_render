@@ -42,11 +42,11 @@ def automaticCoupleStarter(game,players):
     player_w = players[next]
     player_p = players[patner]
     starter = game.starter
-    time_diff1 = timezone.now() - player_p.lastTimeInSystem
-    time_diff2 = timezone.now() - player_w.lastTimeInSystem
+    lastMove = lastMove(game)
+    time_diff1 = timezone.now() - lastMove
     if time_diff1.seconds > waitPatner and starter == next:
         views.setWinner1(game.id,next)
-    elif time_diff2.seconds > waitWinner and starter != next:
+    elif time_diff1.seconds > waitWinner*2 and starter != next:
         views.setWinnerStarterNext1(game.id,patner,patner,patner)
     game.save()         
 
