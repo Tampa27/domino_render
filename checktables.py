@@ -47,7 +47,8 @@ def automaticCoupleStarter(game,players):
     if time_diff1.seconds > waitPatner and starter == next:
         views.setWinner1(game.id,next)
     elif time_diff2.seconds > waitWinner and starter != next:
-        views.setWinnerStarterNext1(game.id,patner,patner,patner)     
+        views.setWinnerStarterNext1(game.id,patner,patner,patner)
+    game.save()         
 
 def automaticMove(game,players):
     next = game.next_player
@@ -68,7 +69,7 @@ def automaticMove(game,players):
         elif time_diff.seconds > (moveTime+moveWait):                     
             views.movement(game,player_w,players,tile)
             views.updateLastPlayerTime(game,player_w.alias)        
-
+    game.save()
 
 if __name__ == "__main__":
     main()      
