@@ -100,6 +100,9 @@ def lastMove(game):
 
 def automaticStart(game):
     lastMoveTime = lastMove(game)
+    time_diff = timezone.now() - lastMoveTime
+    if time_diff.seconds > startWait:
+        views.startGame1(game)
 
 if __name__ == "__main__":
     main()      
