@@ -40,7 +40,7 @@ def main():
                         logging.error('Ocurrio una excepcion escogiendo el salidor en el juego '+str(game.id))        
                 else:
                     try:
-                        automaticMove(game,players)
+                        automaticMove(game,players_running)
                     except Exception:
                         logging.error('Ocurrio una excepcion moviendo una ficha en el juego '+str(game.id))    
             elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi':
