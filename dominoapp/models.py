@@ -77,3 +77,8 @@ class Bank(models.Model):
     datas_coins = models.PositiveIntegerField(default=0)
     matches_coins = models.PositiveIntegerField(default=0)
     private_tables_coins = models.PositiveIntegerField(default=0)
+
+class Transaction(models.Model):
+    player = models.ForeignKey(Player,related_name="player",on_delete=models.CASCADE,null=True,blank=True)
+    amount = models.PositiveIntegerField(default=0)
+    time = models.DateTimeField(default=timezone.now())

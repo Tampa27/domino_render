@@ -188,8 +188,9 @@ def getGame(request,game_id,alias):
             player.lastTimeInSystem = timezone.now()
             if result.status == "ru":
                 tiles = player.tiles.split(',')
-                #for tile in tiles:
-                #    isPlayingTile(result,tile,player) 
+                if len(tiles) > 0:
+                    for tile in tiles:
+                        isPlayingTile(result,tile,player) 
             player.save()
         else:
             diff_time = timezone.now() - player.lastTimeInSystem
@@ -424,9 +425,12 @@ def movement(game,player,players,tile):
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
     alias = player.alias
-    passTile = isPass(tile)   
-    #isPlayed = isPlayingTile(game,tile,player)
-    if isMyTurn(game.board,w,game.starter,n) == False or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or (len(game.board) == 0 and passTile):
+    passTile = isPass(tile)
+    if len(tile) > 0:   
+        isPlayed = isPlayingTile(game,tile,player)
+    else:
+        isPlayed = True    
+    if isPlayed or isMyTurn(game.board,w,game.starter,n) == False or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or (len(game.board) == 0 and passTile):
         return 
     if passTile == False:
         isCapicua = False
@@ -486,7 +490,7 @@ def movement(game,player,players,tile):
     #updateLastPlayerTime(game,alias)        
 
 def isPlayingTile(game,tile,player):
-    if len(tile) > 0 or isPass(tile):
+    if isPass(tile):
         return False
     tiles = game.board.split(',')
     rtile = rTile(tile)
