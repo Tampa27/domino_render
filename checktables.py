@@ -51,7 +51,7 @@ def automaticCoupleStarter(game,players):
     logging.error("La diferencia de tiempo es "+ str(time_diff1.seconds))
     if time_diff1.seconds > waitPatner and starter == next:
         views.setWinner1(game,next)
-    elif time_diff1.seconds > waitWinner*2 and starter != next:
+    elif time_diff1.seconds > waitWinner and starter != next:
         views.setWinnerStarterNext1(game,patner,patner,patner)
     game.save()         
 
