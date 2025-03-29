@@ -186,11 +186,11 @@ def getGame(request,game_id,alias):
     for player in players:
         if player.alias == alias:
             player.lastTimeInSystem = timezone.now()
-            if result.status == "ru":
-                tiles = player.tiles.split(',')
-                if len(tiles) > 0:
-                    for tile in tiles:
-                        isPlayingTile(result,tile,player) 
+            #if result.status == "ru":
+            #    tiles = player.tiles.split(',')
+            #    if len(tiles) > 0:
+            #        for tile in tiles:
+            #            isPlayingTile(result,tile,player) 
             player.save()
         else:
             diff_time = timezone.now() - player.lastTimeInSystem
@@ -420,17 +420,16 @@ def getBank(request):
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game,player,players,tile):
-    #logging.error(player.alias+" movio "+tile)
+    logging.error(player.alias+" movio "+tile)
     players_ru = list(filter(lambda p: p.isPlaying, players))
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
-    alias = player.alias
     passTile = isPass(tile)
-    if len(tile) > 0:   
-        isPlayed = isPlayingTile(game,tile,player)
-    else:
-        isPlayed = True    
-    if isPlayed or isMyTurn(game.board,w,game.starter,n) == False or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or (len(game.board) == 0 and passTile):
+    #if len(tile) > 0:   
+    #    isPlayed = isPlayingTile(game,tile,player)
+    #else:
+    #    isPlayed = True    
+    if isMyTurn(game.board,w,game.starter,n) == False or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or (len(game.board) == 0 and passTile):
         return 
     if passTile == False:
         isCapicua = False
