@@ -416,7 +416,7 @@ def getBank(request):
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game,player,players,tile):
-    logging.error(player.alias+" movio "+tile)
+    #logging.error(player.alias+" movio "+tile)
     players_ru = list(filter(lambda p: p.isPlaying, players))
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
