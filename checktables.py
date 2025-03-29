@@ -20,6 +20,7 @@ moveWait = 2
 waitPatner = 7
 waitWinner = 7
 passWait = 2
+startWait = 10
 
 import logging
 
@@ -33,9 +34,20 @@ def main():
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
                     logging.error('Esperando al salidor')
-                    automaticCoupleStarter(game,players)
+                    try:
+                        automaticCoupleStarter(game,players)
+                    except Exception:
+                        logging.error('Ocurrio una excepcion escogiendo el salidor en el juego '+str(game.id))        
                 else:
-                    automaticMove(game,players_running)    
+                    try:
+                        automaticMove(game,players_running)
+                    except Exception:
+                        logging.error('Ocurrio una excepcion moviendo una ficha en el juego '+str(game.id))    
+            elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi':
+                try:
+                    automaticStart(game)
+                except Exception:
+                    logging.error('Ocurrio una excepcion comenzando la mesa '+str(game.id))    
 
         time.sleep(5)
         
@@ -85,6 +97,9 @@ def lastMove(game):
     if game.lastTime4 is not None and game.lastTime4 > res:
         res = game.lastTime4
     return res                
+
+def automaticStart(game):
+    lastMoveTime = lastMove(game)
 
 if __name__ == "__main__":
     main()      
