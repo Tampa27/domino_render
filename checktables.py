@@ -42,8 +42,6 @@ def main():
 def automaticCoupleStarter(game,players):
     next = game.next_player
     patner = (next+2)%4
-    player_w = players[next]
-    player_p = players[patner]
     starter = game.starter
     lastMoveTime = lastMove(game)
     time_diff1 = timezone.now() - lastMoveTime
