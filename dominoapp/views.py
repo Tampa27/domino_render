@@ -360,14 +360,14 @@ def checkingMove(game):
 def startGame(request,game_id):
     game = DominoGame.objects.get(id=game_id)
     if game.status != "wt":
-        startGame1(game)    
+        players = playersCount(game)
+        startGame1(game,players)    
         serializerGame = GameSerializer(game)
         playerSerializer = PlayerSerializer(players,many=True)
         return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
     return Response ({'status': 'error'},status=400)
 
-def startGame1(game):
-    players = playersCount(game)
+def startGame1(game,players):
     if game.status != "fi":
         for player in players:
             if player.isPlaying == False:
