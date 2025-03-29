@@ -21,6 +21,7 @@ waitPatner = 7
 waitWinner = 7
 passWait = 2
 
+import logging
 
 def main():
     while True:
@@ -31,6 +32,7 @@ def main():
             if game.status == 'ru':
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
+                    logging.error('Esperando al salidor')
                     automaticCoupleStarter(game,players)
                 else:
                     automaticMove(game,players_running)    
@@ -45,7 +47,8 @@ def automaticCoupleStarter(game,players):
     starter = game.starter
     lastMoveTime = lastMove(game)
     time_diff1 = timezone.now() - lastMoveTime
-    logger.info("Entro a automaticCouple")
+    logging.error("Entro a automaticCouple")
+    logging.error("La diferencia de tiempo es "+ str(time_diff1.seconds))
     if time_diff1.seconds > waitPatner and starter == next:
         views.setWinner1(game.id,next)
     elif time_diff1.seconds > waitWinner*2 and starter != next:
