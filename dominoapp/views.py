@@ -21,7 +21,7 @@ from django.db import transaction
 import time
 import logging
 
-logger = logging.getLogger('dominoapp')
+#logger = logging.getLogger('dominoapp')
 
 # Create your views here.
 class PlayerView(APIView):
@@ -416,7 +416,7 @@ def getBank(request):
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game,player,players,tile):
-    logger.error(player.alias+" movio "+tile)
+    #logger.error(player.alias+" movio "+tile)
     players_ru = list(filter(lambda p: p.isPlaying, players))
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)

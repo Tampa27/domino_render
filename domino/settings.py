@@ -159,21 +159,21 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGGING = {
-         'version': 1,
-         'disable_existing_loggers': False,
-         'handlers': {
-             'console': {
-                 'level': 'DEBUG',  # Nivel de registro (DEBUG, INFO, WARNING, ERROR)
-                 'class': 'logging.FileHandler',
-                 'stream':sys.stderr
-             },
-         },
-         'loggers': {
-             'dominoapp': {  # Nombre personalizado para tu logger
-                 'handlers': ['console'],
-                 'level': 'DEBUG',
-                 'propagate': True,
-             },
-         },
-     }
+# LOGGING = {
+#          'version': 1,
+#          'disable_existing_loggers': False,
+#          'handlers': {
+#              'console': {
+#                  'level': 'DEBUG',  # Nivel de registro (DEBUG, INFO, WARNING, ERROR)
+#                  'class': 'logging.FileHandler',
+#                  'stream':sys.stderr
+#              },
+#          },
+#          'loggers': {
+#              'dominoapp': {  # Nombre personalizado para tu logger
+#                  'handlers': ['console'],
+#                  'level': 'DEBUG',
+#                  'propagate': True,
+#              },
+#          },
+#      }
