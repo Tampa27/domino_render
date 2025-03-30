@@ -369,22 +369,22 @@ def startGame(request,game_id):
     return Response ({'status': 'error'},status=400)
 
 def startGame1(game,players):
-    if game.status != "fi":
-        for player in players:
-            if player.isPlaying == False:
-                player.isPlaying = True
-                #player.save()
-    players_ru = []
-    for player in players:
-        if player.isPlaying:
-            players_ru.append(player)       
-    n = len(players_ru)
+    # if game.status != "fi":
+    #     for player in players:
+    #         if player.isPlaying == False:
+    #             player.isPlaying = True
+    #             #player.save()
+    # players_ru = []
+    # for player in players:
+    #     if player.isPlaying:
+    #         players_ru.append(player)       
+    n = len(players)
     if game.starter == -1 or game.starter >= n:
         game.next_player = random.randint(0,n-1)
         game.starter = game.next_player
     else:
-        if players[game.starter].alias != players_ru[game.starter].alias:
-            game.starter = getPlayerIndex(players_ru,players[game.starter])
+        # if players[game.starter].alias != players_ru[game.starter].alias:
+        #     game.starter = getPlayerIndex(players_ru,players[game.starter])
         game.next_player = game.starter
     if game.inPairs and game.winner != 4:
         if game.starter == 0 or game.starter == 2:
@@ -402,7 +402,7 @@ def startGame1(game,players):
         game.rounds = 0    
     #if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
     #    shuffleCouples(game,players_ru)    
-    shuffle(game,players_ru)          
+    shuffle(game,players)          
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
@@ -1042,6 +1042,7 @@ def shuffle(game, players):
     for i in range(len(players)):
         player = players[i]
         player.tiles = ""
+        player.isPlaying = True
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
             player.points = 0  
         for j in range(max):
