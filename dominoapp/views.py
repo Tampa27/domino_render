@@ -373,12 +373,12 @@ def startGame1(game,players):
         for player in players:
             if player.isPlaying == False:
                 player.isPlaying = True
-                #player.save()
+                player.save()
     players_ru = []
     for player in players:
         if player.isPlaying:
             players_ru.append(player)       
-    n = len(players_ru)
+    n = len(players)
     if game.starter == -1 or game.starter >= n:
         game.next_player = random.randint(0,n-1)
         game.starter = game.next_player
@@ -402,7 +402,7 @@ def startGame1(game,players):
         game.rounds = 0    
     #if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
     #    shuffleCouples(game,players_ru)    
-    shuffle(game,players_ru)          
+    shuffle(game,players)          
     game.status = "ru"
     game.start_time = timezone.now()
     game.leftValue = -1
