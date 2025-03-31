@@ -447,7 +447,7 @@ def movement(game,player,players,tile):
         updateSides(game,tile)
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
-        #player.save()
+        player.save()
         if tiles_count == 0:
             game.status = 'fg'
             game.start_time = timezone.now()
@@ -647,10 +647,9 @@ def move1(game_id,alias,tile):
     for p in players:
         if p.alias == alias:
             player = p
-    currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
-    movement(game,currentPlayer,players_ru,tile)
+    #currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
+    movement(game,player,players_ru,tile)
     updateLastPlayerTime(game,alias)
-    currentPlayer.save()
     game.save()
 
 @api_view(['GET',])
