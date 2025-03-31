@@ -13,6 +13,7 @@ from dominoapp import views
 from dominoapp.models import Player
 from dominoapp.models import DominoGame
 from django.utils import timezone
+from django.db import transaction
 # Importar tus módulos después de configurar Django
 #from tu_app import tasks  # Ejemplo de importación
 
@@ -72,18 +73,32 @@ def automaticMove(game,players):
     time_diff = timezone.now() - lastMove(game)
     if len(game.board) == 0:
         tile = views.takeRandomTile(player_w.tiles)
-        if time_diff.seconds > (moveTime+moveWait): 
-            views.movement(game,player_w,players,tile)
-            views.updateLastPlayerTime(game,player_w.alias)
+        if time_diff.seconds > (moveTime+moveWait):
+            try:
+                with transaction.atomic(): 
+                    views.move1(game.id,player_w.alias,tile)
+            except Exception as e:
+                logging.error("Error en el movimiento automatico "+str(e))            
+            #views.updateLastPlayerTime(game,player_w.alias)
     else:
         tile = views.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
         if views.isPass(tile):
             if time_diff.seconds > passWait:
-                views.movement(game,player_w,players,tile)
-                views.updateLastPlayerTime(game,player_w.alias) 
-        elif time_diff.seconds > (moveTime+moveWait):                     
-            views.movement(game,player_w,players,tile)
-            views.updateLastPlayerTime(game,player_w.alias)        
+                try:
+                    with transaction.atomic(): 
+                        views.move1(game.id,player_w.alias,tile)
+                except Exception as e:
+                    logging.error("Error en el movimiento automatico "+str(e))
+                #views.movement(game,player_w,players,tile)
+                #views.updateLastPlayerTime(game,player_w.alias) 
+        elif time_diff.seconds > (moveTime+moveWait):
+            try:
+                with transaction.atomic(): 
+                    views.move1(game.id,player_w.alias,tile)
+            except Exception as e:
+                logging.error("Error en el movimiento automatico "+str(e))                     
+            #views.movement(game,player_w,players,tile)
+            #views.updateLastPlayerTime(game,player_w.alias)        
     game.save()
 
 def lastMove(game):

@@ -101,6 +101,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS':{
+            'timeout':10,
+            'isolation_level':'IMMEDIATE'
+        }
     #'default': dj_database_url.config(
         # Replace this value with your local database's connection string.
     #    default='sqlite:///db.sqlite3',
