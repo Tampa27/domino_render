@@ -420,7 +420,6 @@ def getBank(request):
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game,player,players,tile):
-    logging.error(player.alias+" movio "+tile)
     players_ru = list(filter(lambda p: p.isPlaying, players))
     n = len(players_ru)
     w = getPlayerIndex(players_ru,player)
@@ -429,8 +428,18 @@ def movement(game,player,players,tile):
     #    isPlayed = isPlayingTile(game,tile,player)
     #else:
     #    isPlayed = True    
-    if isMyTurn(game.board,w,game.starter,n) == False or noCorrect(game,tile) or (passTile and (game.status == 'fi' or game.status == 'fg')) or (len(game.board) == 0 and passTile):
+    if isMyTurn(game.board,w,game.starter,n) == False:
+        logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
         return 
+    if noCorrect(game,tile):
+        logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
+        return
+    if (passTile and (game.status == 'fi' or game.status == 'fg')):
+        logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
+        return
+    if (len(game.board) == 0 and passTile):
+        logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
+        return
     if passTile == False:
         isCapicua = False
         if game.perPoints:
@@ -486,6 +495,7 @@ def movement(game,player,players,tile):
             updatePassCoins(w,game,players)
         game.next_player = (w+1) % n
     game.board += (tile+',')
+    logging.error(player.alias+" movio "+tile)
     #updateLastPlayerTime(game,alias)        
 
 def isPlayingTile(game,tile,player):
@@ -631,7 +641,7 @@ def move(request,game_id,alias,tile):
         return Response({'status': str(e)}, status=404)    
 
 def move1(game_id,alias,tile):
-    game = DominoGame.objects.select_for_update().get(id=game_id)
+    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
     players = playersCount(game)
     players_ru = list(filter(lambda p: p.isPlaying,players))
     for p in players:
