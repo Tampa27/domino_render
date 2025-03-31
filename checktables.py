@@ -75,8 +75,10 @@ def automaticMove(game,players):
         tile = views.takeRandomTile(player_w.tiles)
         if time_diff.seconds > (moveTime+moveWait):
             try:
-                with transaction.atomic(): 
-                    views.move1(game.id,player_w.alias,tile)
+                with transaction.atomic():
+                    views.movement(game,player_w,players,tile)
+                    views.updateLastPlayerTime(game,player_w.alias)  
+                    #views.move1(game.id,player_w.alias,tile)
             except Exception as e:
                 logging.error("Error en el movimiento automatico "+str(e))            
             #views.updateLastPlayerTime(game,player_w.alias)
@@ -85,16 +87,20 @@ def automaticMove(game,players):
         if views.isPass(tile):
             if time_diff.seconds > passWait:
                 try:
-                    with transaction.atomic(): 
-                        views.move1(game.id,player_w.alias,tile)
+                    with transaction.atomic():
+                        views.movement(game,player_w,players,tile)
+                        views.updateLastPlayerTime(game,player_w.alias)  
+                        #views.move1(game.id,player_w.alias,tile)
                 except Exception as e:
                     logging.error("Error en el movimiento automatico "+str(e))
                 #views.movement(game,player_w,players,tile)
                 #views.updateLastPlayerTime(game,player_w.alias) 
         elif time_diff.seconds > (moveTime+moveWait):
             try:
-                with transaction.atomic(): 
-                    views.move1(game.id,player_w.alias,tile)
+                with transaction.atomic():
+                    views.movement(game,player_w,players,tile)
+                    views.updateLastPlayerTime(game,player_w.alias)  
+                    #views.move1(game.id,player_w.alias,tile)
             except Exception as e:
                 logging.error("Error en el movimiento automatico "+str(e))                     
             #views.movement(game,player_w,players,tile)
