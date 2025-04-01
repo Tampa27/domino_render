@@ -38,7 +38,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', default='your secret key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True#'RENDER' not in os.environ
+# PRODUCTION = os.getenv("PRODUCTION", "False") == "True"
+PRODUCTION = True
+DEBUG = not PRODUCTION  #'RENDER' not in os.environ
+DEVELOPMENT = not PRODUCTION
 
 ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com"]
 
@@ -181,3 +184,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #              },
 #          },
 #      }
+
+SITE_ID = 1

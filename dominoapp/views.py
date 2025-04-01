@@ -8,7 +8,8 @@ from .models import DominoGame
 from .models import Bank
 from .serializers import GameSerializer
 from .serializers import BankSerializer
-from django.shortcuts import get_object_or_404 
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework.decorators import api_view
 from rest_framework import generics
 from django.utils import timezone
@@ -98,8 +99,8 @@ class GameCreate(generics.CreateAPIView):
                 player1 = Player.objects.get(alias=alias)
             except ObjectDoesNotExist:
                 return Response ({'status': 'error'},status=400)
-            if player1.coins == 0:
-                return Response ({'status': 'error'},status=400)
+            # if player1.coins == 0:
+            #     return Response ({'status': 'error'},status=400)
             player1.tiles = ""
             player1.points=0
             player1.lastTimeInSystem = timezone.now()
@@ -420,26 +421,26 @@ def getBank(request):
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game,player,players,tile):
-    players_ru = list(filter(lambda p: p.isPlaying, players))
-    n = len(players_ru)
-    w = getPlayerIndex(players_ru,player)
+    n = len(players)
+    w = getPlayerIndex(players,player)
     passTile = isPass(tile)
-    #if len(tile) > 0:   
-    #    isPlayed = isPlayingTile(game,tile,player)
-    #else:
-    #    isPlayed = True    
+       
     if isMyTurn(game.board,w,game.starter,n) == False:
         logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
-        return 
+        return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno")
     if noCorrect(game,tile):
         logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
-        return
+        return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
     if (passTile and (game.status == 'fi' or game.status == 'fg')):
         logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
-        return
+        return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia terminado")
     if (len(game.board) == 0 and passTile):
         logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
-        return
+        return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia empezado")
+    if CheckPlayerTile(tile, player) == False:
+        logging.error(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
+        return(f"{player.alias} intento mover {tile} pero se detecto que la ficha no le pertenese")
+    
     if passTile == False:
         isCapicua = False
         if game.perPoints:
@@ -495,8 +496,17 @@ def movement(game,player,players,tile):
             updatePassCoins(w,game,players)
         game.next_player = (w+1) % n
     game.board += (tile+',')
-    logging.error(player.alias+" movio "+tile)
-    #updateLastPlayerTime(game,alias)        
+    logging.info(player.alias+" movio "+tile)
+    return None        
+
+def CheckPlayerTile(tile, player):
+    if isPass(tile):
+        return True 
+    tiles = player.tiles.split(',')
+    inverse = rTile(tile)
+    if tile in tiles or inverse in tiles:
+        return True
+    return False
 
 def isPlayingTile(game,tile,player):
     if isPass(tile):
@@ -515,12 +525,11 @@ def noCorrect(game,tile):
     val0 = int(values[0])
     if val0 == -1 or (game.leftValue == -1 and game.rightValue == -1):
         return False
-    val1 = int(values[1])
-    if game.leftValue == val0 or game.leftValue == val1 or game.rightValue == val0 or game.rightValue == val1:
+    if game.leftValue == val0 or game.rightValue == val0:
         return False
     return True
 
-def rTile(tile):
+def rTile(tile)->str:
     values = tile.split('|')
     return (values[1]+"|"+values[0])
 
@@ -634,9 +643,22 @@ def updatePassCoins(pos,game,players):
 @api_view(['GET',])
 def move(request,game_id,alias,tile):
     try:
+        check = DominoGame.objects.filter(id=game_id).exists()
+        if not check:
+            return Response({'status': "Game not found"}, status=404)
+        check = Player.objects.filter(alias=alias).exists()
+        if not check:
+            return Response({'status': "Player not found"}, status=404)
+        filteres = Q(player1__alias=alias)|Q(player2__alias=alias)|Q(player3__alias=alias)|Q(player4__alias=alias)
+        check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
+        if not check:
+            return Response({'status': "These Player are not in this game"}, status=400)
         with transaction.atomic():
-            move1(game_id,alias,tile)
-            return Response({'status': 'success'}, status=200)
+            error = move1(game_id,alias,tile)
+            if error is None:
+                return Response({'status': 'success'}, status=200)
+            else:
+                return Response({'status': 'fail', 'message': error}, status=400)
     except Exception as e:        
         return Response({'status': str(e)}, status=404)    
 
@@ -648,9 +670,10 @@ def move1(game_id,alias,tile):
         if p.alias == alias:
             player = p
     #currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
-    movement(game,player,players_ru,tile)
+    error = movement(game,player,players_ru,tile)
     updateLastPlayerTime(game,alias)
     game.save()
+    return error
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
@@ -931,8 +954,8 @@ def updateSides(game,tile):
 
 def updateTiles(player,tile):
     tiles = player.tiles.split(',')
-    values = tile.split('|')
-    inverse = (values[1]+'|'+values[0])
+
+    inverse = rTile(tile)
     res = ''
     for s in tiles:
         if tile == s:
