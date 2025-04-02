@@ -669,8 +669,8 @@ def move1(game_id,alias,tile):
     for p in players:
         if p.alias == alias:
             player = p
-    #currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
-    error = movement(game,player,players_ru,tile)
+    currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
+    error = movement(game,currentPlayer,players_ru,tile)
     updateLastPlayerTime(game,alias)
     game.save()
     return error
