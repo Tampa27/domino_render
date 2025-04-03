@@ -24,6 +24,13 @@ class Player(models.Model):
         ordering = ['alias']
     
 class DominoGame(models.Model):
+    status_choices = [
+        ("wt","waiting_players"),
+        ("ru","running"),
+        ('ready','ready_to_play'),
+        ('fi','finished'),
+        ('fg','game_finished'),
+        ('pa','paused')]
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
     player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
@@ -35,7 +42,7 @@ class DominoGame(models.Model):
     winner = models.SmallIntegerField(default=-1)
     scoreTeam1 = models.IntegerField(default=0)
     scoreTeam2 = models.IntegerField(default=0)
-    status = models.CharField(max_length=32,choices=[("wt","waiting_players"),("ru","running"),('ready','ready_to_play'),('fi','finished'),('fg','game_finished'),('pa','paused')],default="wt")
+    status = models.CharField(max_length=32,choices=status_choices,default="wt")
     maxScore = models.IntegerField(default=100)
     inPairs = models.BooleanField(default=False)
     perPoints = models.BooleanField(default=False)

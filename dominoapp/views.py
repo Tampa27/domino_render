@@ -449,6 +449,7 @@ def movement(game,player,players,tile):
         tiles_count,tiles = updateTiles(player,tile)
         player.tiles = tiles
         player.save()
+        player.refresh_from_db()
         if tiles_count == 0:
             game.status = 'fg'
             game.start_time = timezone.now()
@@ -672,18 +673,17 @@ def move1(game_id,alias,tile):
     for p in players:
         if p.alias == alias:
             player = p
-    currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)      
-    error = movement(game,currentPlayer,players_ru,tile)
+    # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
+    error = movement(game,player,players_ru,tile)
     updateLastPlayerTime(game,alias)
-    currentPlayer.save()
-    # if game.player1:
-    #     game.player1.save() 
-    # if game.player2:
-    #     game.player2.save() 
-    # if game.player3:
-    #     game.player3.save()
-    # if game.player4:
-    #     game.player4.save() 
+    if game.player1 and game.player1.id:
+        game.player1.save() 
+    if game.player2 and game.player2.id:
+        game.player2.save() 
+    if game.player3 and game.player3.id:
+        game.player3.save()
+    if game.player4 and game.player4.id:
+        game.player4.save() 
     game.save()
     return error
 
@@ -782,7 +782,7 @@ def shuffleCouples(game,players):
     game.player3 = players[2]
     game.player4 = players[3]
 
-def exitPlayer(game,player,players,totalPlayers):
+def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: int):
     exited = False
     pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)

@@ -46,7 +46,17 @@ def main():
                         logging.error('Ocurrio una excepcion moviendo una ficha en el juego '+str(game.id))    
             elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi':
                 try:
-                    automaticStart(game,players)
+                    restargame = True
+                    if game.status == 'fg':
+                        for player in players_running:
+                            diff_time = timezone.now() - player.lastTimeInSystem
+                            if (diff_time.seconds >= views.exitTime):
+                                views.exitPlayer(game,player,players,len(players))
+                        players = views.playersCount(game)
+                        if len(players)<1:
+                            restargame = False
+                    if restargame:
+                        automaticStart(game,players)
                 except Exception:
                     logging.error('Ocurrio una excepcion comenzando la mesa '+str(game.id))    
 
