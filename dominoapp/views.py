@@ -672,10 +672,18 @@ def move1(game_id,alias,tile):
     for p in players:
         if p.alias == alias:
             player = p
-    currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
+    currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)      
     error = movement(game,currentPlayer,players_ru,tile)
     updateLastPlayerTime(game,alias)
     currentPlayer.save()
+    if game.player1:
+        game.player1.save() 
+    if game.player2:
+        game.player2.save() 
+    if game.player3:
+        game.player3.save()
+    if game.player4:
+        game.player4.save() 
     game.save()
     return error
 
@@ -1207,12 +1215,8 @@ def takeRandomCorrectTile(tiles,left,right):
         if val1 == left or val1 == right:
             return tile
         elif val2 == left or val2 == right:
-            return swapTile(tile)
+            return rTile(tile)
     return "-1|-1"
-
-def swapTile(tile):
-    values = tile.split('|')
-    return (values[1]+'|'+values[0])   
 
 def previusPlayer(pos,n):
     if pos == 0: 
