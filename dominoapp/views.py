@@ -96,22 +96,17 @@ class GameCreate(generics.CreateAPIView):
         if serializer.is_valid():  
             self.perform_create(serializer)  
             try:
-                player1 = Player.objects.get(alias=alias)
+                player = Player.objects.get(alias=alias)
             except ObjectDoesNotExist:
                 return Response ({'status': 'error'},status=400)
             # if player1.coins == 0:
             #     return Response ({'status': 'error'},status=400)
-            player1.tiles = ""
-            player1.points=0
-            player1.lastTimeInSystem = timezone.now()
-            player1.save()
-            players = [player1]
-            data = serializer.validated_data
-            data['player1']=player1
-            data['payWinValue']=0
-            data['payPassValue']=0
-            data['payMatchValue']=0
-            serializer.save(player1=data['player1'],payWinValue=0,payPassValue=0,payMatchValue=0)
+            player.tiles = ""
+            player.points=0
+            player.lastTimeInSystem = timezone.now()
+            player.save()
+            players = [player]
+            serializer.save(player1=player)
             playerSerializer = PlayerSerializer(players,many=True)
             return Response({"status": "success", "game": serializer.data,"players":playerSerializer.data}, status=status.HTTP_200_OK)  
         else:  
