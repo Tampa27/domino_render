@@ -676,14 +676,14 @@ def move1(game_id,alias,tile):
     error = movement(game,currentPlayer,players_ru,tile)
     updateLastPlayerTime(game,alias)
     currentPlayer.save()
-    if game.player1:
-        game.player1.save() 
-    if game.player2:
-        game.player2.save() 
-    if game.player3:
-        game.player3.save()
-    if game.player4:
-        game.player4.save() 
+    # if game.player1:
+    #     game.player1.save() 
+    # if game.player2:
+    #     game.player2.save() 
+    # if game.player3:
+    #     game.player3.save()
+    # if game.player4:
+    #     game.player4.save() 
     game.save()
     return error
 
