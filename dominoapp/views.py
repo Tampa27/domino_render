@@ -656,6 +656,9 @@ def move(request,game_id,alias,tile):
         with transaction.atomic():
             error = move1(game_id,alias,tile)
             if error is None:
+                profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
+                profile.lastTimeInSystem = timezone.now()
+                profile.save()
                 return Response({'status': 'success'}, status=200)
             else:
                 return Response({'status': 'fail', 'message': error}, status=400)
@@ -672,6 +675,7 @@ def move1(game_id,alias,tile):
     currentPlayer = Player.objects.select_for_update(nowait=True).get(id=player.id)        
     error = movement(game,currentPlayer,players_ru,tile)
     updateLastPlayerTime(game,alias)
+    currentPlayer.save()
     game.save()
     return error
 
