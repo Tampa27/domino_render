@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 import sys
+
 """
 Django settings for app project.
 
@@ -102,18 +103,23 @@ WSGI_APPLICATION = 'domino.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'OPTIONS':{
-            'timeout':10,
-            'isolation_level':'IMMEDIATE'
+        # 'ENGINE': 'django.db.backends.sqlite3',
+        # 'NAME': BASE_DIR / 'db.sqlite3',
+        # 'OPTIONS':{
+        #     'timeout':10,
+        #     'isolation_level':'IMMEDIATE'
+        # }
+        
+        'ENGINE': 'django.db.backends.mysql',  # Para MySQL  
+        'NAME': 'ahmedlp9$default',           # Nombre de tu base de datos  
+        'USER': 'ahmedlp9',                   # Tu usuario de MySQL  
+        'PASSWORD': 'PR78781190.',            # Tu contraseña de MySQL  
+        'HOST': 'ahmedlp9.mysql.pythonanywhere-services.com',                    # O la dirección de tu servidor de MySQL  
+        'PORT': '3306',   
+        'TEST': {
+          'NAME': 'ahmedlp9$test_default',
         }
-    #'default': dj_database_url.config(
-        # Replace this value with your local database's connection string.
-    #    default='sqlite:///db.sqlite3',
-    #    conn_max_age=600
-    #)
-    }
+    },
 }
 
 
