@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+import uuid
 # Create your models here.
 
 class Player(models.Model):
@@ -85,7 +86,19 @@ class Bank(models.Model):
     matches_coins = models.PositiveIntegerField(default=0)
     private_tables_coins = models.PositiveIntegerField(default=0)
 
+class Status_Transaction(models.Model):
+    choices = [
+        ("p", "pending"),
+        ("cp", "completed"),
+        ("cc", "canceled")
+    ]
+    status = models.CharField(max_length=32,choices=choices,default="p")
+    created_at = models.DateTimeField(auto_now_add=True)
+
 class Transaction(models.Model):
-    player = models.ForeignKey(Player,related_name="player",on_delete=models.CASCADE,null=True,blank=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    from_user = models.ForeignKey(Player,related_name="payer",on_delete=models.PROTECT,null=True,blank=True)
+    to_user = models.ForeignKey(Player,related_name="collector",on_delete=models.PROTECT,null=True,blank=True)
     amount = models.PositiveIntegerField(default=0)
-    time = models.DateTimeField(default=timezone.now)
+    time = models.DateTimeField(auto_now_add=True)
+    status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
