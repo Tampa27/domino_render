@@ -1,7 +1,7 @@
 from dominoapp.models import Player, Status_Transaction, Transaction
 import logging
 
-def create_transactions(from_user:Player, to_user:Player, amount, status=None):
+def create_transactions(amount, from_user:Player=None, to_user:Player=None, status=None):
 
     try:
         if not from_user and not to_user:
