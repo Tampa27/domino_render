@@ -28,6 +28,7 @@ class PlayerAdmin(admin.ModelAdmin):
         "isPlaying",
         "lastTimeInSystem"
     ]
+    search_fields = ["alias", "email", "name"]
 
 class StatusTransactionInline(admin.TabularInline):
     model = Transaction.status_list.through
@@ -60,7 +61,7 @@ class TransactionAdmin(admin.ModelAdmin):
     search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
 
     def status(self, obj):
-        return obj.status_list.last()
+        return obj.status_list.last().status
 
 
 # Register your models here.
