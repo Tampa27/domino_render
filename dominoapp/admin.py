@@ -1,7 +1,5 @@
 from django.contrib import admin
-from .models import Player
-from .models import DominoGame
-from .models import Bank
+from .models import Player, Bank, DominoGame, Transaction
 
 admin.site.site_title = "DOMINO site admin (DEV)"
 admin.site.site_header = "DOMINO administration"
@@ -31,7 +29,42 @@ class PlayerAdmin(admin.ModelAdmin):
         "lastTimeInSystem"
     ]
 
+class StatusTransactionInline(admin.TabularInline):
+    model = Transaction.status_list.through
+    inline_actions = []
+    fields=['status', 'created_at']
+    readonly_fields = ('status', 'created_at')
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+    def status(self, instance):
+        return instance.status_transaction.status
+    
+    def created_at(self, instance):
+        return instance.status_transaction.created_at
+
+
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "from_user",
+        "to_user",
+        "amount",
+        "time",
+        "status"
+    ]
+    inlines = [StatusTransactionInline]
+
+    ordering = ["-time"]
+    search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
+
+    def status(self, obj):
+        return obj.status_list.last()
+
+
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
 admin.site.register(Bank)
+admin.site.register(Transaction, TransactionAdmin)

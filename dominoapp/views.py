@@ -21,6 +21,7 @@ from django.views import View
 from django.db import transaction
 import time
 import logging
+from dominoapp.utils.transactions import create_transactions
 
 #logger = logging.getLogger('dominoapp')
 
@@ -549,7 +550,8 @@ def updatePlayersData(game,players,w,status):
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue-bank_coins)
                     bank.balance+=(bank_coins)
-                    players[i].coins+= player_coins       
+                    players[i].coins+= player_coins
+                    create_transactions(to_user=players[i], amount=player_coins, status="cp")       
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -558,15 +560,18 @@ def updatePlayersData(game,players,w,status):
                         player_coins = (game.payMatchValue-bank_coins)
                         bank.balance+=(bank_coins)
                         players[i].coins+= player_coins
+                        create_transactions(to_user=players[i], amount=player_coins, status="cp")
                 players[i].save()
             else:
                 players[i].dataLoss+=1
                 if game.payWinValue > 0:
                     players[i].coins-=game.payWinValue
+                    create_transactions(from_user=players[i], amount=game.payWinValue, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0:
                         players[i].coins-=game.payMatchValue
+                        create_transactions(from_user=players[i], amount=game.payMatchValue, status="cp")                        
                 players[i].save()
     else:
         for i in range(n):
@@ -578,6 +583,7 @@ def updatePlayersData(game,players,w,status):
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                     bank.balance+=(bank_coins)
                     players[i].coins+= player_coins
+                    create_transactions(to_user=players[i], amount=player_coins, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -586,15 +592,18 @@ def updatePlayersData(game,players,w,status):
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
                         bank.balance+=(bank_coins)
                         players[i].coins+= player_coins
+                        create_transactions(to_user=players[i], amount=player_coins, status="cp")
                 players[i].save()
             elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
                 if game.payWinValue > 0:
                     players[i].coins-=game.payWinValue
+                    create_transactions(from_user=players[i], amount=game.payWinValue, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0:
                         players[i].coins-=game.payMatchValue
+                        create_transactions(from_user=players[i], amount=game.payMatchValue, status="cp")
                 players[i].save()                                    
     bank.save()
 
@@ -612,26 +621,34 @@ def updatePassCoins(pos,game,players):
                     if (pos - prev) < 0:
                         pos1 = pos + (n-prev)
                         players[pos].coins-=game.payPassValue
+                        create_transactions(from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
+                        create_transactions(to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:
                         pos1 = pos - prev
                         players[pos].coins-=game.payPassValue
+                        create_transactions(from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
+                        create_transactions(to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
                     if (pos - 2) < 0:
                         pos1 = pos + (n-prev)
                         players[pos].coins-=game.payPassValue
+                        create_transactions(from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
+                        create_transactions(to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:        
                         pos1 = pos - prev
                         players[pos].coins-=game.payPassValue
+                        create_transactions(from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
+                        create_transactions(to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 break                            
@@ -725,7 +742,8 @@ def rechargeBalance(request,alias,coins):
         bank = Bank.objects.create()
     bank.balance+=coins
     bank.buy_coins+=coins
-    bank.save()    
+    bank.save()   
+    create_transactions(to_user=player, amount=coins, status="cp")
     player.save()
     return Response({'status': 'success', "message":'Balance recharged'}, status=200)
 
@@ -739,7 +757,8 @@ def payment(request,alias,coins):
         bank = Bank.objects.create()
     bank.balance-=coins
     bank.extracted_coins+=coins
-    bank.save()    
+    bank.save()
+    create_transactions(from_user=player, amount=coins, status="cp")
     player.save()
     return Response({'status': 'success', "message":'Payment done!!'}, status=200)
 
@@ -814,8 +833,11 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 bank.balance+=bank_coins
                 coins -= bank_coins
                 if game.inPairs:
-                    players[(pos+1)%4].coins+=coins/2
-                    players[(pos+3)%4].coins+=coins/2
+                    coins_value = coins/2
+                    players[(pos+1)%4].coins+=coins_value
+                    create_transactions(to_user=players[(pos+1)%4], amount=coins_value, status="cp")
+                    players[(pos+3)%4].coins+=coins_value
+                    create_transactions(to_user=players[(pos+3)%4], amount=coins_value, status="cp")
                     players[(pos+1)%4].save()
                     players[(pos+3)%4].save()     
                 else:
@@ -823,8 +845,10 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     for p in players:
                         if p.alias != player.alias:
                             p.coins+= (coins/n)
+                            create_transactions(to_user=p, amount=coins/n, status="cp")
                             p.save()
-                player.coins-=loss_coins            
+                player.coins-=loss_coins
+                create_transactions(from_user=player, amount=loss_coins, status="cp")
                 bank.save()                               
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
