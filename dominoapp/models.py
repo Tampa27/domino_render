@@ -68,13 +68,6 @@ class DominoGame(models.Model):
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
 
-    def __str__(self) -> str:
-        return '%s %s %s %s' % (
-            self.variant,
-            self.status,
-            self.board,
-            self.start_time
-        )
     
 class Bank(models.Model):
     balance = models.PositiveIntegerField(default=10000)
