@@ -58,7 +58,12 @@ class TransactionAdmin(admin.ModelAdmin):
         "game"
     ]
     inlines = [StatusTransactionInline]
-
+    list_filter = [
+        "status",
+        "game",
+        "type",
+        "time"
+    ]
     ordering = ["-time"]
     search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
 
