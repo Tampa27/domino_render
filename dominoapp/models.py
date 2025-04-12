@@ -96,9 +96,16 @@ class Status_Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Transaction(models.Model):
+    type_choices = [
+        ("rl", "reload"), 
+        ("ex", "extraction"),
+        ("gm", "game")
+    ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     from_user = models.ForeignKey(Player,related_name="payer",on_delete=models.PROTECT,null=True,blank=True)
     to_user = models.ForeignKey(Player,related_name="collector",on_delete=models.PROTECT,null=True,blank=True)
     amount = models.PositiveIntegerField(default=0)
     time = models.DateTimeField(auto_now_add=True)
     status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
+    type = models.CharField(max_length=15,choices=type_choices,blank=True, null=True)
+    game = models.ForeignKey(DominoGame, related_name="game_transaction",on_delete=models.PROTECT, null=True, blank=True)
