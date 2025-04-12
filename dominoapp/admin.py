@@ -59,7 +59,6 @@ class TransactionAdmin(admin.ModelAdmin):
     ]
     inlines = [StatusTransactionInline]
     list_filter = [
-        "status",
         "game",
         "type",
         "time"
