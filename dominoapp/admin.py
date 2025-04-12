@@ -53,7 +53,9 @@ class TransactionAdmin(admin.ModelAdmin):
         "to_user",
         "amount",
         "time",
-        "status"
+        "type",
+        "status",
+        "game"
     ]
     inlines = [StatusTransactionInline]
 
