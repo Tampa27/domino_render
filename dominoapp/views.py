@@ -676,7 +676,8 @@ def move(request,game_id,alias,tile):
         return Response({'status': str(e)}, status=404)    
 
 def move1(game_id,alias,tile):
-    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+    # game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+    game = DominoGame.objects.get(id=game_id)
     players = playersCount(game)
     players_ru = list(filter(lambda p: p.isPlaying,players))
     for p in players:
