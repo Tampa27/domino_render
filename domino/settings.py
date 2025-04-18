@@ -103,22 +103,22 @@ WSGI_APPLICATION = 'domino.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'OPTIONS':{
-            'timeout':10,
-            'isolation_level':'IMMEDIATE'
-        }
+        # 'ENGINE': 'django.db.backends.sqlite3',
+        # 'NAME': BASE_DIR / 'db.sqlite3',
+        # 'OPTIONS':{
+        #     'timeout':10,
+        #     'isolation_level':'IMMEDIATE'
+        # }
         
-    #     'ENGINE': 'django.db.backends.mysql',  # Para MySQL  
-    #     'NAME': 'ahmedlp9$default',           # Nombre de tu base de datos  
-    #     'USER': 'ahmedlp9',                   # Tu usuario de MySQL  
-    #     'PASSWORD': 'PR78781190.',            # Tu contraseña de MySQL  
-    #     'HOST': 'ahmedlp9.mysql.pythonanywhere-services.com',                    # O la dirección de tu servidor de MySQL  
-    #     'PORT': '3306',   
-    #     'TEST': {
-    #       'NAME': 'ahmedlp9$test_default',
-    #     }
+        'ENGINE': 'django.db.backends.mysql',  # Para MySQL  
+        'NAME': 'ahmedlp9$default',           # Nombre de tu base de datos  
+        'USER': 'ahmedlp9',                   # Tu usuario de MySQL  
+        'PASSWORD': 'PR78781190.',            # Tu contraseña de MySQL  
+        'HOST': 'ahmedlp9.mysql.pythonanywhere-services.com',                    # O la dirección de tu servidor de MySQL  
+        'PORT': '3306',   
+        'TEST': {
+          'NAME': 'ahmedlp9$test_default',
+        }
     },
 }
 
