@@ -102,14 +102,7 @@ WSGI_APPLICATION = 'domino.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        # 'ENGINE': 'django.db.backends.sqlite3',
-        # 'NAME': BASE_DIR / 'db.sqlite3',
-        # 'OPTIONS':{
-        #     'timeout':10,
-        #     'isolation_level':'IMMEDIATE'
-        # }
-        
+    'default': {       
         'ENGINE': 'django.db.backends.mysql',  # Para MySQL  
         'NAME': 'ahmedlp9$default',           # Nombre de tu base de datos  
         'USER': 'ahmedlp9',                   # Tu usuario de MySQL  
