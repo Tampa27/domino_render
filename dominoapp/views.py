@@ -180,15 +180,15 @@ def getGame(request,game_id,alias):
     result = DominoGame.objects.get(id=game_id)
     serializer = GameSerializer(result)
     players = playersCount(result)
-    # for player in players:
-        # if player.alias == alias:
-        #     player.lastTimeInSystem = timezone.now()
+    for player in players:
+        if player.alias == alias:
+            player.lastTimeInSystem = timezone.now()
         #     #if result.status == "ru":
         #     #    tiles = player.tiles.split(',')
         #     #    if len(tiles) > 0:
         #     #        for tile in tiles:
         #     #            isPlayingTile(result,tile,player) 
-        #     player.save()
+            player.save()
         # else:
         #     diff_time = timezone.now() - player.lastTimeInSystem
         #     diff_time2 = timezone.now()- result.start_time
@@ -564,12 +564,12 @@ def updatePlayersData(game,players,w,status):
                 players[i].save()
             else:
                 players[i].dataLoss+=1
-                if game.payWinValue > 0:
+                if game.payWinValue > 0 and w != 4:
                     players[i].coins-=game.payWinValue
                     create_game_transactions(game=game, from_user=players[i], amount=game.payWinValue, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
-                    if game.payMatchValue > 0:
+                    if game.payMatchValue > 0 and w != 4:
                         players[i].coins-=game.payMatchValue
                         create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")                        
                 players[i].save()
@@ -596,12 +596,12 @@ def updatePlayersData(game,players,w,status):
                 players[i].save()
             elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
-                if game.payWinValue > 0:
+                if game.payWinValue > 0 and w != 4:
                     players[i].coins-=game.payWinValue
                     create_game_transactions(game=game, from_user=players[i], amount=game.payWinValue, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
-                    if game.payMatchValue > 0:
+                    if game.payMatchValue > 0 and w != 4:
                         players[i].coins-=game.payMatchValue
                         create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")
                 players[i].save()                                    
@@ -669,9 +669,9 @@ def move(request,game_id,alias,tile):
         with transaction.atomic():
             error = move1(game_id,alias,tile)
             if error is None:
-                profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
-                profile.lastTimeInSystem = timezone.now()
-                profile.save()
+                # profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
+                # profile.lastTimeInSystem = timezone.now()
+                # profile.save()
                 return Response({'status': 'success'}, status=200)
             else:
                 return Response({'status': 'fail', 'message': error}, status=400)
