@@ -59,7 +59,11 @@ def main():
                         automaticStart(game,players)
                 except Exception:
                     logging.error('Ocurrio una excepcion comenzando la mesa '+str(game.id))    
-
+            elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
+                for player in players:
+                    diff_time = timezone.now() - player.lastTimeInSystem
+                    if (diff_time.seconds >= views.exitTime):
+                        views.exitPlayer(game,player,players,len(players))
         time.sleep(5)
         
 def automaticCoupleStarter(game):

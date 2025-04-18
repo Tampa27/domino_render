@@ -164,7 +164,13 @@ def getAllGames(request,alias):
         return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":needUpdate}, status=200)
     result = DominoGame.objects.all()
     for game in result:
-        inGame = checkPlayersTimeOut1(game,alias)
+        # inGame = checkPlayersTimeOut1(game,alias)        
+        inGame = DominoGame.objects.filter(id = game.id).filter(
+            Q(player1__alias = alias)|
+            Q(player2__alias = alias)|
+            Q(player3__alias = alias)|
+            Q(player4__alias = alias)
+            ).exists()
         if inGame:
             game_id = game.id
     serializer =GameSerializer(result,many=True)
@@ -181,7 +187,7 @@ def getGame(request,game_id,alias):
     serializer = GameSerializer(result)
     players = playersCount(result)
     for player in players:
-        if player.alias == alias:
+        if player.alias == alias and result.status != 'ru' or player.isPlaying == False:
             player.lastTimeInSystem = timezone.now()
         #     #if result.status == "ru":
         #     #    tiles = player.tiles.split(',')
@@ -665,9 +671,9 @@ def move(request,game_id,alias,tile):
         with transaction.atomic():
             error = move1(game_id,alias,tile)
             if error is None:
-                # profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
-                # profile.lastTimeInSystem = timezone.now()
-                # profile.save()
+                profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
+                profile.lastTimeInSystem = timezone.now()
+                profile.save()
                 return Response({'status': 'success'}, status=200)
             else:
                 return Response({'status': 'fail', 'message': error}, status=400)
