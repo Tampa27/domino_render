@@ -97,7 +97,7 @@ class Transaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     from_user = models.ForeignKey(Player,related_name="payer",on_delete=models.PROTECT,null=True,blank=True)
     to_user = models.ForeignKey(Player,related_name="collector",on_delete=models.PROTECT,null=True,blank=True)
-    amount = models.PositiveIntegerField(default=0)
+    amount = models.DecimalField(default=0, decimal_places=2, max_digits= 9)
     time = models.DateTimeField(auto_now_add=True)
     status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
     type = models.CharField(max_length=15,choices=type_choices,blank=True, null=True)
