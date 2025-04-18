@@ -493,7 +493,6 @@ def movement(game,player,players,tile):
             updatePassCoins(w,game,players)
         game.next_player = (w+1) % n
     game.board += (tile+',')
-    game.save()
     logging.info(player.alias+" movio "+tile)
     return None        
 
