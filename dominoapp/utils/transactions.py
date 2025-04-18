@@ -7,8 +7,8 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
         if not from_user and not to_user:
             logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: At least one of the from_user or to_user fields should not be empty")
             return False    
-        if not  amount>0 or not type(amount)==int:
-            logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must be integer")
+        if not  amount>0:
+            logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must greater than 0")
             return False
         if not status in ["p", "cp", "cc"]:
             logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: status is not correct")
@@ -39,8 +39,8 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         if not from_user and not to_user:
             logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: At least one of the from_user or to_user fields should not be empty")
             return False    
-        if not  amount>0 or not type(amount)==int:
-            logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must be integer")
+        if not  amount>0:
+            logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must greater than 0")
             return False
         if not status in ["p", "cp", "cc"]:
             logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: status is not correct")
@@ -70,8 +70,8 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
         if not from_user and not to_user:
             logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: At least one of the from_user or to_user fields should not be empty")
             return False    
-        if not  amount>0 or not type(amount)==int:
-            logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must be integer")
+        if not  amount>0:
+            logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must greater than 0")
             return False
         if not status in ["p", "cp", "cc"]:
             logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: status is not correct")

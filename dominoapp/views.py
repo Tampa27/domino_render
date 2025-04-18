@@ -621,34 +621,30 @@ def updatePassCoins(pos,game,players):
                     if (pos - prev) < 0:
                         pos1 = pos + (n-prev)
                         players[pos].coins-=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
-                        create_game_transactions(game=game, to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:
                         pos1 = pos - prev
                         players[pos].coins-=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
-                        create_game_transactions(game=game, to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
                     if (pos - 2) < 0:
                         pos1 = pos + (n-prev)
                         players[pos].coins-=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
-                        create_game_transactions(game=game, to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:        
                         pos1 = pos - prev
                         players[pos].coins-=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], amount=game.payPassValue, status="cp")
                         players[pos1].coins+=game.payPassValue
-                        create_game_transactions(game=game, to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 break                            
