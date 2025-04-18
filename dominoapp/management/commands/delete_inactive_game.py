@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from django.utils.timezone import timedelta, now
-from django.db.models import Q
 from dominoapp.models import DominoGame
 from dominoapp.views import playersCount
 
