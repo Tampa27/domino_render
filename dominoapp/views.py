@@ -690,6 +690,8 @@ def move1(game_id,alias,tile):
             player = p
     # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
     error = movement(game,player,players_ru,tile)
+    game.refresh_from_db()
+    game.save()
     updateLastPlayerTime(game,alias)
     if game.player1 and game.player1.id:
         game.player1.save() 
@@ -699,7 +701,7 @@ def move1(game_id,alias,tile):
         game.player3.save()
     if game.player4 and game.player4.id:
         game.player4.save() 
-    game.save()
+    
     return error
 
 @api_view(['GET',])
