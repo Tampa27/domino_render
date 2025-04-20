@@ -113,7 +113,7 @@ class GameCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-exitTime = 60 #Si en 1 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+exitTime = 120 #Si en 2 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
 moveTime = 20
 exitTable = 40
 exitTable2 = 10
@@ -186,15 +186,15 @@ def getGame(request,game_id,alias):
     result = DominoGame.objects.get(id=game_id)
     serializer = GameSerializer(result)
     players = playersCount(result)
-    for player in players:
-        if player.alias == alias and result.status != 'ru' or player.isPlaying == False:
-            player.lastTimeInSystem = timezone.now()
+    # for player in players:
+    #     if player.alias == alias and result.status != 'ru' or player.isPlaying == False:
+            # player.lastTimeInSystem = timezone.now()
         #     #if result.status == "ru":
         #     #    tiles = player.tiles.split(',')
         #     #    if len(tiles) > 0:
         #     #        for tile in tiles:
         #     #            isPlayingTile(result,tile,player) 
-            player.save()
+            # player.save()
         # else:
         #     diff_time = timezone.now() - player.lastTimeInSystem
         #     diff_time2 = timezone.now()- result.start_time
