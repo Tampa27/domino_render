@@ -17,7 +17,7 @@ from django.db import transaction
 # Importar tus módulos después de configurar Django
 #from tu_app import tasks  # Ejemplo de importación
 
-moveWait = 4
+moveWait = 5
 waitPatner = 7
 waitWinner = 7
 passWait = 2
