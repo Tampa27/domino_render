@@ -499,6 +499,8 @@ def movement(game,player,players,tile):
             updatePassCoins(w,game,players)
         game.next_player = (w+1) % n
     game.board += (tile+',')
+    game.save()
+    game.refresh_from_db()
     logging.info(player.alias+" movio "+tile)
     return None        
 
@@ -690,8 +692,7 @@ def move1(game_id,alias,tile):
             player = p
     # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
     error = movement(game,player,players_ru,tile)
-    game.refresh_from_db()
-    game.save()
+    
     updateLastPlayerTime(game,alias)
     if game.player1 and game.player1.id:
         game.player1.save() 
