@@ -37,7 +37,7 @@ class DominoGame(models.Model):
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
     player4 = models.ForeignKey(Player,related_name="player4",on_delete=models.CASCADE,null=True,blank=True)                  
     next_player = models.SmallIntegerField(default=-1)
-    board = models.CharField(max_length=200,blank=True,default="")
+    board = models.CharField(max_length=300,blank=True,default="")
     variant = models.CharField(max_length=10,choices=[("d6","Double 6"),("d9","Double 9")],default="d6")
     start_time = models.DateTimeField(default=timezone.now)
     winner = models.SmallIntegerField(default=-1)

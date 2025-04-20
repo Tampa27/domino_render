@@ -50,7 +50,7 @@ def main():
                     if game.status == 'fg':
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInSystem
-                            if (diff_time.seconds >= views.exitTime):
+                            if (diff_time.seconds >= views.exitTime) and player.isPlaying:
                                 views.exitPlayer(game,player,players,len(players))
                         players = views.playersCount(game)
                         if len(players)<1:
@@ -62,8 +62,15 @@ def main():
             elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
-                    if (diff_time.seconds >= views.exitTime):
+                    if (diff_time.seconds >= views.exitTime) and player.isPlaying:
                         views.exitPlayer(game,player,players,len(players))
+                
+                game.refresh_from_db()
+                if game.status == 'wt' and len(players)<2:
+                    game.starter=-1
+                    game.board = ""
+                    game.save()
+
         time.sleep(5)
         
 def automaticCoupleStarter(game):
