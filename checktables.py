@@ -132,7 +132,7 @@ def automaticMove(game,players):
                 logging.error("Error en el movimiento automatico "+str(e))                     
             #views.movement(game,player_w,players,tile)
             #views.updateLastPlayerTime(game,player_w.alias)        
-    game.save()
+    # game.save()
 
 def lastMove(game):
     res = game.start_time
