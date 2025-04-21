@@ -1216,6 +1216,7 @@ def checkPlayersTimeOut1(game,alias):
     return inGame
 
 def updateLastPlayerTime(game,alias):
+    game.refresh_from_db()
     if game.player1 is not None and game.player1.alias == alias:
         game.lastTime1 = timezone.now()
     elif game.player2 is not None and game.player2.alias == alias:
@@ -1223,7 +1224,8 @@ def updateLastPlayerTime(game,alias):
     if game.player3 is not None and game.player3.alias == alias:
         game.lastTime3 = timezone.now()
     if game.player4 is not None and game.player4.alias == alias:
-        game.lastTime4 = timezone.now()  
+        game.lastTime4 = timezone.now()
+    game.save()
 
 def takeRandomTile(tiles):
     list_tiles = tiles.split(',')
