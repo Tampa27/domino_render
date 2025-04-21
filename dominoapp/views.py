@@ -422,87 +422,89 @@ def getBank(request):
     serializerBank = BankSerializer(bank,many=True)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
-def movement(game,player,players,tile):
-    n = len(players)
-    w = getPlayerIndex(players,player)
-    passTile = isPass(tile)
-       
-    if isMyTurn(game.board,w,game.starter,n) == False:
-        logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
-        return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno")
-    if noCorrect(game,tile):
-        logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
-        return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
-    if (passTile and (game.status == 'fi' or game.status == 'fg')):
-        logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
-        return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia terminado")
-    if (len(game.board) == 0 and passTile):
-        logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
-        return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia empezado")
-    if CheckPlayerTile(tile, player) == False:
-        logging.error(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
-        return(f"{player.alias} intento mover {tile} pero se detecto que la ficha no le pertenese")
-    
-    if passTile == False:
-        isCapicua = False
-        if game.perPoints:
-            isCapicua = checkCapicua(game,tile)
-        updateSides(game,tile)
-        tiles_count,tiles = updateTiles(player,tile)
-        player.tiles = tiles
-        player.save()
-        player.refresh_from_db()
-        if tiles_count == 0:
+def movement(game_id,player,players,tile):
+    with transaction.atomic():
+        game = DominoGame.objects.select_for_update().get(id=game_id)
+        n = len(players)
+        w = getPlayerIndex(players,player)
+        passTile = isPass(tile)
+        
+        if isMyTurn(game.board,w,game.starter,n) == False:
+            logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
+            return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno")
+        if noCorrect(game,tile):
+            logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
+            return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
+        if (passTile and (game.status == 'fi' or game.status == 'fg')):
+            logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
+            return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia terminado")
+        if (len(game.board) == 0 and passTile):
+            logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
+            return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia empezado")
+        if CheckPlayerTile(tile, player) == False:
+            logging.error(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
+            return(f"{player.alias} intento mover {tile} pero se detecto que la ficha no le pertenese")
+        
+        if passTile == False:
+            isCapicua = False
+            if game.perPoints:
+                isCapicua = checkCapicua(game,tile)
+            updateSides(game,tile)
+            tiles_count,tiles = updateTiles(player,tile)
+            player.tiles = tiles
+            player.save()
+            player.refresh_from_db()
+            if tiles_count == 0:
+                game.status = 'fg'
+                game.start_time = timezone.now()
+                if game.startWinner:
+                    game.starter = w
+                    game.next_player = w
+                else:
+                    game.starter = (game.starter+1)%n
+                    game.next_player = game.starter    
+                game.winner = w
+                if game.perPoints:
+                    game.rounds+=1
+                    updateAllPoints(game,players,w,isCapicua)
+                else:
+                    updatePlayersData(game,players,w,"fg")                                        
+            else:
+                game.next_player = (w+1) % n 
+        elif checkClosedGame1(game,n):
+            winner = getWinner(players,game.inPairs,game.variant)
             game.status = 'fg'
             game.start_time = timezone.now()
-            if game.startWinner:
-                game.starter = w
-                game.next_player = w
-            else:
-                game.starter = (game.starter+1)%n
-                game.next_player = game.starter    
-            game.winner = w
+            game.winner = winner
             if game.perPoints:
                 game.rounds+=1
-                updateAllPoints(game,players,w,isCapicua)
+            if winner < 4:
+                if game.startWinner:
+                    game.starter = winner
+                    game.next_player = winner
+                else:
+                    game.starter = (game.starter+1)%n
+                    game.next_player = game.starter        
+            if game.perPoints and winner < 4:
+                updateAllPoints(game,players,winner)
+            elif game.perPoints and winner == 4:
+                game.status = "fi"
+                if game.startWinner and (game.lostStartInTie != True or game.inPairs == False):
+                    game.next_player = game.starter
+                else:    
+                    game.starter = (game.starter+1)%n
+                    game.next_player = game.starter
             else:
-                updatePlayersData(game,players,w,"fg")                                        
+                updatePlayersData(game,players,winner,"fg")                
         else:
-            game.next_player = (w+1) % n 
-    elif checkClosedGame1(game,n):
-        winner = getWinner(players,game.inPairs,game.variant)
-        game.status = 'fg'
-        game.start_time = timezone.now()
-        game.winner = winner
-        if game.perPoints:
-            game.rounds+=1
-        if winner < 4:
-            if game.startWinner:
-                game.starter = winner
-                game.next_player = winner
-            else:
-                game.starter = (game.starter+1)%n
-                game.next_player = game.starter        
-        if game.perPoints and winner < 4:
-            updateAllPoints(game,players,winner)
-        elif game.perPoints and winner == 4:
-            game.status = "fi"
-            if game.startWinner and (game.lostStartInTie != True or game.inPairs == False):
-                game.next_player = game.starter
-            else:    
-                game.starter = (game.starter+1)%n
-                game.next_player = game.starter
-        else:
-            updatePlayersData(game,players,winner,"fg")                
-    else:
-        if game.payPassValue > 0:
-            updatePassCoins(w,game,players)
-        game.next_player = (w+1) % n
-    game.board += (tile+',')
-    game.save()
-    game.refresh_from_db()
-    logging.info(player.alias+" movio "+tile)
-    return None        
+            if game.payPassValue > 0:
+                updatePassCoins(w,game,players)
+            game.next_player = (w+1) % n
+        game.board += (tile+',')
+        game.save()
+        game.refresh_from_db()
+        logging.info(player.alias+" movio "+tile)
+        return None        
 
 def CheckPlayerTile(tile, player):
     if isPass(tile):
@@ -670,15 +672,15 @@ def move(request,game_id,alias,tile):
         check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
         if not check:
             return Response({'status': "These Player are not in this game"}, status=400)
-        with transaction.atomic():
-            error = move1(game_id,alias,tile)
-            if error is None:
-                profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
-                profile.lastTimeInSystem = timezone.now()
-                profile.save()
-                return Response({'status': 'success'}, status=200)
-            else:
-                return Response({'status': 'fail', 'message': error}, status=400)
+        # with transaction.atomic():
+        error = move1(game_id,alias,tile)
+        if error is None:
+            profile = Player.objects.select_for_update(nowait=True).get(alias = alias)
+            profile.lastTimeInSystem = timezone.now()
+            profile.save()
+            return Response({'status': 'success'}, status=200)
+        else:
+            return Response({'status': 'fail', 'message': error}, status=400)
     except Exception as e:        
         return Response({'status': str(e)}, status=404)    
 
@@ -691,7 +693,7 @@ def move1(game_id,alias,tile):
         if p.alias == alias:
             player = p
     # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
-    error = movement(game,player,players_ru,tile)
+    error = movement(game_id,player,players_ru,tile)
     
     updateLastPlayerTime(game,alias)
     if game.player1 and game.player1.id:
