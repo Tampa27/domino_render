@@ -101,4 +101,4 @@ class Transaction(models.Model):
     time = models.DateTimeField(auto_now_add=True)
     status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
     type = models.CharField(max_length=15,choices=type_choices,blank=True, null=True)
-    game = models.ForeignKey(DominoGame, related_name="game_transaction",on_delete=models.PROTECT, null=True, blank=True)
+    game = models.ForeignKey(DominoGame, related_name="game_transaction",on_delete=models.SET_NULL, null=True, blank=True)
