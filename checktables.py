@@ -22,6 +22,7 @@ waitPatner = 7
 waitWinner = 7
 passWait = 2
 startWait = 10
+exitgame = 300
 
 import logging
 
@@ -63,6 +64,8 @@ def main():
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
                     if (diff_time.seconds >= views.exitTime) and player.isPlaying:
+                        views.exitPlayer(game,player,players,len(players))
+                    elif (diff_time.seconds >= exitgame):
                         views.exitPlayer(game,player,players,len(players))
                 
                 game.refresh_from_db()
