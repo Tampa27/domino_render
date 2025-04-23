@@ -24,6 +24,6 @@ class Command(BaseCommand):
             ).exclude(id__in=[33,36,55])
 
         for game in games_models:
-            if playersCount(game) == 0:
+            if len(playersCount(game)) == 0:
                 game.delete()
         return

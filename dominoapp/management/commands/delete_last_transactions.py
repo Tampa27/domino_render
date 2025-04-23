@@ -24,5 +24,7 @@ class Command(BaseCommand):
             )
 
         for transaction in transaction_models:
+            for status in transaction.status_list.all():
+                status.delete()
             transaction.delete()
         return
