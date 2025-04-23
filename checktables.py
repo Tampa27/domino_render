@@ -28,14 +28,23 @@ import logging
 
 def main():
     while True:
+        time_sleep = 6
         games = DominoGame.objects.all()
+        all_game = games.count()
+        
+        wt_game = games.filter(status = "wt").count()
+        if wt_game == all_game:
+            time_sleep = 15
+
+        logging.info(f"time_sleep = {time_sleep}")
+        
         for game in games:
             players = views.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
-                    logging.error('Esperando al salidor')
+                    logging.info('Esperando al salidor')
                     try:
                         automaticCoupleStarter(game)
                     except Exception:
@@ -74,7 +83,7 @@ def main():
                     game.board = ""
                     game.save()
 
-        time.sleep(6)
+        time.sleep(time_sleep)
         
 def automaticCoupleStarter(game):
     next = game.next_player
