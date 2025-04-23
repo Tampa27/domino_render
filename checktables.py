@@ -74,7 +74,7 @@ def main():
                     game.board = ""
                     game.save()
 
-        time.sleep(5)
+        time.sleep(6)
         
 def automaticCoupleStarter(game):
     next = game.next_player
