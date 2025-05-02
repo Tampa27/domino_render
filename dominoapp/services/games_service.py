@@ -1,0 +1,257 @@
+from rest_framework import status
+from rest_framework.response import Response
+from django.utils import timezone
+from django.db.models import Q
+from dominoapp.models import Player, DominoGame
+from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerSerializer
+from dominoapp import views
+
+
+class GameService:
+
+    @staticmethod
+    def process_list(request, queryset):
+        alias = request.query_params.get('alias', None)
+        
+        if alias is not None:
+            queryset = queryset.filter(
+                Q(player1__alias = alias)|
+                Q(player2__alias = alias)|
+                Q(player3__alias = alias)|
+                Q(player4__alias = alias)
+                )
+
+        serializer =ListGameSerializer(queryset,many=True)
+        return Response({'status': 'success', "games":serializer.data}, status=status.HTTP_200_OK)
+    
+    @staticmethod
+    def process_retrieve(request, game_id):
+
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id = game_id)
+        serializer = GameSerializer(game)
+        
+        if game.player1 is not None:
+            filters = Q(id = game.player1.id)
+        if game.player2 is not None:
+            filters |= Q(id = game.player2.id)
+        if game.player3 is not None:
+            filters |= Q(id = game.player3.id)
+        if game.player4 is not None:
+            filters |= Q(id = game.player4.id)
+        
+        players = Player.objects.filter(filters)
+        players_data = PlayerSerializer(players, many=True).data
+
+        return Response({'status': 'success', "game":serializer.data,"players":players_data}, status=status.HTTP_200_OK)
+    
+    @staticmethod
+    def process_create(request):
+        
+        player1 = Player.objects.get(user__id= request.user.id)
+        player1.tiles = ""
+        player1.lastTimeInSystem = timezone.now()
+        player1.save()
+
+        game = DominoGame.objects.create(player1=player1,variant=request.data["variant"])
+        game.lastTime1 = timezone.now()
+        views.updateLastPlayerTime(game,player1.alias)
+        
+        game.save()        
+        serializer = GameSerializer(game)
+        
+        players = [player1]
+        playerSerializer = PlayerSerializer(players,many=True)
+        
+        return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
+    
+    @staticmethod
+    def process_join(request, game_id):
+        
+        player = Player.objects.get(user__id=request.user.id)
+                
+        player.lastTimeInSystem = timezone.now()
+        player.save()
+        
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        joined,players = views.checkPlayerJoined(player,game)
+        if joined != True:
+            if game.player1 is None:
+                game.player1 = player
+                joined = True
+                players.insert(0,player)
+            elif game.player2 is None:
+                game.player2 = player
+                joined = True
+                players.insert(1,player)
+            elif game.player3 is None :
+                game.player3 = player
+                joined = True
+                players.insert(2,player)
+            elif game.player4 is None:
+                game.player4 = player
+                joined = True
+                players.insert(3,player)
+
+        if joined == True:
+            if game.inPairs:
+                if len(players) == 4 and game.status != "ru":
+                    game.status = "ready"
+                elif game.status != "ru":
+                    game.status = "wt"
+            else:                
+                if len(players) >= 2 and game.status != "ru" and game.status != "fi":
+                    game.status = "ready"
+                elif game.status != "ru" and game.status != "fi":
+                    game.status = "wt"
+            if game.status == "wt" or game.status == "ready":
+                for player in players:
+                    player.tiles=""
+                    player.save()            
+            # views.updateLastPlayerTime(game,alias)
+            game.save()    
+            serializerGame = GameSerializer(game)
+            playerSerializer = PlayerSerializer(players,many=True)
+            return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+        else:
+            return Response({'status': 'error', "message":"Full players"}, status=status.HTTP_409_CONFLICT)
+        
+    @staticmethod
+    def process_start(game_id):
+
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        if game.status != "wt":
+            players = views.playersCount(game)
+            views.startGame1(game,players)    
+            serializerGame = GameSerializer(game)
+            playerSerializer = PlayerSerializer(players,many=True)
+            return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+        return Response ({'status': 'error', "message": "game is running"},status=status.HTTP_409_CONFLICT)
+    
+    @staticmethod
+    def process_move(request, game_id):
+        tile = request.data["tile"]
+        try:
+            check = DominoGame.objects.filter(id=game_id).exists()
+            if not check:
+                return Response({'status': "Game not found"}, status=404)
+            check = Player.objects.filter(user__id=request.user.id).exists()
+            if not check:
+                return Response({'status': "Player not found"}, status=404)
+            
+            player = Player.objects.get(user__id=request.user.id)
+            filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
+            check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
+            if not check:
+                return Response({'status': "These Player are not in this game"}, status=400)
+            
+            error = views.move1(game_id,player.alias,tile)
+            if error is None:
+                profile = Player.objects.get(alias = player.alias)
+                profile.lastTimeInSystem = timezone.now()
+                profile.save()
+                return Response({'status': 'success'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:        
+            return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @staticmethod
+    def process_exitGame(request, game_id):
+
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        player = Player.objects.get(user__id=request.user.id)
+        players = views.playersCount(game)
+        players_ru = list(filter(lambda p: p.isPlaying,players))
+        exited = views.exitPlayer(game,player,players_ru,len(players))
+        if exited:
+            return Response({'status': 'success', "message":'Player exited'}, status=200)
+        return Response({'status': 'error', "message":'Player no found'}, status=404)
+    
+    @staticmethod
+    def process_setwinner(request, game_id):
+
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+
+        views.setWinner1(game,request.data["winner"])
+        game.save()
+        return Response({'status': 'success'}, status=200)
+    
+    @staticmethod
+    def process_setstarter(request, game_id):
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        game.starter = request.data["starter"]
+        game.save()
+        return Response({'status': 'success'}, status=200)
+
+    @staticmethod
+    def process_setWinnerStarter(request, game_id):
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        game.starter = request.data["starter"]
+        game.winner = request.data["winner"]
+        game.save()
+        return Response({'status': 'success'}, status=200)
+    
+    @staticmethod
+    def process_setWinnerStarterNext(request, game_id):
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        views.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
+        game.save()
+        return Response({'status': 'success'}, status=200)
+
+    @staticmethod
+    def process_setPatner(request, game_id):
+
+        check_game = DominoGame.objects.filter(id = game_id).exists()
+        if not check_game:
+            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        
+        game = DominoGame.objects.get(id=game_id)
+        players = views.playersCount(game)
+        if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
+            return Response({'status': 'success'}, status=200)  
+        else:    
+            for player in players:
+                if player.id == request.data["patner_id"]:
+                    patner = player
+                    break
+            aux = game.player3
+            if game.player2.id == request.data["patner_id"]:
+                game.player2 = aux
+                game.player3 = patner
+            elif game.player4.alias == request.data["patner_id"]:
+                game.player4 = aux
+                game.player3 = patner
+        game.save()    
+        return Response({'status': 'success'}, status=200) 

@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 import sys
+from dotenv import load_dotenv
+# Cargar variables del archivo .env
+load_dotenv()
 
 """
 Django settings for app project.
@@ -39,8 +42,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', default='your secret key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# PRODUCTION = os.getenv("PRODUCTION", "False") == "True"
-PRODUCTION = True
+PRODUCTION = os.getenv("PRODUCTION", "False") == "True"
+
 DEBUG = not PRODUCTION  #'RENDER' not in os.environ
 DEVELOPMENT = not PRODUCTION
 
@@ -50,13 +53,15 @@ RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 
 # Application definition
-
 INSTALLED_APPS = [
     'jazzmin',
     'dominoapp.apps.DominoappConfig',
     'rest_framework',
+    'rest_framework.authtoken',
+    'rest_framework_simplejwt',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -103,14 +108,20 @@ WSGI_APPLICATION = 'domino.wsgi.application'
 
 DATABASES = {
     'default': {       
-        'ENGINE': 'django.db.backends.mysql',  # Para MySQL  
-        'NAME': 'ahmedlp9$default',           # Nombre de tu base de datos  
-        'USER': 'ahmedlp9',                   # Tu usuario de MySQL  
-        'PASSWORD': 'PR78781190.',            # Tu contraseña de MySQL  
-        'HOST': 'ahmedlp9.mysql.pythonanywhere-services.com',                    # O la dirección de tu servidor de MySQL  
-        'PORT': '3306',   
+        # 'ENGINE': os.getenv("DB_ENGINE"),       # El tipo de DB que se va usar  
+        # 'NAME': os.getenv("DB_NAME"),           # Nombre de tu DB  
+        # 'USER': os.getenv("DB_USER"),           # Tu usuario para la DB  
+        # 'PASSWORD': os.getenv("DB_PASSWORD"),   # Tu contraseña para la DB  
+        # 'HOST': os.getenv("DB_HOST"),           # La dirección de tu DB  
+        # 'PORT': os.getenv("DB_PORT"),           # El puerto de tu DB
+        'ENGINE': 'django.db.backends.mysql',       # El tipo de DB que se va usar  
+        'NAME': 'ahmedlp9$default',           # Nombre de tu DB  
+        'USER': 'ahmedlp9',           # Tu usuario para la DB  
+        'PASSWORD': 'PR78781190.',   # Tu contraseña para la DB  
+        'HOST': 'ahmedlp9.mysql.pythonanywhere-services.com',           # La dirección de tu DB  
+        'PORT': '3306',     
         'TEST': {
-          'NAME': 'ahmedlp9$test_default',
+          'NAME': 'ahmedlp9$test_default',      # Nombre de la DB para las Pruebas Unitarias
         }
     },
 }
@@ -133,6 +144,17 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Debe estar presente
+    ),
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Ajusta según necesites
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}
 
 
 # Internationalization
