@@ -5,6 +5,7 @@ import uuid
 # Create your models here.
 
 class Player(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_player')
     alias = models.CharField(max_length=50) 
     tiles = models.CharField(max_length=50,default="")
     coins = models.IntegerField(default=0)
@@ -32,13 +33,16 @@ class DominoGame(models.Model):
         ('fi','finished'),
         ('fg','game_finished'),
         ('pa','paused')]
+    
+    variant_choices = [("d6","Double 6"),("d9","Double 9")]
+
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
     player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
     player4 = models.ForeignKey(Player,related_name="player4",on_delete=models.CASCADE,null=True,blank=True)                  
     next_player = models.SmallIntegerField(default=-1)
     board = models.CharField(max_length=300,blank=True,default="")
-    variant = models.CharField(max_length=10,choices=[("d6","Double 6"),("d9","Double 9")],default="d6")
+    variant = models.CharField(max_length=10,choices= variant_choices,default="d6")
     start_time = models.DateTimeField(default=timezone.now)
     winner = models.SmallIntegerField(default=-1)
     scoreTeam1 = models.IntegerField(default=0)
