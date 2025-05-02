@@ -45,12 +45,28 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.name = validated_data.get('name', instance.name)
         instance.save()
         return instance     
-    
+
+class PlayerLoginSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url"]
+
 class GameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DominoGame
         fields = ('__all__')
+
+class ListGameSerializer(serializers.ModelSerializer):
+    is_privated = serializers.SerializerMethodField()
+
+    def get_is_privated(self, obj: DominoGame)-> bool:
+        return True if obj.password != "" else False
+
+    class Meta:
+        model = DominoGame
+        fields = ["status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "created_time", "is_privated"]
+
 
 class MyPlayerSerializer(serializers.ModelSerializer):
 
