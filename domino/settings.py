@@ -15,7 +15,8 @@ import os
 import sys
 from dotenv import load_dotenv
 # Cargar variables del archivo .env
-load_dotenv()
+project_folder = os.path.expanduser('/home/ahmedlp9/domino_render')  # adjust as appropriate
+load_dotenv(os.path.join(project_folder, '.env'))
 
 """
 Django settings for app project.
