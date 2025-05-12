@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Player
 from .models import DominoGame
-from .models import Bank
+from .models import Bank, Marketing
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -79,3 +79,10 @@ class BankSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bank
         fields = ('__all__')
+
+class MarketingSerializer(serializers.ModelSerializer):
+    user = PlayerLoginSerializer()
+    class Meta:
+        model = Marketing
+        fields = ["user", "image", "text", "created_at", "updated_at"]
+        depth = 1

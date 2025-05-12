@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Player, Bank, DominoGame, Transaction
+from .models import Player, Bank, DominoGame, Transaction, Marketing
 
 admin.site.site_title = "DOMINO site admin (DEV)"
 admin.site.site_header = "DOMINO administration"
@@ -69,9 +69,28 @@ class TransactionAdmin(admin.ModelAdmin):
     def status(self, obj):
         return obj.status_list.last().status
 
-
+class MarketingAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "user",
+        "image",
+        "approved",
+        "created_at",
+        "updated_at"
+    ]
+    list_filter = [
+        "created_at",
+        "updated_at",
+        "approved"
+    ]
+    list_editable = ["approved"]
+    search_fields = [
+        "user__name",
+        "user__email"
+        ]
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
 admin.site.register(Bank)
 admin.site.register(Transaction, TransactionAdmin)
+admin.site.register(Marketing, MarketingAdmin)

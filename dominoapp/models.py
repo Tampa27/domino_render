@@ -106,3 +106,12 @@ class Transaction(models.Model):
     status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
     type = models.CharField(max_length=15,choices=type_choices,blank=True, null=True)
     game = models.ForeignKey(DominoGame, related_name="game_transaction",on_delete=models.SET_NULL, null=True, blank=True)
+
+
+class Marketing(models.Model):
+    user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")
+    image = models.ImageField(upload_to='media')
+    text = models.CharField(max_length=250, blank=True, null = True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now= True)
+    approved = models.BooleanField(default=False)
