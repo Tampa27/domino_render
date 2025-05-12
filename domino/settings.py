@@ -109,18 +109,12 @@ WSGI_APPLICATION = 'domino.wsgi.application'
 
 DATABASES = {
     'default': {       
-        # 'ENGINE': os.getenv("DB_ENGINE"),       # El tipo de DB que se va usar  
-        # 'NAME': os.getenv("DB_NAME"),           # Nombre de tu DB  
-        # 'USER': os.getenv("DB_USER"),           # Tu usuario para la DB  
-        # 'PASSWORD': os.getenv("DB_PASSWORD"),   # Tu contraseña para la DB  
-        # 'HOST': os.getenv("DB_HOST"),           # La dirección de tu DB  
-        # 'PORT': os.getenv("DB_PORT"),           # El puerto de tu DB
-        'ENGINE': 'django.db.backends.mysql',       # El tipo de DB que se va usar  
-        'NAME': 'ahmedlp9$default',           # Nombre de tu DB  
-        'USER': 'ahmedlp9',           # Tu usuario para la DB  
-        'PASSWORD': 'PR78781190.',   # Tu contraseña para la DB  
-        'HOST': 'ahmedlp9.mysql.pythonanywhere-services.com',           # La dirección de tu DB  
-        'PORT': '3306',     
+        'ENGINE': os.getenv("DB_ENGINE"),       # El tipo de DB que se va usar  
+        'NAME': os.getenv("DB_NAME"),           # Nombre de tu DB  
+        'USER': os.getenv("DB_USER"),           # Tu usuario para la DB  
+        'PASSWORD': os.getenv("DB_PASSWORD"),   # Tu contraseña para la DB  
+        'HOST': os.getenv("DB_HOST"),           # La dirección de tu DB  
+        'PORT': os.getenv("DB_PORT"),           # El puerto de tu DB   
         'TEST': {
           'NAME': 'ahmedlp9$test_default',      # Nombre de la DB para las Pruebas Unitarias
         }
