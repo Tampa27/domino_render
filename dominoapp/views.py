@@ -6,6 +6,7 @@ from .serializers import PlayerSerializer
 from .serializers import MyPlayerSerializer
 from .models import DominoGame
 from .models import Bank
+from .models import User
 from .serializers import GameSerializer
 from .serializers import BankSerializer
 from django.shortcuts import get_object_or_404
@@ -134,9 +135,17 @@ def getPlayer(request,id):
 def login(request,alias,email,photo_url,name):    
     player,created = Player.objects.get_or_create(alias=alias)
     if created:
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': str(email).split('@')[0],
+                'is_active': True
+            }
+        )
         player.email = email
         player.photo_url = photo_url
         player.name = name
+        player.user = user
         #try:
         #    bank = Bank.objects.get(id=1)
         #except ObjectDoesNotExist:
