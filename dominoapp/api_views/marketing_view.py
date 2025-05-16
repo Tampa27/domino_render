@@ -9,7 +9,7 @@ class MarketingListPagination(PageNumberPagination):
     page_size_query_param = "page_size"
 
 class MarketingView(viewsets.ModelViewSet):
-    queryset = Marketing.objects.all()
+    queryset = Marketing.objects.filter(approved = True)
     serializer_class = MarketingSerializer
     pagination_class = MarketingListPagination
     permission_classes = [AllowAny]

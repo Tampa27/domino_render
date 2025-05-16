@@ -84,5 +84,5 @@ class MarketingSerializer(serializers.ModelSerializer):
     user = PlayerLoginSerializer()
     class Meta:
         model = Marketing
-        fields = ["user", "image", "text", "created_at", "updated_at"]
+        fields = ["user", "image", "text", "url", "created_at", "updated_at"]
         depth = 1

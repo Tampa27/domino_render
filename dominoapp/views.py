@@ -1124,7 +1124,8 @@ def shuffle(game, players):
     for i in range(len(players)):
         player = players[i]
         player.tiles = ""
-        player.isPlaying = True
+        if game.status !="fi":
+            player.isPlaying = True
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
             player.points = 0  
         for j in range(max):
@@ -1240,21 +1241,47 @@ def updateLastPlayerTime(game,alias):
 
 def takeRandomTile(tiles):
     list_tiles = tiles.split(',')
-    i = random.randint(0,len(list_tiles)-1)
-    return list_tiles[i]
+    
+    max_double = None
+    max_sum = -1
+    max_tile = None
+    
+    for tile in list_tiles:
+        num1, num2 = map(int, tile.split('|'))
+        current_sum = num1 + num2
+        
+        # Buscar el mayor doble
+        if num1 == num2:
+            if current_sum > max_sum or max_double is None:
+                max_double = tile
+                max_sum = current_sum
+                
+        # Mientras tanto también buscamos la ficha con mayor suma
+        if current_sum > max_sum or max_tile is None:
+            max_tile = tile
+            max_sum = current_sum
+    
+    # Devolver el mayor doble si existe, sino la mayor ficha
+    return max_double if max_double is not None else max_tile
 
 def takeRandomCorrectTile(tiles,left,right):
     list_tiles = tiles.split(',')
-    random.shuffle(list_tiles)
+    best_tile = None
+    best_sum = -1
+    
     for tile in list_tiles:
-        values = tile.split('|')
-        val1 = int(values[0])
-        val2 = int(values[1])
-        if val1 == left or val1 == right:
-            return tile
-        elif val2 == left or val2 == right:
-            return rTile(tile)
-    return "-1|-1"
+        val1, val2 = map(int, tile.split('|'))
+        current_sum = val1 + val2
+        is_double = (val1 == val2)
+        is_valid = (val1 == left or val1 == right or val2 == left or val2 == right)
+        
+        if is_valid:
+            # Si es mejor que la actual (suma mayor o misma suma pero es doble)
+            if (current_sum > best_sum) or (current_sum == best_sum and is_double):
+                best_tile = tile if not is_double and (val1 == left or val1 == right) else rTile(tile)
+                best_sum = current_sum
+    
+    return best_tile if best_tile is not None else "-1|-1"
 
 def previusPlayer(pos,n):
     if pos == 0: 
