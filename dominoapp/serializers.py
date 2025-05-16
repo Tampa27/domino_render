@@ -49,7 +49,7 @@ class PlayerSerializer(serializers.ModelSerializer):
 class PlayerLoginSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins"]
 
 class GameSerializer(serializers.ModelSerializer):
 
