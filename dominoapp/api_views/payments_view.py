@@ -1,14 +1,14 @@
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser
 from dominoapp.models import Transaction
 from dominoapp.api_views.request.payments_request import PaymentRequest
 from dominoapp.services.payments_service import PaymentService
 
 class PaymentView(viewsets.GenericViewSet):
     queryset = Transaction.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     @action(detail=False, methods=["post"])
     def recharge(self, request, pk = None):

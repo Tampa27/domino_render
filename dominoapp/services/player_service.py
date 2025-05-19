@@ -41,7 +41,7 @@ class PlayerService:
         
     @staticmethod
     def process_update(request, player_id, is_partial):
-        check_player = Player.objects.filter(id = player_id).exists()
+        check_player = Player.objects.filter(id = player_id, user__id = request.user.id).exists()
         if not check_player:
             return Response({"status":'error',"message":"player not found"},status=status.HTTP_404_NOT_FOUND)    
         
@@ -54,8 +54,8 @@ class PlayerService:
             return Response({"status": "error", "data": serializer.errors}, status= status.HTTP_400_BAD_REQUEST)  
     
     @staticmethod
-    def process_delete(player_id):
-        check_player = Player.objects.filter(id = player_id).exists()
+    def process_delete(request, player_id):
+        check_player = Player.objects.filter(id = player_id, user__id = request.user.id).exists()
         if not check_player:
             return Response({"status":'error',"message":"player not found"},status=status.HTTP_404_NOT_FOUND)    
         
