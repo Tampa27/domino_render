@@ -58,9 +58,7 @@ class PlayerView(viewsets.ModelViewSet):
         return PlayerService.process_create(request)
         
     def update(self, request, pk, *args, **kwargs):  
-        is_partial = False
-        if "partial" in kwargs:
-            is_partial = kwargs["partial"]
+        is_partial = kwargs.pop('partial', False)
 
         is_valid, message, status_response = PlayerRequest.validate_update(request, pk, is_partial)
         
@@ -81,7 +79,7 @@ class PlayerView(viewsets.ModelViewSet):
                 "message": message
             }, status = status_response)
         
-        return PlayerService.process_delete(pk)  
+        return PlayerService.process_delete(request, pk)  
         
     @action(detail=False, methods=["post"])
     def login(self, request):
