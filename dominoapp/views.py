@@ -132,20 +132,24 @@ def getPlayer(request,id):
     return Response({'status': 'success', "player":serializer.data,}, status=200)
 
 @api_view(['GET',])
-def login(request,alias,email,photo_url,name):    
-    player,created = Player.objects.get_or_create(alias=alias)
-    if created:
-        user, created = User.objects.get_or_create(
+def login(request,alias,email,photo_url,name):
+    user, created = User.objects.get_or_create(
             email=email,
             defaults={
                 'username': str(email).split('@')[0],
                 'is_active': True
             }
         )
+    player,created = Player.objects.get_or_create(
+        alias=alias,
+        defaults={
+                'user': user
+            })
+    if created:
+        
         player.email = email
         player.photo_url = photo_url
         player.name = name
-        player.user = user
         #try:
         #    bank = Bank.objects.get(id=1)
         #except ObjectDoesNotExist:
