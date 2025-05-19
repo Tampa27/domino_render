@@ -144,9 +144,8 @@ def login(request,alias,email,photo_url,name):
         )
         player = Player.objects.create(
             alias=alias,
-            defaults={
-                    'user': user
-                })
+            user= user
+            )
         
         player.email = email
         player.photo_url = photo_url
