@@ -133,29 +133,27 @@ def getPlayer(request,id):
 
 @api_view(['GET',])
 def login(request,alias,email,photo_url,name):
-    user, created = User.objects.get_or_create(
+    exist = Player.objects.filter(alias=alias).exists()
+    if not exist:
+        user, created = User.objects.get_or_create(
             email=email,
             defaults={
                 'username': str(email).split('@')[0],
                 'is_active': True
             }
         )
-    player,created = Player.objects.get_or_create(
-        alias=alias,
-        defaults={
-                'user': user
-            })
-    if created:
+        player = Player.objects.create(
+            alias=alias,
+            defaults={
+                    'user': user
+                })
         
         player.email = email
         player.photo_url = photo_url
         player.name = name
-        #try:
-        #    bank = Bank.objects.get(id=1)
-        #except ObjectDoesNotExist:
-        #    bank = Bank.objects.create()
-        #bank.created_coins+=30
-        #bank.save()
+    else:
+        player = player = Player.objects.get(alias = alias)
+
     player.lastTimeInSystem = timezone.now()
     player.save()
     serializer =PlayerSerializer(player)
