@@ -78,30 +78,33 @@ class PlayerService:
                         status=status.HTTP_401_UNAUTHORIZED
                     )
             
-            # Busca o crea el usuario
-            user, created = User.objects.get_or_create(
-                    email=google_user['email'],
-                    defaults={
-                        'username': google_user['email'].split('@')[0],
-                        'is_active': True
-                    }
-                )
+            exist = Player.objects.filter(email=google_user['email']).exists()
+            
+            if not exist:
+                # Busca o crea el usuario
+                user, created = User.objects.get_or_create(
+                        email=google_user['email'],
+                        defaults={
+                            'username': google_user['email'].split('@')[0],
+                            'is_active': True
+                        }
+                    )
 
-            player, created = Player.objects.get_or_create(
-                email=google_user['email'],
-                defaults={
-                    'name': google_user['name'],
-                    'photo_url': google_user.get('picture', None),
-                    'alias': google_user['email'].split('@')[0],
-                    'user': user
-                }
-            )            
-                        
+                player = Player.objects.create(
+                    email=google_user['email'],
+                    name = google_user['name'],
+                    photo_url = google_user.get('picture', None),
+                    alias= google_user['email'].split('@')[0],
+                    user= user
+                )
+            else:
+                player = Player.objects.get(email=google_user['email'])
+            
             # Genera tokens JWT usando simplejwt
-            refresh = RefreshToken.for_user(user)
+            refresh = RefreshToken.for_user(player.user)
 
             player_data = PlayerLoginSerializer(player).data            
-            player_data["is_new"] = created
+            player_data["is_new"] = (not exist)
 
             return Response({
                 'refresh': str(refresh),

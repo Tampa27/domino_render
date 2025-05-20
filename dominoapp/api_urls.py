@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt import views as jwt_views
 from dominoapp.api_views import players_view, games_view, payments_view, marketing_view
 
 router = DefaultRouter()
@@ -11,4 +12,5 @@ router.register(r"marketing", marketing_view.MarketingView)
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("players/login/refresh/", jwt_views.TokenRefreshView.as_view(), name="token_refresh"),
 ]
