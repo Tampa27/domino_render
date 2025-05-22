@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Player, Bank, DominoGame, Transaction, Marketing
+from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
 admin.site.site_header = "DOMINO administration"
@@ -45,7 +46,6 @@ class StatusTransactionInline(admin.TabularInline):
     def created_at(self, instance):
         return instance.status_transaction.created_at
 
-
 class TransactionAdmin(admin.ModelAdmin):
     list_display = [
         "id",
@@ -65,6 +65,7 @@ class TransactionAdmin(admin.ModelAdmin):
     ]
     ordering = ["-time"]
     search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
+    actions = [AdminHelpers.get_pdf_resume_transaction]
 
     def status(self, obj):
         return obj.status_list.last().status
@@ -88,6 +89,8 @@ class MarketingAdmin(admin.ModelAdmin):
         "user__name",
         "user__email"
         ]
+
+
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
