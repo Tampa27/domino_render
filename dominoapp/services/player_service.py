@@ -6,6 +6,8 @@ from django.contrib.auth.models import User
 from dominoapp.models import Player, DominoGame
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
+from dominoapp.connectors.discord_connector import DiscordConnector
+from dominoapp.utils.constants import ApiConstants
 
 class PlayerService:
 
@@ -96,6 +98,13 @@ class PlayerService:
                     photo_url = google_user.get('picture', None),
                     alias= google_user['email'].split('@')[0],
                     user= user
+                )
+                DiscordConnector.send_event(
+                    ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
+                    {
+                        "email": google_user['email'],
+                        "name" : google_user['name']
+                    }
                 )
             else:
                 player = Player.objects.get(email=google_user['email'])

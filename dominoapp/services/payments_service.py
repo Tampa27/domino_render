@@ -2,7 +2,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from dominoapp.models import Player, Bank
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions
-
+from dominoapp.utils.constants import ApiConstants
+from dominoapp.connectors.discord_connector import DiscordConnector
 
 class PaymentService:
 
@@ -26,7 +27,13 @@ class PaymentService:
         bank.save()
 
         create_reload_transactions(to_user=player, amount=request.data["coins"], status="cp")
-        
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+            {
+                'player': request.data["alias"],
+                "amount": request.data["coins"]
+            }
+        )
         player.save()
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
@@ -52,7 +59,13 @@ class PaymentService:
         bank.buy_coins+=request.data["coins"]
         bank.save()
 
-        create_reload_transactions(to_user=player, amount=request.data["coins"], status="cp")
-        
+        create_extracted_transactions(from_user=player, amount=request.data["coins"], status="cp")
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+            {
+                'player': request.data["alias"],
+                "amount": request.data["coins"]
+            }
+        )
         player.save()
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)

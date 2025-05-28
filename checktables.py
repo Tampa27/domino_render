@@ -14,15 +14,10 @@ from dominoapp.models import Player
 from dominoapp.models import DominoGame
 from django.utils import timezone
 from django.db import transaction
+from dominoapp.utils.constants import ApiConstants
 # Importar tus módulos después de configurar Django
 #from tu_app import tasks  # Ejemplo de importación
 
-moveWait = 3
-waitPatner = 7
-waitWinner = 7
-passWait = 2
-startWait = 10
-exitgame = 300
 
 import logging
 
@@ -74,7 +69,7 @@ def main():
                     diff_time = timezone.now() - player.lastTimeInSystem
                     if (diff_time.seconds >= views.exitTime) and player.isPlaying:
                         views.exitPlayer(game,player,players,len(players))
-                    elif (diff_time.seconds >= exitgame):
+                    elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME):
                         views.exitPlayer(game,player,players,len(players))
                 
                 game.refresh_from_db()
@@ -93,20 +88,20 @@ def automaticCoupleStarter(game):
     time_diff1 = timezone.now() - lastMoveTime
     logging.error("Entro a automaticCouple")
     logging.error("La diferencia de tiempo es "+ str(time_diff1.seconds))
-    if time_diff1.seconds > waitPatner and starter == next:
+    if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
         views.setWinner1(game,next)
-    elif time_diff1.seconds > waitWinner and starter != next:
+    elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
         views.setWinnerStarterNext1(game,patner,patner,patner)
     game.save()         
 
 def automaticMove(game,players):
     next = game.next_player
     player_w = players[next]
-    moveTime = game.moveTime
+    MOVE_TILE_TIME = game.moveTime
     time_diff = timezone.now() - lastMove(game)
     if len(game.board) == 0:
         tile = views.takeRandomTile(player_w.tiles)
-        if time_diff.seconds > (moveTime+moveWait):
+        if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
                 error = views.movement(game.id,player_w.id,players,tile)
@@ -120,7 +115,7 @@ def automaticMove(game,players):
     else:
         tile = views.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
         if views.isPass(tile):
-            if time_diff.seconds > passWait:
+            if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
                 try:
                     # with transaction.atomic():
                     error = views.movement(game.id,player_w.id,players,tile)
@@ -130,9 +125,9 @@ def automaticMove(game,players):
                     #views.move1(game.id,player_w.alias,tile)
                 except Exception as e:
                     logging.error("Error en el movimiento automatico "+str(e))
-                #views.movement(game,player_w,players,tile)
+                #views.movement(game,player_w.id,players,tile)
                 #views.updateLastPlayerTime(game,player_w.alias) 
-        elif time_diff.seconds > (moveTime+moveWait):
+        elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
                 error = views.movement(game.id,player_w.id,players,tile)
@@ -142,7 +137,7 @@ def automaticMove(game,players):
                 #views.move1(game.id,player_w.alias,tile)
             except Exception as e:
                 logging.error("Error en el movimiento automatico "+str(e))                     
-            #views.movement(game,player_w,players,tile)
+            #views.movement(game,player_w.id,players,tile)
             #views.updateLastPlayerTime(game,player_w.alias)        
     # game.save()
 
@@ -161,7 +156,7 @@ def lastMove(game):
 def automaticStart(game,players):
     lastMoveTime = lastMove(game)
     time_diff = timezone.now() - lastMoveTime
-    if time_diff.seconds > startWait:
+    if time_diff.seconds > ApiConstants.AUTO_START_WAIT:
         views.startGame1(game,players)
 
 if __name__ == "__main__":
