@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 import uuid
+from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus
 # Create your models here.
 
 class Player(models.Model):
@@ -26,28 +27,18 @@ class Player(models.Model):
         ordering = ['alias']
     
 class DominoGame(models.Model):
-    status_choices = [
-        ("wt","waiting_players"),
-        ("ru","running"),
-        ('ready','ready_to_play'),
-        ('fi','finished'),
-        ('fg','game_finished'),
-        ('pa','paused')]
-    
-    variant_choices = [("d6","Double 6"),("d9","Double 9")]
-
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
     player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
     player4 = models.ForeignKey(Player,related_name="player4",on_delete=models.CASCADE,null=True,blank=True)                  
     next_player = models.SmallIntegerField(default=-1)
     board = models.CharField(max_length=500,blank=True,default="")
-    variant = models.CharField(max_length=10,choices= variant_choices,default="d6")
+    variant = models.CharField(max_length=10,choices= GameVariants.variant_choices,default="d6")
     start_time = models.DateTimeField(default=timezone.now)
     winner = models.SmallIntegerField(default=-1)
     scoreTeam1 = models.IntegerField(default=0)
     scoreTeam2 = models.IntegerField(default=0)
-    status = models.CharField(max_length=32,choices=status_choices,default="wt")
+    status = models.CharField(max_length=32,choices=GameStatus.status_choices,default="wt")
     maxScore = models.IntegerField(default=100)
     inPairs = models.BooleanField(default=False)
     perPoints = models.BooleanField(default=False)
@@ -71,7 +62,6 @@ class DominoGame(models.Model):
     created_time = models.DateTimeField(default=timezone.now,null=True,blank=True)
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
-
     
 class Bank(models.Model):
     balance = models.PositiveIntegerField(default=10000)
@@ -83,30 +73,19 @@ class Bank(models.Model):
     matches_coins = models.PositiveIntegerField(default=0)
     private_tables_coins = models.PositiveIntegerField(default=0)
 
-class Status_Transaction(models.Model):
-    choices = [
-        ("p", "pending"),
-        ("cp", "completed"),
-        ("cc", "canceled")
-    ]
-    status = models.CharField(max_length=32,choices=choices,default="p")
+class Status_Transaction(models.Model):    
+    status = models.CharField(max_length=32,choices=TransactionStatus.transaction_choices,default="p")
     created_at = models.DateTimeField(auto_now_add=True)
 
-class Transaction(models.Model):
-    type_choices = [
-        ("rl", "reload"), 
-        ("ex", "extraction"),
-        ("gm", "game")
-    ]
+class Transaction(models.Model):    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     from_user = models.ForeignKey(Player,related_name="payer",on_delete=models.PROTECT,null=True,blank=True)
     to_user = models.ForeignKey(Player,related_name="collector",on_delete=models.PROTECT,null=True,blank=True)
     amount = models.DecimalField(default=0, decimal_places=2, max_digits= 9)
     time = models.DateTimeField(auto_now_add=True)
     status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
-    type = models.CharField(max_length=15,choices=type_choices,blank=True, null=True)
+    type = models.CharField(max_length=15,choices=TransactionTypes.transaction_type,blank=True, null=True)
     game = models.ForeignKey(DominoGame, related_name="game_transaction",on_delete=models.SET_NULL, null=True, blank=True)
-
 
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")
