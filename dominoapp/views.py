@@ -432,9 +432,10 @@ def getBank(request):
     serializerBank = BankSerializer(bank,many=True)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
-def movement(game_id,player,players,tile):
+def movement(game_id,player_id,players,tile):
     with transaction.atomic():
         game = DominoGame.objects.select_for_update().get(id=game_id)
+        player = Player.objects.select_for_update().get(id=player_id)
         n = len(players)
         w = getPlayerIndex(players,player)
         passTile = isPass(tile)
@@ -701,9 +702,9 @@ def move1(game_id,alias,tile):
     players_ru = list(filter(lambda p: p.isPlaying,players))
     for p in players:
         if p.alias == alias:
-            player = p
+            player_id = p.id
     # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
-    error = movement(game_id,player,players_ru,tile)
+    error = movement(game_id,player_id,players_ru,tile)
     
     updateLastPlayerTime(game,alias)
     if game.player1 and game.player1.id:

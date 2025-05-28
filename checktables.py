@@ -109,7 +109,7 @@ def automaticMove(game,players):
         if time_diff.seconds > (moveTime+moveWait):
             try:
                 # with transaction.atomic():
-                error = views.movement(game.id,player_w,players,tile)
+                error = views.movement(game.id,player_w.id,players,tile)
                 if error is not None:
                     logging.error(f"Error en el movimiento automatico, message: {error})")
                 views.updateLastPlayerTime(game,player_w.alias)  
@@ -123,7 +123,7 @@ def automaticMove(game,players):
             if time_diff.seconds > passWait:
                 try:
                     # with transaction.atomic():
-                    error = views.movement(game.id,player_w,players,tile)
+                    error = views.movement(game.id,player_w.id,players,tile)
                     if error is not None:
                         logging.error(f"Error en el movimiento automatico, message: {error})")
                     views.updateLastPlayerTime(game,player_w.alias)  
@@ -135,7 +135,7 @@ def automaticMove(game,players):
         elif time_diff.seconds > (moveTime+moveWait):
             try:
                 # with transaction.atomic():
-                error = views.movement(game.id,player_w,players,tile)
+                error = views.movement(game.id,player_w.id,players,tile)
                 if error is not None:
                     logging.error(f"Error en el movimiento automatico, message: {error})")
                 views.updateLastPlayerTime(game,player_w.alias)  
