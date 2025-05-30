@@ -21,6 +21,7 @@ from dominoapp.utils.constants import ApiConstants
 
 import logging
 logger = logging.getLogger('django')
+logger_api = logging.getLogger(__name__)
 
 def main():
     while True:
@@ -32,7 +33,7 @@ def main():
         if wt_game == all_game:
             time_sleep = 15
 
-        logger.info(f"time_sleep = {time_sleep}")
+        logger_api.info(f"time_sleep = {time_sleep}")
         
         for game in games:
             players = views.playersCount(game)
@@ -40,7 +41,7 @@ def main():
             if game.status == 'ru':
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
-                    logger.info('Esperando al salidor')
+                    logger_api.info('Esperando al salidor')
                     try:
                         automaticCoupleStarter(game)
                     except Exception as e:
@@ -87,8 +88,8 @@ def automaticCoupleStarter(game):
     starter = game.starter
     lastMoveTime = lastMove(game)
     time_diff1 = timezone.now() - lastMoveTime
-    logger.info("Entro a automaticCouple")
-    logger.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
+    logger_api.info("Entro a automaticCouple")
+    logger_api.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
     if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
         views.setWinner1(game,next)
     elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
