@@ -20,6 +20,7 @@ from dominoapp.utils.constants import ApiConstants
 
 
 import logging
+logger = logging.getLogger('django')
 
 def main():
     while True:
@@ -31,7 +32,7 @@ def main():
         if wt_game == all_game:
             time_sleep = 15
 
-        logging.info(f"time_sleep = {time_sleep}")
+        logger.info(f"time_sleep = {time_sleep}")
         
         for game in games:
             players = views.playersCount(game)
@@ -39,16 +40,16 @@ def main():
             if game.status == 'ru':
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
                 if possibleStarter:
-                    logging.info('Esperando al salidor')
+                    logger.info('Esperando al salidor')
                     try:
                         automaticCoupleStarter(game)
-                    except Exception:
-                        logging.error('Ocurrio una excepcion escogiendo el salidor en el juego '+str(game.id))        
+                    except Exception as e:
+                        logger.critical(f'Ocurrio una excepcion escogiendo el salidor en el juego {str(game.id)}, error: {str(e)}')        
                 else:
                     try:
                         automaticMove(game,players_running)
                     except Exception:
-                        logging.error('Ocurrio una excepcion moviendo una ficha en el juego '+str(game.id))    
+                        logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)}, error: {str(e)}')    
             elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi':
                 try:
                     restargame = True
@@ -62,8 +63,8 @@ def main():
                             restargame = False
                     if restargame:
                         automaticStart(game,players)
-                except Exception:
-                    logging.error('Ocurrio una excepcion comenzando la mesa '+str(game.id))    
+                except Exception as e:
+                    logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
             elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
@@ -86,8 +87,8 @@ def automaticCoupleStarter(game):
     starter = game.starter
     lastMoveTime = lastMove(game)
     time_diff1 = timezone.now() - lastMoveTime
-    logging.error("Entro a automaticCouple")
-    logging.error("La diferencia de tiempo es "+ str(time_diff1.seconds))
+    logger.info("Entro a automaticCouple")
+    logger.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
     if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
         views.setWinner1(game,next)
     elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
@@ -106,11 +107,11 @@ def automaticMove(game,players):
                 # with transaction.atomic():
                 error = views.movement(game.id,player_w.id,players,tile)
                 if error is not None:
-                    logging.error(f"Error en el movimiento automatico, message: {error})")
+                    logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
                 views.updateLastPlayerTime(game,player_w.alias)  
                 #views.move1(game.id,player_w.alias,tile)
             except Exception as e:
-                logging.error("Error en el movimiento automatico "+str(e))            
+                logger.critical(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
             #views.updateLastPlayerTime(game,player_w.alias)
     else:
         tile = views.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
@@ -120,11 +121,11 @@ def automaticMove(game,players):
                     # with transaction.atomic():
                     error = views.movement(game.id,player_w.id,players,tile)
                     if error is not None:
-                        logging.error(f"Error en el movimiento automatico, message: {error})")
+                        logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
                     views.updateLastPlayerTime(game,player_w.alias)  
                     #views.move1(game.id,player_w.alias,tile)
                 except Exception as e:
-                    logging.error("Error en el movimiento automatico "+str(e))
+                    logger.critical(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
                 #views.movement(game,player_w.id,players,tile)
                 #views.updateLastPlayerTime(game,player_w.alias) 
         elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
@@ -132,11 +133,11 @@ def automaticMove(game,players):
                 # with transaction.atomic():
                 error = views.movement(game.id,player_w.id,players,tile)
                 if error is not None:
-                    logging.error(f"Error en el movimiento automatico, message: {error})")
+                    logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
                 views.updateLastPlayerTime(game,player_w.alias)  
                 #views.move1(game.id,player_w.alias,tile)
             except Exception as e:
-                logging.error("Error en el movimiento automatico "+str(e))                     
+                logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
             #views.movement(game,player_w.id,players,tile)
             #views.updateLastPlayerTime(game,player_w.alias)        
     # game.save()
