@@ -56,7 +56,7 @@ def main():
                     if game.status == 'fg':
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInSystem
-                            if (diff_time.seconds >= views.exitTime) and player.isPlaying:
+                            if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME) and player.isPlaying:
                                 views.exitPlayer(game,player,players,len(players))
                         players = views.playersCount(game)
                         if len(players)<1:
@@ -68,7 +68,7 @@ def main():
             elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
-                    if (diff_time.seconds >= views.exitTime) and player.isPlaying:
+                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME) and player.isPlaying:
                         views.exitPlayer(game,player,players,len(players))
                     elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME):
                         views.exitPlayer(game,player,players,len(players))
