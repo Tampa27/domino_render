@@ -23,8 +23,10 @@ from django.db import transaction
 import time
 import logging
 from dominoapp.utils.transactions import create_game_transactions, create_reload_transactions, create_extracted_transactions
+from dominoapp.connectors.discord_connector import DiscordConnector
+from dominoapp.utils.constants import ApiConstants
 
-#logger = logging.getLogger('dominoapp')
+#logger = logging.getLogger('django')
 
 # Create your views here.
 class PlayerView(APIView):
@@ -114,16 +116,7 @@ class GameCreate(generics.CreateAPIView):
         else:  
             return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-exitTime = 120 #Si en 2 minuto el jugador no hace peticiones a la mesa, se saca automaticamente de ella
-moveTime = 20
-exitTable = 40
-exitTable2 = 10
-fgTime = 10
-percent = 10
-max_passes_d6 = 3
-max_passes_d9 = 5
-inactive_player_days = 9
-inactive_tables_days = 2
+
 
 @api_view(['GET',])
 def getPlayer(request,id):
@@ -150,6 +143,15 @@ def login(request,alias,email,photo_url,name):
         player.email = email
         player.photo_url = photo_url
         player.name = name
+
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
+            {
+                "email": email,
+                "name": name
+            }
+        )
+
     else:
         player = player = Player.objects.get(alias = alias)
 
@@ -208,9 +210,9 @@ def getGame(request,game_id,alias):
         # else:
         #     diff_time = timezone.now() - player.lastTimeInSystem
         #     diff_time2 = timezone.now()- result.start_time
-        #     if(diff_time.seconds >= exitTable) and result.status != "ru" and result.status != "fi" and result.status != "fg":
+        #     if(diff_time.seconds >= ApiConstants.EXIT_TABLE) and result.status != "ru" and result.status != "fi" and result.status != "fg":
         #         exitPlayer(result,player,players,len(players))    
-        #     elif result.status == "fg" and (diff_time.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
+        #     elif result.status == "fg" and (diff_time.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
         #         exitPlayer(result,player,players,len(players))           
     playerSerializer = PlayerSerializer(players,many=True)
     return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
@@ -567,16 +569,16 @@ def updatePlayersData(game,players,w,status):
             if i == w or i == ((w+2)%4):
                 players[i].dataWins+=1
                 if game.payWinValue > 0:
-                    bank_coins = int(game.payWinValue*percent/100)
+                    bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue-bank_coins)
                     bank.balance+=(bank_coins)
                     players[i].coins+= player_coins
-                    create_game_transactions(game=game,to_user=players[i], amount=player_coins, status="cp")       
+                    create_game_transactions(game=game,to_user=players[i], amount=player_coins, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
-                        bank_coins = int(game.payMatchValue*percent/100)
+                        bank_coins = int(game.payMatchValue*ApiConstants.DISCOUNT_PERCENT/100)
                         bank.matches_coins+=bank_coins
                         player_coins = (game.payMatchValue-bank_coins)
                         bank.balance+=(bank_coins)
@@ -592,14 +594,14 @@ def updatePlayersData(game,players,w,status):
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
                         players[i].coins-=game.payMatchValue
-                        create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")                        
+                        create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")
                 players[i].save()
     else:
         for i in range(n):
             if i == w:
                 players[i].dataWins+=1
                 if game.payWinValue > 0:
-                    bank_coins = int(game.payWinValue*percent/100)*(n_p-1)
+                    bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)*(n_p-1)
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                     bank.balance+=(bank_coins)
@@ -608,7 +610,7 @@ def updatePlayersData(game,players,w,status):
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
-                        bank_coins = int(game.payMatchValue*percent/100)*(n_p-1)
+                        bank_coins = int(game.payMatchValue*ApiConstants.DISCOUNT_PERCENT/100)*(n_p-1)
                         bank.matches_coins+=bank_coins
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
                         bank.balance+=(bank_coins)
@@ -763,6 +765,13 @@ def rechargeBalance(request,alias,coins):
     bank.buy_coins+=coins
     bank.save()   
     create_reload_transactions(to_user=player, amount=coins, status="cp")
+    DiscordConnector.send_event(
+        ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+        {
+            'player': alias,
+            'amount': coins
+        }
+    )
     player.save()
     return Response({'status': 'success', "message":'Balance recharged'}, status=200)
 
@@ -778,6 +787,13 @@ def payment(request,alias,coins):
     bank.extracted_coins+=coins
     bank.save()
     create_extracted_transactions(from_user=player, amount=coins, status="cp")
+    DiscordConnector.send_event(
+        ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+        {
+            'player': alias,
+            'amount': coins
+        }
+    )
     player.save()
     return Response({'status': 'success', "message":'Payment done!!'}, status=200)
 
@@ -791,7 +807,7 @@ def deleteInactivePlayers(request,alias):
             total_deleted+=1
         elif player.lastTimeInSystem is not None:
             timediff = timezone.now() - player.lastTimeInSystem
-            if timediff.days > inactive_player_days and player.coins >= 50 and player.coins <=100:
+            if timediff.days > ApiConstants.INACTIVE_PlAYER_DAYS and player.coins >= 50 and player.coins <=100:
                 Player.objects.get(id = player.id).delete()
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' players deleted'}, status=200)    
@@ -848,7 +864,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     bank = Bank.objects.get(id=1)
                 except ObjectDoesNotExist:
                     bank = Bank.objects.create()
-                bank_coins = int(coins*percent/100)
+                bank_coins = int(coins*ApiConstants.DISCOUNT_PERCENT/100)
                 bank.balance+=bank_coins
                 coins -= bank_coins
                 if game.inPairs:
@@ -1152,10 +1168,10 @@ def checkPlayersTimeOut1(game,alias):
     if game.player1 is not None:
         if game.player1.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player1.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi" and game.status != "fg":
+            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "ru" and game.status != "fi" and game.status != "fg":
                 players.append(game.player1)
                 game.player1 = None
-            elif game.status == "fg" and (timediff.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
+            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
                 players.append(game.player1)
                 game.player1 = None    
             else:
@@ -1169,10 +1185,10 @@ def checkPlayersTimeOut1(game,alias):
     if game.player2 is not None:
         if game.player2.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player2.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fg" and game.status != "fi":
+            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "ru" and game.status != "fg" and game.status != "fi":
                 players.append(game.player2)
                 game.player2 = None
-            elif game.status == "fg" and (timediff.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
+            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
                 players.append(game.player2)
                 game.player2 = None     
             else:
@@ -1186,10 +1202,10 @@ def checkPlayersTimeOut1(game,alias):
     if game.player3 is not None:
         if game.player3.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player3.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "fg" and game.status != "ru" and game.status != "fi":
+            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "fg" and game.status != "ru" and game.status != "fi":
                 players.append(game.player3)
                 game.player3 = None
-            elif game.status == "fg" and (timediff.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
+            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
                 players.append(game.player3)
                 game.player3 = None     
             else:
@@ -1203,10 +1219,10 @@ def checkPlayersTimeOut1(game,alias):
     if game.player4 is not None:
         if game.player4.lastTimeInSystem is not None:
             timediff = timezone.now() - game.player4.lastTimeInSystem
-            if timediff.seconds > exitTime and game.status != "ru" and game.status != "fi" and game.status != "fg":
+            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "ru" and game.status != "fi" and game.status != "fg":
                 players.append(game.player4)
                 game.player4 = None
-            elif game.status == "fg" and (timediff.seconds >= exitTable2) and (diff_time2.seconds >= fgTime):
+            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
                 players.append(game.player4)
                 game.player4 = None     
             else:

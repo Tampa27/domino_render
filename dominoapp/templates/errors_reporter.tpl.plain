@@ -1,0 +1,33 @@
+{% if request %}
+Request Error: {{ exception_type }}=> {{ exception_message | safe }}
+Request Method: {{ request.META.REQUEST_METHOD }}
+Request URL: {% if request %}{{ request.build_absolute_uri }}{% endif %}
+{% if user_str %}USER: {{ user_str }}{% endif %}
+
+{% if request_GET_items %}
+GET:{% for k, v in request_GET_items %}
+  {{ k }} = {% if v is not None %}{{ v }}{% else %}None{% endif %}{% empty %} No GET data{% endfor %}
+{% endif %}
+
+{% if filtered_POST_items %}
+POST:
+{% for k, v in filtered_POST_items %}
+  {{ k }} = {% if v is not None %}{{ v }}{% else %}None{% endif %}
+{% empty %} No POST data
+{% endfor %}
+{% endif %}
+
+{% else %}Request data not supplied{% endif %}
+
+{% if frames %}
+Traceback (most recent call last):
+{% for frame in frames %}    
+    File "{{ frame.filename|default:'unknown' }}", 
+    line {{ frame.lineno|default:'unknown' }}, 
+    in {{ frame.function|default:'unknown' }}
+    
+    {% if frame.context_line %}
+        > {{ frame.context_line|default:'' }}
+    {% endif %}    
+{% endfor %}
+{% endif %}
