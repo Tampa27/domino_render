@@ -7,7 +7,7 @@ from dominoapp.utils.constants import ApiConstants
 class DiscordConnector:
     errors_url = os.environ.get('DISCORD_ERRORS_URL', '')
     events_url = os.environ.get('DISCORD_EVENTS_URL', '')
-    environment = (os.environ.get('PRODUCTION', True)==True)
+    environment = (os.environ.get('PRODUCTION', "True")=="True")
     
     @staticmethod
     def _make_request(url, payload):
