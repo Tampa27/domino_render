@@ -26,7 +26,7 @@ from dominoapp.utils.transactions import create_game_transactions, create_reload
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
 
-#logger = logging.getLogger('django')
+logger = logging.getLogger('django')
 
 # Create your views here.
 class PlayerView(APIView):
@@ -443,19 +443,19 @@ def movement(game_id,player_id,players,tile):
         passTile = isPass(tile)
         
         if isMyTurn(game.board,w,game.starter,n) == False:
-            logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
+            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
             return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno")
         if noCorrect(game,tile):
-            logging.error(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
+            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
             return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
         if (passTile and (game.status == 'fi' or game.status == 'fg')):
-            logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
+            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
             return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia terminado")
         if (len(game.board) == 0 and passTile):
-            logging.error(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
+            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
             return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia empezado")
         if CheckPlayerTile(tile, player) == False:
-            logging.error(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
+            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
             return(f"{player.alias} intento mover {tile} pero se detecto que la ficha no le pertenese")
         
         if passTile == False:
@@ -466,7 +466,7 @@ def movement(game_id,player_id,players,tile):
             tiles_count,tiles = updateTiles(player,tile)
             player.tiles = tiles
             player.save()
-            player.refresh_from_db()
+            # player.refresh_from_db()
             if tiles_count == 0:
                 game.status = 'fg'
                 game.start_time = timezone.now()
@@ -515,8 +515,8 @@ def movement(game_id,player_id,players,tile):
             game.next_player = (w+1) % n
         game.board += (tile+',')
         game.save()
-        game.refresh_from_db()
-        logging.info(player.alias+" movio "+tile)
+        # game.refresh_from_db()
+        logger.info(player.alias+" movio "+tile)
         return None        
 
 def CheckPlayerTile(tile, player):
