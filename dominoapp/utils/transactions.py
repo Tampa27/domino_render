@@ -1,5 +1,6 @@
 from dominoapp.models import Player, Status_Transaction, Transaction, DominoGame
 import logging
+logger = logging.getLogger('django')
 
 def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_user:Player=None, status=None):
     
@@ -29,7 +30,7 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
         return True
     except Exception as e:
         print(f"error: {e}")
-        logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
+        logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     
 
@@ -60,7 +61,7 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         return True
     except Exception as e:
         print(f"error: {e}")
-        logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
+        logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     
 
@@ -91,5 +92,5 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
         return True
     except Exception as e:
         print(f"error: {e}")
-        logging.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
+        logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False

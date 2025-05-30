@@ -26,7 +26,7 @@ from dominoapp.utils.transactions import create_game_transactions, create_reload
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
 
-logger = logging.getLogger('django')
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 class PlayerView(APIView):
