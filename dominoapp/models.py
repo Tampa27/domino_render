@@ -21,6 +21,7 @@ class Player(models.Model):
     photo_url = models.URLField(max_length=250, unique=True, null=True, blank=True)
     name = models.CharField(max_length=32,null=True, blank=True)
     isPlaying = models.BooleanField(default=False)
+    inactive_player = models.BooleanField(default=False)
     def __str__(self):
         return self.alias
     

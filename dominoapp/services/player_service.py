@@ -1,8 +1,9 @@
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.response import Response
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.utils import timezone
 from dominoapp.models import Player, DominoGame
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
@@ -109,6 +110,10 @@ class PlayerService:
             else:
                 player = Player.objects.get(email=google_user['email'])
             
+            player.lastTimeInSystem = timezone.now()
+            player.inactive_player = False
+            player.save(update_fields=['lastTimeInSystem','inactive_player'])
+
             # Genera tokens JWT usando simplejwt
             refresh = RefreshToken.for_user(player.user)
 
