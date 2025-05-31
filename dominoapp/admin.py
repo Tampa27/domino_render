@@ -11,11 +11,11 @@ class DominoAdmin(admin.ModelAdmin):
         "id",
         "variant",
         "status",
-        "inPairs",
-        "perPoints",
-        "rounds",
-        "created_time",
-        "hours_active"
+        "player1",
+        "player2",
+        "player3",
+        "player4",
+        "created_time"
     ]
 
 class PlayerAdmin(admin.ModelAdmin):
