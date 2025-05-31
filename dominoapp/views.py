@@ -434,10 +434,9 @@ def getBank(request):
     serializerBank = BankSerializer(bank,many=True)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
-def movement(game_id,player_id,players,tile):
+def movement(game_id,player,players,tile):
     with transaction.atomic():
         game = DominoGame.objects.select_for_update().get(id=game_id)
-        player = Player.objects.select_for_update().get(id=player_id)
         n = len(players)
         w = getPlayerIndex(players,player)
         passTile = isPass(tile)
@@ -466,7 +465,7 @@ def movement(game_id,player_id,players,tile):
             tiles_count,tiles = updateTiles(player,tile)
             player.tiles = tiles
             player.save()
-            # player.refresh_from_db()
+            player.refresh_from_db()
             if tiles_count == 0:
                 game.status = 'fg'
                 game.start_time = timezone.now()
@@ -515,7 +514,7 @@ def movement(game_id,player_id,players,tile):
             game.next_player = (w+1) % n
         game.board += (tile+',')
         game.save()
-        # game.refresh_from_db()
+        game.refresh_from_db()
         logger.info(player.alias+" movio "+tile)
         return None        
 
@@ -704,9 +703,9 @@ def move1(game_id,alias,tile):
     players_ru = list(filter(lambda p: p.isPlaying,players))
     for p in players:
         if p.alias == alias:
-            player_id = p.id
+            player = p
     # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
-    error = movement(game_id,player_id,players_ru,tile)
+    error = movement(game_id,player,players_ru,tile)
     
     updateLastPlayerTime(game,alias)
     if game.player1 and game.player1.id:
