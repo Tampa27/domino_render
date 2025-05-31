@@ -18,6 +18,7 @@ class GameService:
         
         player = Player.objects.get(user__id=user.id)
         player.lastTimeInSystem = timezone.now()
+        player.inactive_player = False
         player.save()
         playerSerializer = PlayerLoginSerializer(player)
         
@@ -99,6 +100,7 @@ class GameService:
         player1 = Player.objects.get(user__id= request.user.id)
         player1.tiles = ""
         player1.lastTimeInSystem = timezone.now()
+        player1.inactive_player = False
         player1.save()
 
         game = DominoGame.objects.create(player1=player1,variant=request.data["variant"])
@@ -119,6 +121,7 @@ class GameService:
         player = Player.objects.get(user__id=request.user.id)
                 
         player.lastTimeInSystem = timezone.now()
+        player.inactive_player = False
         player.save()
 
         check_others_game = DominoGame.objects.filter(
@@ -215,6 +218,7 @@ class GameService:
             if error is None:
                 profile = Player.objects.get(alias = player.alias)
                 profile.lastTimeInSystem = timezone.now()
+                profile.inactive_player = False
                 profile.save()
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:

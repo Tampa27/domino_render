@@ -36,6 +36,7 @@ class AdminNotifyEvents(Enum):
     ADMIN_EVENT_NEW_USER = ('new_user', 'New User')
     ADMIN_EVENT_NEW_RELOAD = ('new_reload', 'New Reload')
     ADMIN_EVENT_NEW_EXTRACTION = ('new_extraction', 'New Extraction')
+    ADMIN_EVENT_EMAIL_DELETE_PLAYER = ('send_email_delete_player', 'Send Email Delete Player')
     
 
 class GameStatus:
