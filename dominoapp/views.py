@@ -842,21 +842,21 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
         if timediff.seconds >= 60:
             noActivity = True
     if game.player1 is not None and game.player1.alias == player.alias:
+        have_points = game.player1.points>0
         game.player1 = None
         exited = True
-        have_points = game.player1.points>0
     elif game.player2 is not None and game.player2.alias == player.alias:
-        game.player2 = None
-        exited = True
         have_points = game.player2.points>0
+        game.player2 = None
+        exited = True        
     elif game.player3 is not None and game.player3.alias == player.alias:
+        have_points = game.player3.points>0
         game.player3 = None
         exited = True
-        have_points = game.player3.points>0
     elif game.player4 is not None and game.player4.alias == player.alias:
+        have_points = game.player4.points>0
         game.player4 = None
         exited = True
-        have_points = game.player4.points>0
     if exited:
         player.points = 0
         player.tiles = ""
