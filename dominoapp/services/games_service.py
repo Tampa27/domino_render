@@ -2,8 +2,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
-from dominoapp.models import Player, DominoGame
-from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerSerializer
+from dominoapp.models import Player, DominoGame, AppVersion
+from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerSerializer, PlayerLoginSerializer
 from dominoapp import views
 
 
@@ -11,6 +11,45 @@ class GameService:
 
     @staticmethod
     def process_list(request, queryset):
+        user = request.user
+        check = Player.objects.filter(user__id = user.id ).exists()
+        if not check:
+            return Response ({'status': 'error', "message": "Player not found"},status=status.HTTP_404_NOT_FOUND)
+        
+        player = Player.objects.get(user__id=user.id)
+        player.lastTimeInSystem = timezone.now()
+        player.save()
+        playerSerializer = PlayerLoginSerializer(player)
+        
+        game_id = -1
+        
+        app_version = AppVersion.objects.first()
+        
+        if app_version and app_version.need_update:
+            return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version.need_update}, status=200)
+                
+        inGame = DominoGame.objects.filter(
+            Q(player1__id = player.id)|
+            Q(player2__id = player.id)|
+            Q(player3__id = player.id)|
+            Q(player4__id = player.id)
+            ).exists()
+        if inGame:
+            games = DominoGame.objects.filter(
+            Q(player1__id = player.id)|
+            Q(player2__id = player.id)|
+            Q(player3__id = player.id)|
+            Q(player4__id = player.id)
+            )
+            game_id = games.first().id
+            serializer =ListGameSerializer(games,many=True)
+            return Response({
+                        'status': 'success', 
+                        "games":serializer.data,
+                        "player":playerSerializer.data,
+                        "game_id":game_id,
+                        "update": False
+                            }, status=status.HTTP_200_OK)
         alias = request.query_params.get('alias', None)
         
         if alias is not None:
@@ -22,7 +61,13 @@ class GameService:
                 )
 
         serializer =ListGameSerializer(queryset,many=True)
-        return Response({'status': 'success', "games":serializer.data}, status=status.HTTP_200_OK)
+        return Response({
+                    'status': 'success', 
+                    "games":serializer.data,
+                    "player":playerSerializer.data,
+                    "game_id":game_id,
+                    "update": False
+                         }, status=status.HTTP_200_OK)
     
     @staticmethod
     def process_retrieve(request, game_id):
