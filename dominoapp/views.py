@@ -832,6 +832,7 @@ def shuffleCouples(game,players):
 
 def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: int):
     exited = False
+    have_points = False
     pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)
     lastTimeMove = getLastMoveTime(game,player)
@@ -843,20 +844,24 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
     if game.player1 is not None and game.player1.alias == player.alias:
         game.player1 = None
         exited = True
+        have_points = game.player1.points>0
     elif game.player2 is not None and game.player2.alias == player.alias:
         game.player2 = None
         exited = True
+        have_points = game.player2.points>0
     elif game.player3 is not None and game.player3.alias == player.alias:
         game.player3 = None
         exited = True
+        have_points = game.player3.points>0
     elif game.player4 is not None and game.player4.alias == player.alias:
         game.player4 = None
         exited = True
+        have_points = game.player4.points>0
     if exited:
         player.points = 0
         player.tiles = ""
         if player.isPlaying:
-            if (game.status == "ru" or game.status == "fi") and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
+            if (game.status == "fi" or (game.status == "ru" and (have_points or game.board != ""))) and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
                 loss_coins = (game.payWinValue+game.payMatchValue)
                 coins = loss_coins
                 try:

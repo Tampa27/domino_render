@@ -59,13 +59,26 @@ class GameSerializer(serializers.ModelSerializer):
 
 class ListGameSerializer(serializers.ModelSerializer):
     is_privated = serializers.SerializerMethodField()
+    number_player = serializers.SerializerMethodField()
 
     def get_is_privated(self, obj: DominoGame)-> bool:
         return True if obj.password != "" else False
+    
+    def get_number_player(self, obj: DominoGame) -> int:
+        total_player = 0
+        if obj.player1:
+            total_player += 1
+        if obj.player2:
+            total_player += 1
+        if obj.player3:
+            total_player += 1
+        if obj.player4:
+            total_player += 1
+        return total_player
 
     class Meta:
         model = DominoGame
-        fields = ["status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "created_time", "is_privated"]
+        fields = ["status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "created_time", "is_privated", "number_player"]
 
 
 class MyPlayerSerializer(serializers.ModelSerializer):
