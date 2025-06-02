@@ -4,9 +4,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from dominoapp.models import DominoGame
-from dominoapp.serializers import GameSerializer
+from dominoapp.serializers import GameSerializer, ListGameSerializer,PlayerLoginSerializer, PlayerSerializer
 from dominoapp.api_views.request.games_request import GameRequest
-from dominoapp.services.games_service import GameService    
+from dominoapp.services.games_service import GameService
+from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
+from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField  
 
 
 class GameView(viewsets.ModelViewSet):
@@ -35,10 +37,38 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_create(request)
 
+    @extend_schema(
+            responses={
+            200: inline_serializer(
+                name="List Games",
+                fields={
+                    "status": CharField(default="success"),
+                    "games": ListGameSerializer(many=True),
+                    "player": PlayerLoginSerializer(),
+                    "game_id": IntegerField(),
+                    "update": BooleanField()
+                    },
+            ),
+            
+        }
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         return GameService.process_list(request, queryset)
     
+    @extend_schema(
+            responses={
+            200: inline_serializer(
+                name="Retrieve Game",
+                fields={
+                    "status": CharField(default="success"),
+                    "game": GameSerializer(),
+                    "player": PlayerSerializer(many=True)
+                    },
+            ),
+            
+        }
+    )
     def retrieve(self, request, pk, *args, **kwargs):
         
         is_valid, message, status_response = GameRequest.validate_game_id(pk)
@@ -51,6 +81,21 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_retrieve(request, pk)
     
+    @extend_schema(
+            operation_id="games_join",
+            request= None,
+            responses={
+            200: inline_serializer(
+                name="Join Game",
+                fields={
+                    "status": CharField(default="success"),
+                    "game": GameSerializer(),
+                    "players": PlayerSerializer(many=True)
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
     def join(self, request, pk):
 
@@ -64,6 +109,21 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_join(request, pk)
     
+    @extend_schema(
+            operation_id="games_start",
+            request = None,
+            responses={
+            200: inline_serializer(
+                name="Start Game",
+                fields={
+                    "status": CharField(default="success"),
+                    "game": GameSerializer(),
+                    "players": PlayerSerializer(many=True)
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
     def start(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_game_id(pk)

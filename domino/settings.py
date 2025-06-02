@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'drf_spectacular'
 ]
 
 MIDDLEWARE = [
@@ -144,11 +145,24 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',  # Debe estar presente
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'
 }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # Ajusta según necesites
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DOMINO_CLUB',
+    'DESCRIPTION': 'Domino Club project API Documents',
+    'VERSION': '0.0.1',
+    'SCHEMA_PATH_PREFIX': '/v2/api/*',   #To separate routes in api_urls so they don't mix together.
+    # 'SERVE_PERMISSIONS': ['api.permissions.IsAdminUser'],  # Must login first
+    'DISABLE_ERRORS_AND_WARNINGS': True,
+    # 'SERVE_AUTHENTICATION': [
+    #                 'rest_framework.authentication.SessionAuthentication',
+    #             ]
 }
 
 
