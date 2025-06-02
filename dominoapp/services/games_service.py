@@ -120,7 +120,17 @@ class GameService:
                 
         player.lastTimeInSystem = timezone.now()
         player.save()
-        
+
+        check_others_game = DominoGame.objects.filter(
+            Q(player1__id = player.id)|
+            Q(player2__id = player.id)|
+            Q(player3__id = player.id)|
+            Q(player4__id = player.id)
+        ).exclude(id = game_id).exists()
+
+        if check_others_game:
+            return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
+
         check_game = DominoGame.objects.filter(id = game_id).exists()
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
