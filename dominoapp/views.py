@@ -292,6 +292,17 @@ def joinGame(request,alias,game_id):
         return Response ({'status': 'error'},status=400)
     player.lastTimeInSystem = timezone.now()
     player.save()
+
+    check_others_game = DominoGame.objects.filter(
+            Q(player1__id = player.id)|
+            Q(player2__id = player.id)|
+            Q(player3__id = player.id)|
+            Q(player4__id = player.id)
+        ).exclude(id = game_id).exists()
+
+    if check_others_game:
+        return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
+
     game = DominoGame.objects.get(id=game_id)
     joined,players = checkPlayerJoined(player,game)
     if joined != True:
