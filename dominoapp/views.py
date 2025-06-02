@@ -190,12 +190,19 @@ def getAllGames(request,alias):
 
 @api_view(['GET',])
 def deleteTable(request,game_id):
-    DominoGame.objects.get(id = game_id).delete()
+    try:
+        DominoGame.objects.get(id = game_id).delete()
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     return Response({'status': 'game deleted'}, status=200)
 
 @api_view(['GET',])
 def getGame(request,game_id,alias):
-    result = DominoGame.objects.get(id=game_id)
+    try:
+        result = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
+
     serializer = GameSerializer(result)
     players = playersCount(result)
     # for player in players:
@@ -219,7 +226,10 @@ def getGame(request,game_id,alias):
 
 @api_view(['GET',])
 def setWinner(request,game_id,winner):
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     setWinner1(game,winner)
     game.save()
     return Response({'status': 'success'}, status=200)
@@ -230,14 +240,20 @@ def setWinner1(game,winner):
 
 @api_view(['GET',])
 def setStarter(request,game_id,starter):
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     game.starter = starter
     game.save()
     return Response({'status': 'success'}, status=200)
 
 @api_view(['GET',])
 def setWinnerStarter(request,game_id,winner,starter):
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     game.starter = starter
     game.winner = winner
     game.save()
@@ -245,7 +261,10 @@ def setWinnerStarter(request,game_id,winner,starter):
 
 @api_view(['GET',])
 def setWinnerStarterNext(request,game_id,winner,starter,next_player):
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     setWinnerStarterNext1(game,winner,starter,next_player)
     game.save()
     return Response({'status': 'success'}, status=200)
@@ -303,7 +322,10 @@ def joinGame(request,alias,game_id):
     if check_others_game:
         return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
 
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     joined,players = checkPlayerJoined(player,game)
     if joined != True:
         if game.player1 is None:
@@ -385,7 +407,11 @@ def checkingMove(game):
 
 @api_view(['GET',])
 def startGame(request,game_id):
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
+    
     if game.status != "wt":
         players = playersCount(game)
         startGame1(game,players)    
@@ -447,7 +473,10 @@ def getBank(request):
 
 def movement(game_id,player,players,tile):
     with transaction.atomic():
-        game = DominoGame.objects.select_for_update().get(id=game_id)
+        try:
+            game = DominoGame.objects.select_for_update().get(id=game_id)
+        except:
+            return Response({'status': 'error', "message":"Game not found"}, status=404)
         n = len(players)
         w = getPlayerIndex(players,player)
         passTile = isPass(tile)
@@ -732,8 +761,11 @@ def move1(game_id,alias,tile):
 
 @api_view(['GET',])
 def exitGame(request,game_id,alias):
-    game = DominoGame.objects.get(id=game_id)
-    player = Player.objects.get(alias=alias)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+        player = Player.objects.get(alias=alias)
+    except:
+        return Response({'status': 'error', "message":"Game or player not found"}, status=404)
     players = playersCount(game)
     players_ru = list(filter(lambda p: p.isPlaying,players))
     exited = exitPlayer(game,player,players_ru,len(players))
@@ -743,7 +775,10 @@ def exitGame(request,game_id,alias):
 
 @api_view(['GET',])
 def setPatner(request,game_id,alias):
-    game = DominoGame.objects.get(id=game_id)
+    try:
+        game = DominoGame.objects.get(id=game_id)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
     players = playersCount(game)
     if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
         #shuffleCouples(game,players)
@@ -765,7 +800,11 @@ def setPatner(request,game_id,alias):
 
 @api_view(['GET',])
 def rechargeBalance(request,alias,coins):
-    player = Player.objects.get(alias=alias)
+    try:
+        player = Player.objects.get(alias=alias)
+    except:
+        return Response({'status': 'error', "message":"PLayer not found"}, status=404)
+    
     player.coins+=coins
     try:
         bank = Bank.objects.get(id=1)
@@ -787,7 +826,11 @@ def rechargeBalance(request,alias,coins):
 
 @api_view(['GET',])
 def payment(request,alias,coins):
-    player = Player.objects.get(alias=alias)
+    try:
+        player = Player.objects.get(alias=alias)
+    except:
+        return Response({'status': 'error', "message":"Game not found"}, status=404)
+    
     player.coins-=coins
     try:
         bank = Bank.objects.get(id=1)
