@@ -7,8 +7,8 @@ from dominoapp.models import DominoGame
 from dominoapp.serializers import GameSerializer, ListGameSerializer,PlayerLoginSerializer, PlayerSerializer
 from dominoapp.api_views.request.games_request import GameRequest
 from dominoapp.services.games_service import GameService
-from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
-from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField  
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework.serializers import BooleanField, IntegerField, CharField
 
 
 class GameView(viewsets.ModelViewSet):
@@ -136,6 +136,26 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_start(pk)
     
+    @extend_schema(
+            operation_id="game_move",
+            request = {
+                200:inline_serializer(
+                    name="Move Tile Request",
+                    fields={
+                        "tile": CharField(required = True),
+                        },
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Move Tile Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
     def move(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_move(request, pk)
@@ -148,7 +168,20 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_move(request, pk)
     
-    @action(detail=True, methods=["post"])
+    @extend_schema(
+            operation_id="game_exit",
+            request = None,
+            responses={
+            200: inline_serializer(
+                name="Exit Game Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=True, methods=["post"], url_path="exit")
     def exitGame(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_game_id(pk)
         
@@ -160,8 +193,28 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_exitGame(request, pk)
     
+    @extend_schema(
+            operation_id="games_set_winner",
+            request = {
+                200: inline_serializer(
+                    name="Set Winner Game Request",
+                    fields={
+                        "winner": IntegerField()
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Set Winner Game Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
-    def setWinner(self, request, pk):
+    def set_winner(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setwinner(request, pk)
         
         if not is_valid:
@@ -172,8 +225,28 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_setwinner(request, pk)
     
+    @extend_schema(
+            operation_id="games_set_starter",
+            request = {
+                200: inline_serializer(
+                    name="Set Starter Game Request",
+                    fields={
+                        "starter": IntegerField()
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Set Starter Game Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
-    def setstarter(self, request, pk):
+    def set_starter(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setstarter(request, pk)
         
         if not is_valid:
@@ -184,8 +257,29 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_setstarter(request, pk)
 
+    @extend_schema(
+            operation_id="games_set_winner_starter",
+            request = {
+                200: inline_serializer(
+                    name="Set Winner Starter Game Request",
+                    fields={
+                        "winner" : IntegerField(required=True),
+                        "starter": IntegerField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Set Winner Starter Game Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
-    def setwinnerstarter(self, request, pk):
+    def set_winner_starter(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setwinnerstarter(request, pk)
         
         if not is_valid:
@@ -196,8 +290,30 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_setWinnerStarter(request, pk)
     
+    @extend_schema(
+            operation_id="games_set_winner_starter_next",
+            request = {
+                200: inline_serializer(
+                    name="Set Winner, Starter and Next Game Request",
+                    fields={
+                        "winner" : IntegerField(required=True),
+                        "starter": IntegerField(required=True),
+                        "next_player": IntegerField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Set Winner, Starter and Next Game Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
-    def setwinnerstarternext(self, request, pk):
+    def set_winner_starter_next(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setwinnerstarternext(request, pk)
         
         if not is_valid:
@@ -208,8 +324,35 @@ class GameView(viewsets.ModelViewSet):
         
         return GameService.process_setWinnerStarterNext(request, pk)
 
+    @extend_schema(
+            operation_id="games_set_patner",
+            request = {
+                200: inline_serializer(
+                    name="Set Patner Game Request",
+                    fields={
+                        "patner_id" : IntegerField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Set Patner Game Response",
+                fields={
+                    "status": CharField(default="success"),
+                    },
+            ),
+            404: inline_serializer(
+                name="Set Patner Response Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
     @action(detail=True, methods=["post"])
-    def setpatner(self, request, pk):
+    def set_patner(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setPatner(request, pk)
         
         if not is_valid:

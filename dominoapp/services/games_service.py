@@ -200,16 +200,16 @@ class GameService:
         try:
             check = DominoGame.objects.filter(id=game_id).exists()
             if not check:
-                return Response({'status': "Game not found"}, status=404)
+                return Response({'status': 'error', 'message': "Game not found"}, status=404)
             check = Player.objects.filter(user__id=request.user.id).exists()
             if not check:
-                return Response({'status': "Player not found"}, status=404)
+                return Response({'status': 'error', 'message': "Player not found"}, status=404)
             
             player = Player.objects.get(user__id=request.user.id)
             filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
             check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
             if not check:
-                return Response({'status': "These Player are not in this game"}, status=400)
+                return Response({'status': 'error', 'message': "These Player are not in this game"}, status=400)
             
             error = views.move1(game_id,player.alias,tile)
             if error is None:
@@ -235,7 +235,7 @@ class GameService:
         players_ru = list(filter(lambda p: p.isPlaying,players))
         exited = views.exitPlayer(game,player,players_ru,len(players))
         if exited:
-            return Response({'status': 'success', "message":'Player exited'}, status=200)
+            return Response({'status': 'success'}, status=200)
         return Response({'status': 'error', "message":'Player no found'}, status=404)
     
     @staticmethod
