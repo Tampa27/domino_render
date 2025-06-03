@@ -854,10 +854,13 @@ def payment(request,alias,coins):
         player = Player.objects.get(alias=alias)
     except:
         return Response({'status': 'error', "message":"Game not found"}, status=404)
-    if player.earned_coins < coins:
+    if (player.earned_coins + player.recharged_coins) < coins:
         return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=409)
     
     player.earned_coins-=coins
+    if player.earned_coins<0:
+        player.recharged_coins += player.earned_coins
+        player.earned_coins = 0
     try:
         bank = Bank.objects.get(id=1)
     except ObjectDoesNotExist:
