@@ -886,7 +886,7 @@ def deleteInactivePlayers(request,alias):
             total_deleted+=1
         elif player.lastTimeInSystem is not None:
             timediff = timezone.now() - player.lastTimeInSystem
-            if timediff.days > ApiConstants.INACTIVE_PlAYER_DAYS and player.coins >= 50 and player.coins <=100:
+            if timediff.days > ApiConstants.INACTIVE_PlAYER_DAYS and (player.recharged_coins+player.earned_coins) >= 50 and (player.recharged_coins+player.earned_coins) <=100:
                 Player.objects.get(id = player.id).delete()
                 total_deleted+=1
     return Response({'status': str(total_deleted)+' players deleted'}, status=200)    
@@ -953,9 +953,9 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 coins -= bank_coins
                 if game.inPairs:
                     coins_value = coins/2
-                    players[(pos+1)%4].coins+=coins_value
+                    players[(pos+1)%4].earned_coins+=coins_value
                     create_game_transactions(game=game, to_user=players[(pos+1)%4], amount=coins_value, status="cp")
-                    players[(pos+3)%4].coins+=coins_value
+                    players[(pos+3)%4].earned_coins+=coins_value
                     create_game_transactions(game=game, to_user=players[(pos+3)%4], amount=coins_value, status="cp")
                     players[(pos+1)%4].save()
                     players[(pos+3)%4].save()     
@@ -963,10 +963,14 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     n = len(players)-1
                     for p in players:
                         if p.alias != player.alias:
-                            p.coins+= (coins/n)
+                            p.earned_coins+= (coins/n)
                             create_game_transactions(game=game, to_user=p, amount=coins/n, status="cp")
                             p.save()
-                player.coins-=loss_coins
+                player.earned_coins-=loss_coins
+                if player.earned_coins<0:
+                    player.recharged_coins += player.earned_coins
+                    player.earned_coins = 0
+                
                 create_game_transactions(game=game, from_user=player, amount=loss_coins, status="cp")
                 bank.save()                               
             if totalPlayers <= 2 or game.inPairs:
