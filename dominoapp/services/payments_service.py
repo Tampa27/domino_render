@@ -15,7 +15,7 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
 
         player = Player.objects.get(alias=request.data["alias"])
-        player.coins+=request.data["coins"]
+        player.recharged_coins+=request.data["coins"]
         
         try:
             bank = Bank.objects.get(id=1)
@@ -45,10 +45,10 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
 
         player = Player.objects.get(alias=request.data["alias"])
-        if player.coins < request.data["coins"]:
+        if player.earned_coins < request.data["coins"]:
             return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
         
-        player.coins -= request.data["coins"]
+        player.earned_coins -= request.data["coins"]
         
         try:
             bank = Bank.objects.get(id=1)

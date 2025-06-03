@@ -6,7 +6,8 @@ from .models import Bank, Marketing
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
     tiles = serializers.CharField(max_length=32)
-    coins = serializers.IntegerField()
+    earned_coins = serializers.IntegerField()
+    recharged_coins = serializers.IntegerField()
     points = serializers.IntegerField()
     dataWins = serializers.IntegerField()
     dataLoss = serializers.IntegerField()
@@ -17,6 +18,10 @@ class PlayerSerializer(serializers.ModelSerializer):
     photo_url = serializers.CharField()
     name = serializers.CharField()
     isPlaying = serializers.BooleanField()
+    coins = serializers.SerializerMethodField(read_only = True)
+
+    def get_coins(self, obj: Player) -> int:
+        return obj.recharged_coins + obj.earned_coins
 
     class Meta:
         model = Player
@@ -27,13 +32,12 @@ class PlayerSerializer(serializers.ModelSerializer):
         Create and return a new `Player` instance, given the validated data. 
         """  
         return Player.objects.create(**validated_data)  
-    def update(self, instance, validated_data):  
+    def update(self, instance:Player, validated_data):  
         """ 
         
         """  
         instance.alias = validated_data.get('alias', instance.alias)
-        instance.tiles = validated_data.get('tiles', instance.tiles)
-        instance.coins = validated_data.get('coins', instance.coins)
+        instance.tiles = validated_data.get('tiles', instance.tiles)        
         instance.points = validated_data.get('points', instance.points)
         instance.dataWins = validated_data.get('dataWins', instance.dataWins)
         instance.dataLoss = validated_data.get('dataLoss', instance.dataLoss)
@@ -47,9 +51,13 @@ class PlayerSerializer(serializers.ModelSerializer):
         return instance     
 
 class PlayerLoginSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField()
+    def get_coins(self, obj: Player) -> int:
+        return obj.earned_coins + obj.recharged_coins
+    
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins"]
 
 class GameSerializer(serializers.ModelSerializer):
 

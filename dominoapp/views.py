@@ -612,7 +612,7 @@ def updatePlayersData(game,players,w,status):
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue-bank_coins)
                     bank.balance+=(bank_coins)
-                    players[i].coins+= player_coins
+                    players[i].earned_coins+= player_coins
                     create_game_transactions(game=game,to_user=players[i], amount=player_coins, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
@@ -621,18 +621,24 @@ def updatePlayersData(game,players,w,status):
                         bank.matches_coins+=bank_coins
                         player_coins = (game.payMatchValue-bank_coins)
                         bank.balance+=(bank_coins)
-                        players[i].coins+= player_coins
+                        players[i].earned_coins+= player_coins
                         create_game_transactions(game=game, to_user=players[i], amount=player_coins, status="cp")
                 players[i].save()
             else:
                 players[i].dataLoss+=1
                 if game.payWinValue > 0 and w != 4:
-                    players[i].coins-=game.payWinValue
+                    players[i].earned_coins-=game.payWinValue
+                    if players[i].earned_coins<0:
+                        players[i].recharged_coins += players[i].earned_coins
+                        players[i].earned_coins = 0
                     create_game_transactions(game=game, from_user=players[i], amount=game.payWinValue, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
-                        players[i].coins-=game.payMatchValue
+                        players[i].earned_coins-=game.payMatchValue
+                        if players[i].earned_coins<0:
+                            players[i].recharged_coins += players[i].earned_coins
+                            players[i].earned_coins = 0
                         create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")
                 players[i].save()
     else:
@@ -644,7 +650,7 @@ def updatePlayersData(game,players,w,status):
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                     bank.balance+=(bank_coins)
-                    players[i].coins+= player_coins
+                    players[i].earned_coins+= player_coins
                     create_game_transactions(game=game, to_user=players[i], amount=player_coins, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
@@ -653,18 +659,24 @@ def updatePlayersData(game,players,w,status):
                         bank.matches_coins+=bank_coins
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
                         bank.balance+=(bank_coins)
-                        players[i].coins+= player_coins
+                        players[i].earned_coins+= player_coins
                         create_game_transactions(game=game, to_user=players[i], amount=player_coins, status="cp")
                 players[i].save()
             elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
                 if game.payWinValue > 0 and w != 4:
-                    players[i].coins-=game.payWinValue
+                    players[i].earned_coins-=game.payWinValue
+                    if players[i].earned_coins<0:
+                            players[i].recharged_coins += players[i].earned_coins
+                            players[i].earned_coins = 0
                     create_game_transactions(game=game, from_user=players[i], amount=game.payWinValue, status="cp")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
-                        players[i].coins-=game.payMatchValue
+                        players[i].earned_coins-=game.payMatchValue
+                        if players[i].earned_coins<0:
+                            players[i].recharged_coins += players[i].earned_coins
+                            players[i].earned_coins = 0
                         create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")
                 players[i].save()                                    
     bank.save()
@@ -682,30 +694,42 @@ def updatePassCoins(pos,game,players):
                 if prev == 1 or prev == 3:
                     if (pos - prev) < 0:
                         pos1 = pos + (n-prev)
-                        players[pos].coins-=game.payPassValue
-                        players[pos1].coins+=game.payPassValue
+                        players[pos].earned_coins-=game.payPassValue
+                        if players[pos].earned_coins<0:
+                            players[pos].recharged_coins += players[pos].earned_coins
+                            players[pos].earned_coins = 0
+                        players[pos1].earned_coins+=game.payPassValue
                         create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:
                         pos1 = pos - prev
-                        players[pos].coins-=game.payPassValue
-                        players[pos1].coins+=game.payPassValue
+                        players[pos].earned_coins-=game.payPassValue
+                        if players[pos].earned_coins<0:
+                            players[pos].recharged_coins += players[pos].earned_coins
+                            players[pos].earned_coins = 0
+                        players[pos1].earned_coins+=game.payPassValue
                         create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
                     if (pos - 2) < 0:
                         pos1 = pos + (n-prev)
-                        players[pos].coins-=game.payPassValue
-                        players[pos1].coins+=game.payPassValue
+                        players[pos].earned_coins-=game.payPassValue
+                        if players[pos].earned_coins<0:
+                            players[pos].recharged_coins += players[pos].earned_coins
+                            players[pos].earned_coins = 0
+                        players[pos1].earned_coins+=game.payPassValue
                         create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:        
                         pos1 = pos - prev
-                        players[pos].coins-=game.payPassValue
-                        players[pos1].coins+=game.payPassValue
+                        players[pos].earned_coins-=game.payPassValue
+                        if players[pos].earned_coins<0:
+                            players[pos].recharged_coins += players[pos].earned_coins
+                            players[pos].earned_coins = 0
+                        players[pos1].earned_coins+=game.payPassValue
                         create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
                         players[pos].save()
                         players[pos1].save()
@@ -805,7 +829,7 @@ def rechargeBalance(request,alias,coins):
     except:
         return Response({'status': 'error', "message":"PLayer not found"}, status=404)
     
-    player.coins+=coins
+    player.recharged_coins+=coins
     try:
         bank = Bank.objects.get(id=1)
     except ObjectDoesNotExist:
@@ -830,8 +854,10 @@ def payment(request,alias,coins):
         player = Player.objects.get(alias=alias)
     except:
         return Response({'status': 'error', "message":"Game not found"}, status=404)
+    if player.earned_coins < coins:
+        return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=409)
     
-    player.coins-=coins
+    player.earned_coins-=coins
     try:
         bank = Bank.objects.get(id=1)
     except ObjectDoesNotExist:

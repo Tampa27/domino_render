@@ -24,7 +24,8 @@ class PlayerAdmin(admin.ModelAdmin):
         "alias",
         "email",
         "name",
-        "coins",
+        "earned_coins",
+        "recharged_coins",
         "points",
         "isPlaying",
         "lastTimeInSystem"
