@@ -48,7 +48,7 @@ PRODUCTION = os.getenv("PRODUCTION", "False") == "True"
 DEBUG = not PRODUCTION  #'RENDER' not in os.environ
 DEVELOPMENT = not PRODUCTION
 
-ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com"]
+ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com", "dominoclubtest.pythonanywhere.com"]
 
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
