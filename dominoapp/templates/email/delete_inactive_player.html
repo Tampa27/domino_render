@@ -1,0 +1,52 @@
+{% autoescape off %}
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .social-links a {
+            display: inline-block;
+            margin-right: 10px;
+            color: #0652DD;
+        }
+    </style>
+</head>
+<body>
+    <p>Hola {{name}}</p>
+    <p>⚠ Tu cuenta <em>{{alias}}</em> en <strong>Dominó Club</strong> expirará pronto por inactividad.</p>
+
+    <p>📅 <strong>Fecha límite:</strong> Usa tu cuenta antes del <strong>{{expiration_time}}</strong></p>
+    
+    <p>✅ <strong>Acción requerida:</strong></p>
+    <ol>
+        <li>Ingresa a la app.</li>
+        <li>Juega partidas para mantenerla activa.</li>
+    </ol>
+
+    <a href="https://www.apklis.cu/application/com.amg.dominoclubar" class="button">
+        Descarga la app aquí
+    </a>
+
+    <p>Síguenos en nuestras redes sociales:</p>
+    <div class="social-links">
+        <a href="https://www.facebook.com/profile.php?id=100084035401869&mibextid=ZbWKwL">Facebook</a>
+        <a href="https://www.instagram.com/dominoclub.app?igsh=bWNvZzgyOHhibm80">Instagram</a>
+        <a href="https://chat.whatsapp.com/K4TBNUv7ow4FswUV8d4p6L">WhatsApp</a>
+        <a href="https://t.me/+Uo07fIMYLPU5MTlh">Telegram</a>
+    </div>
+</body>
+</html>
+{% endautoescape %}
+
+
+
+

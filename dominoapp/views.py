@@ -108,6 +108,7 @@ class GameCreate(generics.CreateAPIView):
             player.tiles = ""
             player.points=0
             player.lastTimeInSystem = timezone.now()
+            player.inactive_player = False
             player.save()
             players = [player]
             serializer.save(player1=player)
@@ -156,6 +157,7 @@ def login(request,alias,email,photo_url,name):
         player = player = Player.objects.get(alias = alias)
 
     player.lastTimeInSystem = timezone.now()
+    player.inactive_player = False
     player.save()
     serializer =PlayerSerializer(player)
     return Response({'status': 'success', "player":serializer.data}, status=200)        
@@ -169,6 +171,7 @@ def getAllGames(request,alias):
     except ObjectDoesNotExist:
         return Response ({'status': 'error'},status=400)    
     player.lastTimeInSystem = timezone.now()
+    player.inactive_player = False
     player.save()
     game_id = -1
     playerSerializer = PlayerSerializer(player)
@@ -292,6 +295,7 @@ def createGame(request,alias,variant):
         return Response ({'status': 'error'},status=400)
     player1.tiles = ""
     player1.lastTimeInSystem = timezone.now()
+    player1.inactive_player = False
     player1.save()
     game = DominoGame.objects.create(player1=player1,variant=variant)
     game.lastTime1 = timezone.now()
@@ -310,6 +314,7 @@ def joinGame(request,alias,game_id):
     except ObjectDoesNotExist:
         return Response ({'status': 'error'},status=400)
     player.lastTimeInSystem = timezone.now()
+    player.inactive_player = False
     player.save()
 
     check_others_game = DominoGame.objects.filter(
@@ -753,6 +758,7 @@ def move(request,game_id,alias,tile):
         if error is None:
             profile = Player.objects.get(alias = alias)
             profile.lastTimeInSystem = timezone.now()
+            profile.inactive_player = False
             profile.save()
             return Response({'status': 'success'}, status=200)
         else:
