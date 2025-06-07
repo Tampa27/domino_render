@@ -16,7 +16,8 @@ import sys
 from dotenv import load_dotenv
 from datetime import timedelta
 # Cargar variables del archivo .env
-load_dotenv('.env', override=True)
+project_folder = os.path.expanduser('/home/ahmedlp9/domino_render')  # adjust as appropriate
+load_dotenv(os.path.join(project_folder, '.env'), override=True)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
