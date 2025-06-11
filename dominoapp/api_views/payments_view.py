@@ -20,7 +20,10 @@ class PaymentView(viewsets.GenericViewSet):
                     name="Payments Recharge Request",
                     fields={
                         "coins" : IntegerField(required=True),
-                        "alias": CharField(required=True)
+                        "alias": CharField(required=True),
+                        "admin": CharField(required=False),
+                        "external_id": CharField(required=False),
+                        "paymentmethod": CharField(required=False, help_text="saldo, transferencia")
                     }
                 )
             },
@@ -62,7 +65,10 @@ class PaymentView(viewsets.GenericViewSet):
                     name="Payments Extract Request",
                     fields={
                         "coins" : IntegerField(required=True),
-                        "alias": CharField(required=True)
+                        "alias": CharField(required=True),
+                        "admin": CharField(required=False),
+                        "external_id": CharField(required=False),
+                        "paymentmethod": CharField(required=False, help_text="saldo, transferencia")
                     }
                 )
             },

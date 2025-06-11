@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
-def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_user:Player=None, status=None):
+def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_user:Player=None, status=None, descriptions=None):
     
     try:
         if not from_user and not to_user:
@@ -22,7 +22,8 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
             to_user = to_user if to_user else None,
             amount = amount,
             game=game,
-            type='gm'
+            type='gm',
+            descriptions = descriptions if descriptions else None
         )
         
         new_transaction.status_list.add(new_status)
@@ -35,7 +36,7 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
         return False
     
 
-def create_reload_transactions(amount, from_user:Player=None, to_user:Player=None, status=None):
+def create_reload_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None):
     
     try:
         if not from_user and not to_user:
@@ -53,7 +54,10 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
             from_user = from_user if from_user else None,
             to_user = to_user if to_user else None,
             amount = amount,
-            type="rl"
+            type="rl", 
+            admin = admin if admin else None,
+            external_id = external_id if external_id else None,
+            paymentmethod = paymentmethod if paymentmethod else None
         )
         
         new_transaction.status_list.add(new_status)
@@ -66,7 +70,7 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         return False
     
 
-def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None):
+def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None):
     
     try:
         if not from_user and not to_user:
@@ -84,7 +88,10 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
             from_user = from_user if from_user else None,
             to_user = to_user if to_user else None,
             amount = amount,
-            type="ex"
+            type="ex",
+            admin = admin if admin else None,
+            external_id = external_id if external_id else None,
+            paymentmethod = paymentmethod if paymentmethod else None
         )
         
         new_transaction.status_list.add(new_status)

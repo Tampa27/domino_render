@@ -618,7 +618,9 @@ def updatePlayersData(game,players,w,status):
                     player_coins = (game.payWinValue-bank_coins)
                     bank.balance+=(bank_coins)
                     players[i].earned_coins+= player_coins
-                    create_game_transactions(game=game,to_user=players[i], amount=player_coins, status="cp")
+                    create_game_transactions(
+                        game=game,to_user=players[i], amount=player_coins, status="cp", 
+                        descriptions=f"gane en el juego {game.id}")
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -627,7 +629,9 @@ def updatePlayersData(game,players,w,status):
                         player_coins = (game.payMatchValue-bank_coins)
                         bank.balance+=(bank_coins)
                         players[i].earned_coins+= player_coins
-                        create_game_transactions(game=game, to_user=players[i], amount=player_coins, status="cp")
+                        create_game_transactions(
+                            game=game, to_user=players[i], amount=player_coins, status="cp", 
+                            descriptions=f"gane en el juego {game.id}")
                 players[i].save()
             else:
                 players[i].dataLoss+=1
@@ -636,7 +640,9 @@ def updatePlayersData(game,players,w,status):
                     if players[i].earned_coins<0:
                         players[i].recharged_coins += players[i].earned_coins
                         players[i].earned_coins = 0
-                    create_game_transactions(game=game, from_user=players[i], amount=game.payWinValue, status="cp")
+                    create_game_transactions(
+                        game=game, from_user=players[i], amount=game.payWinValue, status="cp", 
+                        descriptions=f"perdi en el juego {game.id}")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
@@ -644,7 +650,9 @@ def updatePlayersData(game,players,w,status):
                         if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
                             players[i].earned_coins = 0
-                        create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")
+                        create_game_transactions(
+                            game=game, from_user=players[i], amount=game.payMatchValue, status="cp", 
+                            descriptions=f"perdi en el juego {game.id}")
                 players[i].save()
     else:
         for i in range(n):
@@ -656,7 +664,9 @@ def updatePlayersData(game,players,w,status):
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                     bank.balance+=(bank_coins)
                     players[i].earned_coins+= player_coins
-                    create_game_transactions(game=game, to_user=players[i], amount=player_coins, status="cp")
+                    create_game_transactions(
+                        game=game, to_user=players[i], amount=player_coins, status="cp", 
+                        descriptions=f"gane en el juego {game.id}")
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -665,7 +675,9 @@ def updatePlayersData(game,players,w,status):
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
                         bank.balance+=(bank_coins)
                         players[i].earned_coins+= player_coins
-                        create_game_transactions(game=game, to_user=players[i], amount=player_coins, status="cp")
+                        create_game_transactions(
+                            game=game, to_user=players[i], amount=player_coins, status="cp", 
+                            descriptions=f"gane en el juego {game.id}")
                 players[i].save()
             elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
@@ -674,7 +686,9 @@ def updatePlayersData(game,players,w,status):
                     if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
                             players[i].earned_coins = 0
-                    create_game_transactions(game=game, from_user=players[i], amount=game.payWinValue, status="cp")
+                    create_game_transactions(
+                        game=game, from_user=players[i], amount=game.payWinValue, status="cp", 
+                        descriptions=f"perdi en el juego {game.id}")
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
@@ -682,7 +696,9 @@ def updatePlayersData(game,players,w,status):
                         if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
                             players[i].earned_coins = 0
-                        create_game_transactions(game=game, from_user=players[i], amount=game.payMatchValue, status="cp")
+                        create_game_transactions(
+                            game=game, from_user=players[i], amount=game.payMatchValue, status="cp", 
+                            descriptions=f"perdi en el juego {game.id}")
                 players[i].save()                                    
     bank.save()
 
@@ -714,8 +730,12 @@ def updatePassCoins(pos,game,players):
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
-                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
-                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
+                        create_game_transactions(
+                            game=game, from_user=players[pos], amount=loss_coins, status="cp", 
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                        create_game_transactions(
+                            game=game, to_user=players[pos1], amount=coins, status="cp", 
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
                         players[pos].save()
                         players[pos1].save()
                     else:
@@ -735,8 +755,12 @@ def updatePassCoins(pos,game,players):
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
-                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
-                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
+                        create_game_transactions(
+                            game=game, from_user=players[pos], amount=loss_coins, status="cp",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                        create_game_transactions(
+                            game=game, to_user=players[pos1], amount=coins, status="cp",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
@@ -757,8 +781,12 @@ def updatePassCoins(pos,game,players):
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
-                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
-                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
+                        create_game_transactions(
+                            game=game, from_user=players[pos], amount=loss_coins, status="cp",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                        create_game_transactions(
+                            game=game, to_user=players[pos1], amount=coins, status="cp",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
                         players[pos].save()
                         players[pos1].save()
                     else:        
@@ -778,8 +806,12 @@ def updatePassCoins(pos,game,players):
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
-                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
-                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
+                        create_game_transactions(
+                            game=game, from_user=players[pos], amount=loss_coins, status="cp",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                        create_game_transactions(
+                            game=game, to_user=players[pos1], amount=coins, status="cp",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
                         players[pos].save()
                         players[pos1].save()
                 break                            
@@ -1007,9 +1039,13 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 if game.inPairs:
                     coins_value = int(coins/2)
                     players[(pos+1)%4].earned_coins+=coins_value
-                    create_game_transactions(game=game, to_user=players[(pos+1)%4], amount=coins_value, status="cp")
+                    create_game_transactions(
+                        game=game, to_user=players[(pos+1)%4], amount=coins_value, status="cp",
+                        descriptions=f"{player.alias} salio del juego {game.id}")
                     players[(pos+3)%4].earned_coins+=coins_value
-                    create_game_transactions(game=game, to_user=players[(pos+3)%4], amount=coins_value, status="cp")
+                    create_game_transactions(
+                        game=game, to_user=players[(pos+3)%4], amount=coins_value, status="cp",
+                        descriptions=f"{player.alias} salio del juego {game.id}")
                     players[(pos+1)%4].save()
                     players[(pos+3)%4].save()     
                 else:
@@ -1017,14 +1053,18 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     for p in players:
                         if p.alias != player.alias:
                             p.earned_coins+= int(coins/n)
-                            create_game_transactions(game=game, to_user=p, amount=int(coins/n), status="cp")
+                            create_game_transactions(
+                                game=game, to_user=p, amount=int(coins/n), status="cp",
+                                descriptions=f"{player.alias} salio del juego {game.id}")
                             p.save()
                 player.earned_coins-=loss_coins
                 if player.earned_coins<0:
                     player.recharged_coins += player.earned_coins
                     player.earned_coins = 0
                 
-                create_game_transactions(game=game, from_user=player, amount=loss_coins, status="cp")
+                create_game_transactions(
+                    game=game, from_user=player, amount=loss_coins, status="cp",
+                    descriptions=f"por salir del juego {game.id}")
                 bank.save()                               
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"

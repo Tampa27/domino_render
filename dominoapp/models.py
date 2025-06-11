@@ -1,14 +1,16 @@
 from django.db import models
+from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.utils import timezone
 import uuid
-from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus
+from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod
 # Create your models here.
 
 class Player(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_player')
     alias = models.CharField(max_length=50) 
-    tiles = models.CharField(max_length=50,default="")
+    tiles = models.CharField(max_length=50,blank=True, null=True)
+    phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex='^\+{1}?\d{9,15}$')])
     earned_coins = models.IntegerField(default=0)
     recharged_coins = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
@@ -88,6 +90,11 @@ class Transaction(models.Model):
     status_list = models.ManyToManyField(to=Status_Transaction, blank=True, related_name="status_transaction")
     type = models.CharField(max_length=15,choices=TransactionTypes.transaction_type,blank=True, null=True)
     game = models.ForeignKey(DominoGame, related_name="game_transaction",on_delete=models.SET_NULL, null=True, blank=True)
+    admin = models.ForeignKey(Player, related_name="admin_user", blank=True, null=True, on_delete=models.PROTECT)
+    external_id = models.CharField(max_length=50, null=True, blank=True)
+    paymentmethod = models.CharField(max_length=32,choices=TransactionPaymentMethod.payment_choices, null=True, blank=True)
+    descriptions = models.CharField(max_length=100, null=True, blank=True)
+
 
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")

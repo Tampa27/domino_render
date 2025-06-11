@@ -77,6 +77,16 @@ class TransactionStatus:
         TRANSACTION_CANCELED
     ]
 
+class TransactionPaymentMethod:
+    PAYMENT_BY_SALDO = ("saldo", "saldo movil")
+    PAYMENT_BY_TRANSFERENCIA = ("transferencia", "transferencia")
+    
+
+    payment_choices = [
+        PAYMENT_BY_SALDO,
+        PAYMENT_BY_TRANSFERENCIA
+    ]
+
 class TransactionTypes:
     TRANSACTION_RELOAD = ("rl", "reload")
     TRANSACTION_EXTRACTION = ("ex", "extraction")
