@@ -1,5 +1,6 @@
 from rest_framework import status
 from dominoapp.utils.api_http import RequestValidator
+from dominoapp.utils.constants import TransactionPaymentMethod
 
 
 class PaymentRequest:
@@ -23,7 +24,10 @@ class PaymentRequest:
 
         validators = {
             "coins": RequestValidator.validate_numeric,
-            "alias": RequestValidator.validate_string
+            "alias": RequestValidator.validate_string,
+            "admin": RequestValidator.validate_string,
+            "external_id": RequestValidator.validate_string,
+            "paymentmethod": (RequestValidator.validate_in_array, TransactionPaymentMethod.payment_choices)
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

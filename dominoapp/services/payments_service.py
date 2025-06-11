@@ -26,7 +26,16 @@ class PaymentService:
         bank.buy_coins+=request.data["coins"]
         bank.save()
 
-        create_reload_transactions(to_user=player, amount=request.data["coins"], status="cp")
+        try:
+            admin = Player.objects.filter(alias = request.data.pop("admin", None))
+        except:
+            admin = None
+        create_reload_transactions(
+            to_user=player, amount=request.data["coins"], status="cp", 
+            admin=admin,
+            external_id=request.data.get('external_id', None),
+            paymentmethod=request.data.get('paymentmethod', None)
+            )
         DiscordConnector.send_event(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
             {
@@ -59,7 +68,16 @@ class PaymentService:
         bank.buy_coins+=request.data["coins"]
         bank.save()
 
-        create_extracted_transactions(from_user=player, amount=request.data["coins"], status="cp")
+        try:
+            admin = Player.objects.filter(alias = request.data.pop("admin", None))
+        except:
+            admin = None
+        create_extracted_transactions(
+            from_user=player, amount=request.data["coins"], status="cp",
+            admin=admin,
+            external_id=request.data.get('external_id', None),
+            paymentmethod=request.data.get('paymentmethod', None)
+            )
         DiscordConnector.send_event(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
             {
