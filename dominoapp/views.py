@@ -699,43 +699,87 @@ def updatePassCoins(pos,game,players):
                 if prev == 1 or prev == 3:
                     if (pos - prev) < 0:
                         pos1 = pos + (n-prev)
-                        players[pos].earned_coins-=game.payPassValue
+                        loss_coins = game.payPassValue
+                        players[pos].earned_coins-=loss_coins
                         if players[pos].earned_coins<0:
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
-                        players[pos1].earned_coins+=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        
+                        try:
+                            bank = Bank.objects.get(id=1)
+                        except ObjectDoesNotExist:
+                            bank = Bank.objects.create()
+                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        bank.balance+=bank_coins
+                        
+                        coins = loss_coins - bank_coins
+                        players[pos1].earned_coins+=coins
+                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
+                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:
                         pos1 = pos - prev
-                        players[pos].earned_coins-=game.payPassValue
+                        loss_coins = game.payPassValue
+                        players[pos].earned_coins-=loss_coins
                         if players[pos].earned_coins<0:
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
-                        players[pos1].earned_coins+=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        
+                        try:
+                            bank = Bank.objects.get(id=1)
+                        except ObjectDoesNotExist:
+                            bank = Bank.objects.create()
+                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        bank.balance+=bank_coins
+                        
+                        coins = loss_coins - bank_coins
+                        players[pos1].earned_coins+=coins
+                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
+                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
                     if (pos - 2) < 0:
                         pos1 = pos + (n-prev)
-                        players[pos].earned_coins-=game.payPassValue
+                        loss_coins = game.payPassValue
+                        players[pos].earned_coins-=loss_coins
                         if players[pos].earned_coins<0:
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
-                        players[pos1].earned_coins+=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        
+                        try:
+                            bank = Bank.objects.get(id=1)
+                        except ObjectDoesNotExist:
+                            bank = Bank.objects.create()
+                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        bank.balance+=bank_coins
+                        
+                        coins = loss_coins - bank_coins
+                        players[pos1].earned_coins+=coins
+                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
+                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
                         players[pos].save()
                         players[pos1].save()
                     else:        
                         pos1 = pos - prev
-                        players[pos].earned_coins-=game.payPassValue
+                        loss_coins = game.payPassValue
+                        players[pos].earned_coins-=loss_coins
                         if players[pos].earned_coins<0:
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
-                        players[pos1].earned_coins+=game.payPassValue
-                        create_game_transactions(game=game, from_user=players[pos], to_user=players[pos1], amount=game.payPassValue, status="cp")
+                        
+                        try:
+                            bank = Bank.objects.get(id=1)
+                        except ObjectDoesNotExist:
+                            bank = Bank.objects.create()
+                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        bank.balance+=bank_coins
+                        
+                        coins = loss_coins - bank_coins
+                        players[pos1].earned_coins+=coins
+                        create_game_transactions(game=game, from_user=players[pos], amount=loss_coins, status="cp")
+                        create_game_transactions(game=game, to_user=players[pos1], amount=coins, status="cp")
                         players[pos].save()
                         players[pos1].save()
                 break                            
@@ -961,7 +1005,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 bank.balance+=bank_coins
                 coins -= bank_coins
                 if game.inPairs:
-                    coins_value = coins/2
+                    coins_value = int(coins/2)
                     players[(pos+1)%4].earned_coins+=coins_value
                     create_game_transactions(game=game, to_user=players[(pos+1)%4], amount=coins_value, status="cp")
                     players[(pos+3)%4].earned_coins+=coins_value
@@ -972,8 +1016,8 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     n = len(players)-1
                     for p in players:
                         if p.alias != player.alias:
-                            p.earned_coins+= (coins/n)
-                            create_game_transactions(game=game, to_user=p, amount=coins/n, status="cp")
+                            p.earned_coins+= int(coins/n)
+                            create_game_transactions(game=game, to_user=p, amount=int(coins/n), status="cp")
                             p.save()
                 player.earned_coins-=loss_coins
                 if player.earned_coins<0:
