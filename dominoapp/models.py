@@ -9,7 +9,7 @@ from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes
 class Player(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_player')
     alias = models.CharField(max_length=50) 
-    tiles = models.CharField(max_length=50,blank=True, null=True)
+    tiles = models.CharField(max_length=50,default="")
     phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex='^\+{1}?\d{9,15}$')])
     earned_coins = models.IntegerField(default=0)
     recharged_coins = models.IntegerField(default=0)
