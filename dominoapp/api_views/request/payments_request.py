@@ -39,3 +39,25 @@ class PaymentRequest:
 
         return True, message, status_response
     
+    @staticmethod
+    def validate_resume_game(request):
+        is_valid = False
+        message = None
+        status_response = None
+
+        params_validators = {
+            "alias": RequestValidator.validate_string,
+            "game_id": RequestValidator.validate_numeric,
+            "from_at": RequestValidator.validate_timestamp,
+            "to_at": RequestValidator.validate_timestamp,
+            "traceback": RequestValidator.validate_boolean
+        }
+        
+        is_valid, message = RequestValidator.validate_query_params(request, params_validators)
+
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response     
+
+        return True, message, status_response

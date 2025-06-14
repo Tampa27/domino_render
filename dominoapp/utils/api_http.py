@@ -277,13 +277,23 @@ class RequestValidator:
 
     @staticmethod
     def validate_timestamp(value):
-        if not isinstance(value, int):
+        if not isinstance(value, str):
             return False
-        try:
-            datetime.datetime.utcfromtimestamp(value)
-            return True
-        except ValueError:
-            return False
+        # Lista de formatos admitidos (en orden de prioridad)
+        formats = [
+            "%d-%m-%Y %H:%M:%S",  # 12-06-2025 11:47:10
+            "%d-%m-%Y %H:%M",       # 12-06-2025 11:47
+            "%d-%m-%Y %H",          # 12-06-2025 11
+            "%d-%m-%Y",             # 12-06-2025
+        ]
+        for fmt in formats:
+            try:
+                # Convertir el string a datetime usando el formato esperado
+                datetime.datetime.strptime(value, fmt)
+                return True
+            except ValueError as e:
+                continue
+        return False
 
     # @staticmethod
     # def validate_country(value):
