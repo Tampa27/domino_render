@@ -10,3 +10,6 @@ python manage.py collectstatic --no-input
 
 # Apply any outstanding database migrations
 python manage.py migrate
+
+# Iniciar Gunicorn
+gunicorn domino.wsgi:application --bind 0.0.0.0:$PORT
