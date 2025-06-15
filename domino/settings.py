@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 import sys
+import dj_database_url
 from dotenv import load_dotenv
 from datetime import timedelta
 # Cargar variables del archivo .env
@@ -36,6 +37,23 @@ PRODUCTION = os.getenv("PRODUCTION", "False") == "True"
 DEBUG = not PRODUCTION  #'RENDER' not in os.environ
 DEVELOPMENT = not PRODUCTION
 
+# Database
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+
+DATABASES = {
+    'default': {       
+        'ENGINE': os.getenv("DB_ENGINE"),       # El tipo de DB que se va usar  
+        'NAME': os.getenv("DB_NAME"),           # Nombre de tu DB  
+        'USER': os.getenv("DB_USER"),           # Tu usuario para la DB  
+        'PASSWORD': os.getenv("DB_PASSWORD"),   # Tu contraseña para la DB  
+        'HOST': os.getenv("DB_HOST"),           # La dirección de tu DB  
+        'PORT': os.getenv("DB_PORT"),           # El puerto de tu DB   
+        'TEST': {
+          'NAME': 'ahmedlp9$test_default',      # Nombre de la DB para las Pruebas Unitarias
+        }
+    },
+}
+
 if PRODUCTION:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = 'smtp.gmail.com'
@@ -45,6 +63,9 @@ if PRODUCTION:
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  # Tu contraseña o contraseña de aplicación
     DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')  # ¡Importante! Evita solo el email.
     SERVER_EMAIL = os.getenv('SERVER_EMAIL')  # Para errores
+
+    PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(ssl_require=True)
+    DATABASES["default"] = PRODUCTION_DATABASE_SETTINGS
 
 else:
     # This will display email in Console.
@@ -105,24 +126,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'domino.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {       
-        'ENGINE': os.getenv("DB_ENGINE"),       # El tipo de DB que se va usar  
-        'NAME': os.getenv("DB_NAME"),           # Nombre de tu DB  
-        'USER': os.getenv("DB_USER"),           # Tu usuario para la DB  
-        'PASSWORD': os.getenv("DB_PASSWORD"),   # Tu contraseña para la DB  
-        'HOST': os.getenv("DB_HOST"),           # La dirección de tu DB  
-        'PORT': os.getenv("DB_PORT"),           # El puerto de tu DB   
-        'TEST': {
-          'NAME': 'ahmedlp9$test_default',      # Nombre de la DB para las Pruebas Unitarias
-        }
-    },
-}
 
 
 # Password validation
