@@ -67,6 +67,8 @@ if PRODUCTION:
     PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(ssl_require=True)
     DATABASES["default"] = PRODUCTION_DATABASE_SETTINGS
 
+    CSRF_TRUSTED_ORIGINS = ['https://domino-club-fdc25b05dc8f.herokuapp.com']
+
 else:
     # This will display email in Console.
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
