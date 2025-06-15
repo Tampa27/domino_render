@@ -224,4 +224,11 @@ LOGGING = {
 }
 
 SITE_ID = 1
-# APPEND_SLASH=True
+
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_BEAT_SCHEDULE = {
+    'mostrar-hora-cada-5-segundos': {
+        'task': 'dominoapp.tasks.mostrar_hora',
+        'schedule': 5.0,
+    },
+}
