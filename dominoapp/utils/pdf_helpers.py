@@ -1,5 +1,6 @@
 from fpdf import FPDF
 from django.utils.timezone import now
+from datetime import datetime, timedelta
 
 class PDF(FPDF):
     def footer(self):
@@ -132,6 +133,136 @@ def create_resume_pdf(transaction_data: dict):
     pdf.cell(40, 8,"Balance Total:" , border=border, align='L', fill=0)
     pdf.cell(40, 8, f"{transaction_data['balance_amount']} CUP", border=border, align='C', fill=0)
 
+    tfont(pdf,'B')
+    current_y = pdf.get_y() + 10
+    pdf.set_xy(x_start + 60 ,current_y)
+    pdf.cell(50, 8,"Recaudado en Juegos:" , border=border, align='L', fill=0)
+    pdf.cell(40, 8, f"{transaction_data['game_amount']} CUP", border=border, align='C', fill=0)
+
 
     return pdf.output(dest='S').encode('latin-1')
+
+def create_resume_game_pdf(transaction_data: dict):
+    #Se definen las caracteristicas del PDF
+    pdf = PDF(orientation = 'P', format = 'Letter', unit= 'mm') 
+     # Define an alias for total number of pages
+    pdf.alias_nb_pages()
+
+    # Crea una pagina en blanco para trabajar
+    pdf.add_page()
+    
+    ### Estilo de la Tabla con doble linea
+    tfont(pdf,'B')
+    width_table = 194
+    height_table = 250
+
+    ### Primera tabla
+    x_start = 10; y_start = 7.5
+
+    pdf.rect(x_start, y_start, width_table, height_table, style='D')
+    
+    border = 0
+    
+    pdf.set_xy(x_start + 25,y_start + 1)
+    pdf.multi_cell(130, 8, f"Resumen de transacciones del jugador {transaction_data['player_name']} \n alias: {transaction_data['player_alias']}" , border=1, align='C', fill=0)
+    
+    tfont(pdf, '')
+
+    ### DEL dia X AL dia Y
+    current_x_1 = x_start + 30; current_y = pdf.get_y() + 10
+    pdf.set_xy(current_x_1,current_y)
+    pdf.cell(60, 8,f"Del: {transaction_data['from_day']}" , border=border, align='R', fill=0)
+
+    current_x_2 = pdf.get_x() + 5
+    pdf.set_xy(current_x_2,current_y)
+    pdf.cell(60, 8,f"Al: {transaction_data['to_day']}" , border=border, align='L', fill=0)
+    
+    ## Total de Ingresos Registrados
+    current_x_1 = x_start + 10; current_y = pdf.get_y() + 16
+    pdf.set_xy(current_x_1,current_y)
+    pdf.cell(75, 8,f"Total de monedas: {transaction_data['player_coins']} CUP" , border=border, align='L', fill=0)
+
+    ## Total de Ingresos Registrados
+    current_x_1 = x_start + 10; current_y = pdf.get_y() + 16
+    pdf.set_xy(current_x_1,current_y)
+    pdf.cell(65, 8,"Ingresos por juegos ganados:" , border=border, align='L', fill=0)
+    pdf.cell(40, 8, f'{transaction_data["total_amount_win"]} CUP', border=border, align='C', fill=0)
+    
+    ## Total de extraciones Registradas
+    current_y = pdf.get_y() + 10
+    pdf.set_xy(current_x_1,current_y)
+    pdf.cell(65, 8,"Descuento por juegos perdidos:" , border=border, align='L', fill=0)
+    pdf.cell(40, 8, f'{transaction_data["total_amount_loss"]} CUP', border=border, align='C', fill=0)
+
+    tfont(pdf,'B')
+    current_y = pdf.get_y() + 10
+    pdf.set_xy(current_x_1 ,current_y)
+    pdf.cell(65, 8,"Balance Total:" , border=border, align='C', fill=0)
+    pdf.cell(40, 8, f"{transaction_data['total_balance']} CUP", border=border, align='C', fill=0)
+
+    current_y = pdf.get_y() + 15
+    width_border = 2
+    width_table_game = 180
+    height_table_game = 40
+
+    count = 0
+    count_all = 0
+    for trans in transaction_data['list_games']:
+        pdf.set_line_width(0.5)
+        pdf.rect(current_x_1, current_y, width_table_game,height_table_game, style='D')
+        pdf.rect(current_x_1 + width_border,current_y + width_border, width_table_game - 2*width_border, height_table_game - 2*width_border)
+
+        tfont(pdf,'B')
+        pdf.set_xy(current_x_1 + width_border + 20,current_y + width_border + 1)
+        pdf.cell(60, 8,f"Mesa: {trans['game_id']}" , border=border, align='L', fill=0)
         
+        tfont(pdf, '')
+        pdf.set_xy(current_x_1 + width_border + 83,current_y + width_border + 1)
+        pdf.cell(60, 8,f"Datas Jugadas: {trans['totals_games']}" , border=border, align='L', fill=0)
+
+        current_y = pdf.get_y()
+        pdf.set_xy(current_x_1 + width_border + 20,current_y + 15)
+        pdf.cell(60, 8,f"Ganancias en juego: {trans['amount_win']}" , border=border, align='L', fill=0)
+
+        current_y_1 = pdf.get_y()
+        pdf.set_xy(current_x_1 + width_border + 20,current_y_1 + 10)
+        pdf.cell(60, 8,f"Pérdidas en juego: {trans['amount_loss']}" , border=border, align='L', fill=0)
+
+        current_x_2 = pdf.get_x()
+        pdf.set_xy(current_x_2 + 10,current_y + 20)
+        pdf.cell(60, 8,f"Balance en juego: {trans['balance']}" , border=border, align='L', fill=0)
+
+        current_y = current_y_1 + 30
+        count += 1
+        count_all +=1
+        if ((count_all == 3) or (count == 5 and count_all > 3)) and count_all < len(transaction_data['list_games']):
+            pdf.add_page()
+            pdf.rect(x_start, y_start, width_table, height_table, style='D')
+            current_y = y_start + 2
+            count = 0
+
+    if transaction_data['traceback'] is not None:
+        pdf.add_page()
+        pdf.rect(x_start, y_start, width_table, height_table, style='D')
+        current_y = y_start + 2
+        color = 'gray2'
+        
+        for trans_element in transaction_data['traceback']:
+            if color == 'gray2':            
+                color = 'white'
+            else:
+                color = 'gray2'
+            set_fillcol(pdf,color)
+
+            pdf.set_xy(x_start+0.5 ,current_y)
+            pdf.multi_cell(width_table-1, 10,f"Jugó en la 'Mesa: {trans_element.game.id if trans_element.game else None}' a las {datetime.strftime((trans_element.time - timedelta(hours=4) ), '%d-%m-%Y %H:%M:%S')} y {'perdio' if trans_element.from_user is not None else 'gano'} una cantidad de {trans_element.amount} monedas{('. Detalles: ' + str(trans_element.descriptions)) if trans_element.descriptions is not None else '.'}" , border=border, align='L', fill=1)
+
+            current_y = pdf.get_y() + 2
+
+            if current_y > 230:
+                pdf.add_page()
+                pdf.rect(x_start, y_start, width_table, height_table, style='D')
+                current_y = y_start + 2
+
+    return pdf.output(dest='S').encode('latin-1')
+    

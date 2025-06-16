@@ -48,7 +48,7 @@ DATABASES = {
         'HOST': os.getenv("DB_HOST"),           # La dirección de tu DB  
         'PORT': os.getenv("DB_PORT"),           # El puerto de tu DB   
         'TEST': {
-          'NAME': 'ahmedlp9$test_default',      # Nombre de la DB para las Pruebas Unitarias
+          'NAME': 'ahmedlp9$test_default',      # esto es del servidor anterior, esta en desuso
         }
     },
 }
