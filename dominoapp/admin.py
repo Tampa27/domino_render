@@ -15,7 +15,7 @@ class DominoAdmin(admin.ModelAdmin):
         "player2",
         "player3",
         "player4",
-        "created_time"
+        "start_time"
     ]
 
 class PlayerAdmin(admin.ModelAdmin):
