@@ -2,9 +2,6 @@ import sys
 import os
 import django
 
-# Configurar entorno Django
-PROJECT_ROOT = '/home/ahmedlp9/domino_render'
-sys.path.append(PROJECT_ROOT)  # Ruta absoluta a tu proyecto
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
 
