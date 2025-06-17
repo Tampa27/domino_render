@@ -228,6 +228,6 @@ CELERY_BROKER_URL = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0')
 CELERY_BEAT_SCHEDULE = {
     'ejecutar_movimiento_automatico': {
         'task': 'dominoapp.tasks.automatic_move',
-        'schedule': 6.0,
+        'schedule': 7.0,
     },
 }
