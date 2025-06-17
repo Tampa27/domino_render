@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
-from .models import Player
+from .models import Player, BlockPlayer
 from .serializers import PlayerSerializer
 from .serializers import MyPlayerSerializer
 from .models import DominoGame
@@ -127,6 +127,10 @@ def getPlayer(request,id):
 
 @api_view(['GET',])
 def login(request,alias,email,photo_url,name):
+    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
+    if is_block:
+        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+
     exist = Player.objects.filter(alias=alias).exists()
     if not exist:
         user, created = User.objects.get_or_create(
@@ -166,6 +170,10 @@ def login(request,alias,email,photo_url,name):
 def getAllGames(request,alias):
     needUpdate = False
     #return Response ({'status': 'error'},status=400)
+    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
+    if is_block:
+        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+
     try:
         player = Player.objects.get(alias=alias)
     except ObjectDoesNotExist:
@@ -906,6 +914,10 @@ def setPatner(request,game_id,alias):
 
 @api_view(['GET',])
 def rechargeBalance(request,alias,coins):
+    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
+    if is_block:
+        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+
     try:
         player = Player.objects.get(alias=alias)
     except:
@@ -932,6 +944,10 @@ def rechargeBalance(request,alias,coins):
 
 @api_view(['GET',])
 def payment(request,alias,coins):
+    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
+    if is_block:
+        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+
     try:
         player = Player.objects.get(alias=alias)
     except:
