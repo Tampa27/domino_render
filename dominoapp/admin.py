@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Player, Bank, DominoGame, Transaction, Marketing
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -31,6 +31,27 @@ class PlayerAdmin(admin.ModelAdmin):
         "lastTimeInSystem"
     ]
     search_fields = ["alias", "email", "name"]
+
+
+class PlayerBlockAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "player_blocked",
+        "player_blocker",
+        "created_at"
+    ]
+    list_filter = []
+    
+    search_fields = [
+        "player_blocked__name",
+        "player_blocked__email",
+        "player_blocked__alias",
+        "player_blocker__name",
+        "player_blocker__email",
+        "player_blocker__alias"
+        ]
+
+
 
 class StatusTransactionInline(admin.TabularInline):
     model = Transaction.status_list.through
@@ -98,3 +119,4 @@ admin.site.register(DominoGame, DominoAdmin)
 admin.site.register(Bank)
 admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(Marketing, MarketingAdmin)
+admin.site.register(BlockPlayer, PlayerBlockAdmin)
