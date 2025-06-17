@@ -1,5 +1,3 @@
-import time
-import sys
 import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
@@ -16,7 +14,12 @@ logger_api = logging.getLogger(__name__)
 def automatic_move_in_game():
     logger_api.info(f"Automatic Move Tile")
     
-    games = DominoGame.objects.filter(player1__isnull=False)
+    games = DominoGame.objects.filter(player1__isnull=False).select_related(
+        'player1',  # Precarga player1
+        'player2',  # Precarga player2
+        'player3',  # Precarga player3
+        'player4'   # Precarga player4
+    ).iterator()
        
     for game in games:
         players = views.playersCount(game)
