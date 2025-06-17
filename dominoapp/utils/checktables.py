@@ -9,27 +9,15 @@ from dominoapp import views
 from dominoapp.models import DominoGame
 from django.utils import timezone
 from dominoapp.utils.constants import ApiConstants
-# Importar tus módulos después de configurar Django
-#from tu_app import tasks  # Ejemplo de importación
-
-
 import logging
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
-# def main():
 def automatic_move_in_game():
-    # while True:
-    # time_sleep = 6
-    games = DominoGame.objects.all()
-    # all_game = games.count()
-    
-    # wt_game = games.filter(status = "wt").count()
-    # if wt_game == all_game:
-    #     time_sleep = 15
-
     logger_api.info(f"Automatic Move Tile")
     
+    games = DominoGame.objects.filter(player1__isnull=False)
+       
     for game in games:
         players = views.playersCount(game)
         players_running = list(filter(lambda p: p.isPlaying, players))
@@ -45,7 +33,7 @@ def automatic_move_in_game():
                 try:
                     automaticMove(game,players_running)
                 except Exception as e:
-                    logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)}, error: {str(e)}')    
+                    logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)},\n Data:(player_index: {game.next_player}, playes_in: {len(players_running)} ),\n error: {str(e)}')    
         elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi':
             try:
                 restargame = True
@@ -75,7 +63,6 @@ def automatic_move_in_game():
                 game.board = ""
                 game.save()
 
-    # time.sleep(time_sleep)
         
 def automaticCoupleStarter(game):
     next = game.next_player
@@ -107,7 +94,7 @@ def automaticMove(game,players):
                 views.updateLastPlayerTime(game,player_w.alias)  
                 #views.move1(game.id,player_w.alias,tile)
             except Exception as e:
-                logger.critical(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
+                logger.critical(f"Error critico en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
             #views.updateLastPlayerTime(game,player_w.alias)
     else:
         tile = views.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
@@ -156,5 +143,3 @@ def automaticStart(game,players):
     if time_diff.seconds > ApiConstants.AUTO_START_WAIT:
         views.startGame1(game,players)
 
-# if __name__ == "__main__":
-#     main()      
