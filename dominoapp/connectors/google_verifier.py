@@ -87,7 +87,7 @@ class GoogleDrive:
         """Elimina archivos antiguos con el mismo file_name pero que tengan diferente file_id"""
         service = GoogleDrive.get_drive_service()
 
-        query = f"name= '{file_name}' and trashed=false and {GoogleDrive.GOOGLE_DRIVE_FOLDER_ID} in parents"
+        query = f"name= '{file_name}' and trashed=false and '{GoogleDrive.GOOGLE_DRIVE_FOLDER_ID}' in parents"
         
         try:
             results = service.files().list(
