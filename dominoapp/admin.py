@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -112,6 +112,30 @@ class MarketingAdmin(admin.ModelAdmin):
         "user__email"
         ]
 
+class MoveRegisterAdmin(admin.ModelAdmin):
+    list_display = [
+        "game_number",
+        "player_alias",
+        "tile_move",
+        "board_left",
+        "board_right",
+        "play_automatic",
+        "time"
+    ]
+    list_filter = [
+        "time",
+        "player_alias",
+        "game_number"
+    ]
+    list_editable = []
+    search_fields = [
+        "player_move__name",
+        "player_move__alias",
+        "player_alias",
+        "game_number",
+        "game__id"
+        ]
+
 
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
@@ -120,3 +144,4 @@ admin.site.register(Bank)
 admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(Marketing, MarketingAdmin)
 admin.site.register(BlockPlayer, PlayerBlockAdmin)
+admin.site.register(MoveRegister, MoveRegisterAdmin)

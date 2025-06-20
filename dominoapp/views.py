@@ -4,7 +4,7 @@ from rest_framework import status
 from .models import Player, BlockPlayer
 from .serializers import PlayerSerializer
 from .serializers import MyPlayerSerializer
-from .models import DominoGame
+from .models import DominoGame, MoveRegister
 from .models import Bank
 from .models import User
 from .serializers import GameSerializer
@@ -25,6 +25,7 @@ import logging
 from dominoapp.utils.transactions import create_game_transactions, create_reload_transactions, create_extracted_transactions
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
+from dominoapp.utils.move_register_utils import movement_register
 
 logger = logging.getLogger(__name__)
 
@@ -484,7 +485,7 @@ def getBank(request):
     serializerBank = BankSerializer(bank,many=True)
     return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
-def movement(game_id,player,players,tile):
+def movement(game_id,player,players,tile, automatic=False):
     with transaction.atomic():
         try:
             game = DominoGame.objects.select_for_update().get(id=game_id)
@@ -514,6 +515,8 @@ def movement(game_id,player,players,tile):
             isCapicua = False
             if game.perPoints:
                 isCapicua = checkCapicua(game,tile)
+            
+            move_register = movement_register(game, player, tile, players, automatic) 
             updateSides(game,tile)
             tiles_count,tiles = updateTiles(player,tile)
             player.tiles = tiles
@@ -531,12 +534,13 @@ def movement(game_id,player,players,tile):
                 game.winner = w
                 if game.perPoints:
                     game.rounds+=1
-                    updateAllPoints(game,players,w,isCapicua)
+                    updateAllPoints(game,players,w,move_register,isCapicua)
                 else:
-                    updatePlayersData(game,players,w,"fg")                                        
+                    updatePlayersData(game,players,w,"fg",move_register)                                        
             else:
                 game.next_player = (w+1) % n 
         elif checkClosedGame1(game,n):
+            move_register = movement_register(game, player, tile, players, automatic)
             winner = getWinner(players,game.inPairs,game.variant)
             game.status = 'fg'
             game.start_time = timezone.now()
@@ -551,7 +555,7 @@ def movement(game_id,player,players,tile):
                     game.starter = (game.starter+1)%n
                     game.next_player = game.starter        
             if game.perPoints and winner < 4:
-                updateAllPoints(game,players,winner)
+                updateAllPoints(game,players,winner,move_register)
             elif game.perPoints and winner == 4:
                 game.status = "fi"
                 if game.startWinner and (game.lostStartInTie != True or game.inPairs == False):
@@ -560,11 +564,13 @@ def movement(game_id,player,players,tile):
                     game.starter = (game.starter+1)%n
                     game.next_player = game.starter
             else:
-                updatePlayersData(game,players,winner,"fg")                
+                updatePlayersData(game,players,winner,"fg",move_register)                
         else:
+            move_register = movement_register(game, player, tile, players, automatic) 
             if game.payPassValue > 0:
-                updatePassCoins(w,game,players)
+                updatePassCoins(w,game,players, move_register)
             game.next_player = (w+1) % n
+        
         game.board += (tile+',')
         game.save()
         game.refresh_from_db()
@@ -605,7 +611,7 @@ def rTile(tile)->str:
     values = tile.split('|')
     return (values[1]+"|"+values[0])
 
-def updatePlayersData(game,players,w,status):
+def updatePlayersData(game,players,w,status,move_register: MoveRegister):
     try:
         bank = Bank.objects.get(id=1)
     except ObjectDoesNotExist:
@@ -628,7 +634,8 @@ def updatePlayersData(game,players,w,status):
                     players[i].earned_coins+= player_coins
                     create_game_transactions(
                         game=game,to_user=players[i], amount=player_coins, status="cp", 
-                        descriptions=f"gane en el juego {game.id}")
+                        descriptions=f"gane en el juego {game.id}",
+                        move_register=move_register)
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -639,7 +646,8 @@ def updatePlayersData(game,players,w,status):
                         players[i].earned_coins+= player_coins
                         create_game_transactions(
                             game=game, to_user=players[i], amount=player_coins, status="cp", 
-                            descriptions=f"gane en el juego {game.id}")
+                            descriptions=f"gane en el juego {game.id}",
+                            move_register=move_register)
                 players[i].save()
             else:
                 players[i].dataLoss+=1
@@ -650,7 +658,8 @@ def updatePlayersData(game,players,w,status):
                         players[i].earned_coins = 0
                     create_game_transactions(
                         game=game, from_user=players[i], amount=game.payWinValue, status="cp", 
-                        descriptions=f"perdi en el juego {game.id}")
+                        descriptions=f"perdi en el juego {game.id}",
+                        move_register=move_register)
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
@@ -660,7 +669,8 @@ def updatePlayersData(game,players,w,status):
                             players[i].earned_coins = 0
                         create_game_transactions(
                             game=game, from_user=players[i], amount=game.payMatchValue, status="cp", 
-                            descriptions=f"perdi en el juego {game.id}")
+                            descriptions=f"perdi en el juego {game.id}",
+                            move_register=move_register)
                 players[i].save()
     else:
         for i in range(n):
@@ -674,7 +684,8 @@ def updatePlayersData(game,players,w,status):
                     players[i].earned_coins+= player_coins
                     create_game_transactions(
                         game=game, to_user=players[i], amount=player_coins, status="cp", 
-                        descriptions=f"gane en el juego {game.id}")
+                        descriptions=f"gane en el juego {game.id}",
+                        move_register=move_register)
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
@@ -685,7 +696,8 @@ def updatePlayersData(game,players,w,status):
                         players[i].earned_coins+= player_coins
                         create_game_transactions(
                             game=game, to_user=players[i], amount=player_coins, status="cp", 
-                            descriptions=f"gane en el juego {game.id}")
+                            descriptions=f"gane en el juego {game.id}",
+                            move_register=move_register)
                 players[i].save()
             elif players[i].isPlaying == True:
                 players[i].dataLoss+=1
@@ -696,7 +708,8 @@ def updatePlayersData(game,players,w,status):
                             players[i].earned_coins = 0
                     create_game_transactions(
                         game=game, from_user=players[i], amount=game.payWinValue, status="cp", 
-                        descriptions=f"perdi en el juego {game.id}")
+                        descriptions=f"perdi en el juego {game.id}",
+                        move_register=move_register)
                 if status == "fg" and game.perPoints:
                     players[i].matchLoss+=1
                     if game.payMatchValue > 0 and w != 4:
@@ -706,11 +719,12 @@ def updatePlayersData(game,players,w,status):
                             players[i].earned_coins = 0
                         create_game_transactions(
                             game=game, from_user=players[i], amount=game.payMatchValue, status="cp", 
-                            descriptions=f"perdi en el juego {game.id}")
+                            descriptions=f"perdi en el juego {game.id}",
+                            move_register=move_register)
                 players[i].save()                                    
     bank.save()
 
-def updatePassCoins(pos,game,players):
+def updatePassCoins(pos,game,players,move_register:MoveRegister):
     tiles = game.board.split(',')
     rtiles = reversed(tiles)
     prev = 1
@@ -740,10 +754,12 @@ def updatePassCoins(pos,game,players):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp", 
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp", 
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
                     else:
@@ -765,10 +781,12 @@ def updatePassCoins(pos,game,players):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
@@ -791,10 +809,12 @@ def updatePassCoins(pos,game,players):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
                     else:        
@@ -816,10 +836,12 @@ def updatePassCoins(pos,game,players):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}")
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
                 break                            
@@ -1127,7 +1149,7 @@ def reorderPlayers(game,player):
                 game.player4 = players[i]
             k+=1
 
-def updateTeamScore(game, winner, players, sum_points):
+def updateTeamScore(game, winner, players, sum_points, move_register:MoveRegister):
     n = len(players)
     if winner == 0 or winner == 2:
         game.scoreTeam1 += sum_points
@@ -1143,19 +1165,19 @@ def updateTeamScore(game, winner, players, sum_points):
         players[3].save()
     if game.scoreTeam1 >= game.maxScore:
         game.status="fg"
-        updatePlayersData(game,players,winner,"fg")
+        updatePlayersData(game,players,winner,"fg",move_register)
         game.start_time = timezone.now()
         game.winner = 5 #Gano el equipo 1
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
-        updatePlayersData(game,players,winner,"fg")
+        updatePlayersData(game,players,winner,"fg", move_register)
         game.start_time = timezone.now()
         game.winner = 6 #Gano el equipo 2
     else:
-        updatePlayersData(game,players,winner,"fi")
+        updatePlayersData(game,players,winner,"fi",move_register)
         game.status="fi"    
     
-def updateAllPoints(game,players,winner,isCapicua=False):
+def updateAllPoints(game,players,winner,move_register:MoveRegister,isCapicua=False):
     sum_points = 0
     n = len(players)
     if game.sumAllPoints:
@@ -1164,16 +1186,16 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             if isCapicua and game.capicua:
                 sum_points*=2     
         if game.inPairs:
-            updateTeamScore(game,winner,players,sum_points)                
+            updateTeamScore(game,winner,players,sum_points,move_register)                
         else:
             players[winner].points+=sum_points
             players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
-                updatePlayersData(game,players,winner,"fg")
+                updatePlayersData(game,players,winner,"fg",move_register)
             else:
                 game.status = "fi"
-                updatePlayersData(game,players,winner,"fi")                              
+                updatePlayersData(game,players,winner,"fi",move_register)                              
     else:#En caso en que se sumen los puntos solo de los perdedores
         for i in range(n):
             if i != winner:
@@ -1183,7 +1205,7 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             sum_points-=totalPoints(players[patner].tiles)
             if isCapicua and game.capicua:
                 sum_points*=2
-            updateTeamScore(game,winner,players,sum_points)
+            updateTeamScore(game,winner,players,sum_points,move_register)
         else:
             if isCapicua and game.capicua:
                 sum_points*=2
@@ -1191,10 +1213,10 @@ def updateAllPoints(game,players,winner,isCapicua=False):
             players[winner].save()
             if players[winner].points >= game.maxScore:
                 game.status = "fg"
-                updatePlayersData(game,players,winner,"fg")
+                updatePlayersData(game,players,winner,"fg", move_register)
             else:
                 game.status = "fi"
-                updatePlayersData(game,players,winner,"fi")    
+                updatePlayersData(game,players,winner,"fi", move_register)    
 
 def getPlayerIndex(players,player):
     for i in range(len(players)):
