@@ -1,9 +1,9 @@
-from dominoapp.models import Player, Status_Transaction, Transaction, DominoGame
+from dominoapp.models import Player, Status_Transaction, Transaction, DominoGame, MoveRegister
 import logging
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
-def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_user:Player=None, status=None, descriptions=None):
+def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_user:Player=None, status=None, descriptions=None, move_register:MoveRegister=None):
     
     try:
         if not from_user and not to_user:
@@ -27,7 +27,9 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
         )
         
         new_transaction.status_list.add(new_status)
-    
+        if move_register:
+            move_register.transactions_list.add(new_transaction)
+
         logger_api.info(f"Transaction of {amount} pesos satisfactory of {from_user} for {to_user}")
         return True
     except Exception as e:

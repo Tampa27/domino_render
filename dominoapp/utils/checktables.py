@@ -91,7 +91,7 @@ def automaticMove(game,players):
         if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
-                error = views.movement(game.id,player_w,players,tile)
+                error = views.movement(game.id,player_w,players,tile,automatic=True)
                 if error is not None:
                     logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
                 views.updateLastPlayerTime(game,player_w.alias)  
@@ -105,7 +105,7 @@ def automaticMove(game,players):
             if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
                 try:
                     # with transaction.atomic():
-                    error = views.movement(game.id,player_w,players,tile)
+                    error = views.movement(game.id,player_w,players,tile,automatic=True)
                     if error is not None:
                         logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
                     views.updateLastPlayerTime(game,player_w.alias)  
@@ -117,7 +117,7 @@ def automaticMove(game,players):
         elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
-                error = views.movement(game.id,player_w,players,tile)
+                error = views.movement(game.id,player_w,players,tile,automatic=True)
                 if error is not None:
                     logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
                 views.updateLastPlayerTime(game,player_w.alias)  

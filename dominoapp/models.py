@@ -77,11 +77,11 @@ class Bank(models.Model):
     matches_coins = models.PositiveIntegerField(default=0)
     private_tables_coins = models.PositiveIntegerField(default=0)
 
-class Status_Transaction(models.Model):    
+class Status_Transaction(models.Model):
     status = models.CharField(max_length=32,choices=TransactionStatus.transaction_choices,default="p")
     created_at = models.DateTimeField(auto_now_add=True)
 
-class Transaction(models.Model):    
+class Transaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     from_user = models.ForeignKey(Player,related_name="payer",on_delete=models.PROTECT,null=True,blank=True)
     to_user = models.ForeignKey(Player,related_name="collector",on_delete=models.PROTECT,null=True,blank=True)
@@ -131,3 +131,17 @@ class BlockPlayer(models.Model):
             )
         ]
 
+class MoveRegister(models.Model):
+    game = models.ForeignKey(DominoGame,related_name="game_played",on_delete=models.SET_NULL, null=True, blank=True)
+    game_number = models.BigIntegerField()
+    board_in_game = models.CharField(max_length=500,blank=True, null=True)
+    board_left = models.SmallIntegerField(null=True, blank=True)
+    board_right = models.SmallIntegerField(null=True, blank=True)
+    player_move = models.ForeignKey(Player,related_name="player_move",on_delete=models.SET_NULL, null=True, blank=True)
+    player_alias = models.CharField(max_length=50)
+    player_tiles = models.CharField(max_length=50)
+    tile_move = models.CharField(max_length=10)
+    players_in_game = models.ManyToManyField(Player, related_name='active_player')
+    time = models.DateTimeField(auto_now_add=True)
+    play_automatic = models.BooleanField(default=False)
+    transactions_list = models.ManyToManyField(to=Transaction, blank=True, related_name="transaction_for_movement")

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Player
 from .models import DominoGame
-from .models import Bank, Marketing
+from .models import Bank, Marketing, MoveRegister
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -107,3 +107,33 @@ class MarketingSerializer(serializers.ModelSerializer):
         model = Marketing
         fields = ["user", "image", "text", "url", "created_at", "updated_at"]
         depth = 1
+
+class CreateMoveRegister(serializers.ModelSerializer):
+
+    class Meta:
+        model = MoveRegister
+        fields = ["game", "player_move", "tile_move", "players_in_game", "play_automatic"]
+
+    def create(self, validated_data):
+        return self.__perform_creadit__(validated_data)
+
+    def __perform_creadit__(self, validated_data, instance=None):
+
+        game = validated_data.get("game", None)
+        if not game:
+            raise("game is requirement")
+        player_move = validated_data.get("player_move", None)
+        if not player_move:
+            raise("player_move is requirement")
+
+        validated_data["game_number"] = game.id
+        validated_data["board_in_game"] = game.board if game.board != "" else None
+        validated_data["board_left"] = game.leftValue if game.leftValue != -1 else None
+        validated_data["board_right"] = game.rightValue if game.rightValue != -1 else None
+
+        validated_data["player_alias"] = player_move.alias
+        validated_data["player_tiles"] = player_move.tiles
+
+        return super().create(validated_data)
+
+        
