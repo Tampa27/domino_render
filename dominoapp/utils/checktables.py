@@ -48,7 +48,7 @@ def automatic_move_in_game():
                             if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME) and player.isPlaying:
                                 views.exitPlayer(game,player,players,len(players))
                         players = views.playersCount(game)
-                        if len(players)<1:
+                        if len(players)<2:
                             restargame = False
                     if restargame:
                         automaticStart(game,players)
