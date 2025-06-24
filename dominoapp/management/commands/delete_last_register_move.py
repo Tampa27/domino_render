@@ -12,6 +12,6 @@ class Command(BaseCommand):
             time__lt=expired_time
             )
 
-        for register_move in register_models:
+        for register_move in register_models.iterator():
             register_move.delete()
         return
