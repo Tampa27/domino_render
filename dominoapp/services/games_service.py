@@ -191,7 +191,7 @@ class GameService:
         game = DominoGame.objects.get(id=game_id)
         if game.status != "wt":
             players = views.playersCount(game)
-            views.startGame1(game,players)    
+            views.startGame1(game.id,players)    
             serializerGame = GameSerializer(game)
             playerSerializer = PlayerSerializer(players,many=True)
             return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)

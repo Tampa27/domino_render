@@ -151,5 +151,5 @@ def automaticStart(game,players):
     lastMoveTime = lastMove(game)
     time_diff = timezone.now() - lastMoveTime
     if time_diff.seconds > ApiConstants.AUTO_START_WAIT:
-        views.startGame1(game,players)
+        views.startGame1(game.id,players)
 
