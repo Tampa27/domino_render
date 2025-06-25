@@ -10,6 +10,8 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import timedelta, now
 from dominoapp.models import Player
 from dominoapp.connectors.email_connector import EmailConnector
+import logging
+logger = logging.getLogger('django')
 
 
 class Command(BaseCommand):
@@ -21,7 +23,7 @@ class Command(BaseCommand):
         players_models = Player.objects.filter(
             lastTimeInSystem__lt=expired_time,
             inactive_player = False
-            )
+            ).only('email', 'inactive_player')
 
         for player in players_models[:100].iterator():
             if EmailConnector.email_inactive_players(player):
@@ -34,5 +36,26 @@ class Command(BaseCommand):
                         'email': player.email
                     }
                 )
+        
+        expired_time = now() - timedelta(days= 37)
+        players_models_delete = Player.objects.filter(
+            lastTimeInSystem__lt=expired_time,
+            inactive_player = True
+            ).only('email', 'inactive_player', 'lastTimeInSystem')
+
+        for player in players_models_delete.iterator():
+            try:
+                email_player = player.email
+                player.delete()
+
+                DiscordConnector.send_event(
+                    "Eliminar Player Inactivo",
+                    params={
+                        'email': email_player
+                    }
+                )
+            except Exception as error:
+                logger.critical(f"El player {player.email} no se ha podido eliminar, ultima fecha en el sistema: {player.lastTimeInSystem.strftime('%d-%m-%Y, %H:%M:%S')}, causa del error: {str(error)}")
+
 
         return
