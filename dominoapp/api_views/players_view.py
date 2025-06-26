@@ -114,7 +114,8 @@ class PlayerView(viewsets.ModelViewSet):
                 200: inline_serializer(
                 name="Login Player Request",
                 fields={
-                    "token": CharField()
+                    "token": CharField(),
+                    "refer_code": CharField(max_length=6, min_length=6, required=False)
                     },
             ),    
             },
@@ -133,7 +134,7 @@ class PlayerView(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def login(self, request):
                
-        is_valid, message, status_response = PlayerRequest.validate_login(request)
+        is_valid, message, status_response = PlayerRequest.validarefer_codete_login(request)
         
         if not is_valid:
             return Response(data ={
@@ -142,3 +143,20 @@ class PlayerView(viewsets.ModelViewSet):
             }, status = status_response)
 
         return PlayerService.process_login(request)
+    
+    @extend_schema(
+            operation_id="players_refer_code",
+            request=None,
+            responses={
+            200: inline_serializer(
+                name="Refer Code Response",
+                fields={
+                    "refer_code": CharField(max_length = 6, min_length = 6),
+                    },
+            ),
+            
+        }
+    ) 
+    @action(detail=False, methods=["get"])
+    def refer_code(self, request):
+        return PlayerService.process_refer_code(request)

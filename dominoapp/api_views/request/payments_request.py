@@ -25,7 +25,6 @@ class PaymentRequest:
         validators = {
             "coins": RequestValidator.validate_numeric,
             "alias": RequestValidator.validate_string,
-            "admin": RequestValidator.validate_string,
             "external_id": RequestValidator.validate_string,
             "paymentmethod": (RequestValidator.validate_in_array, TransactionPaymentMethod.payment_choices)
         }

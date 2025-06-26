@@ -21,7 +21,6 @@ class PaymentView(viewsets.GenericViewSet):
                     fields={
                         "coins" : IntegerField(required=True),
                         "alias": CharField(required=True),
-                        "admin": CharField(required=False),
                         "external_id": CharField(required=False),
                         "paymentmethod": CharField(required=False, help_text="saldo, transferencia")
                     }
@@ -66,7 +65,6 @@ class PaymentView(viewsets.GenericViewSet):
                     fields={
                         "coins" : IntegerField(required=True),
                         "alias": CharField(required=True),
-                        "admin": CharField(required=False),
                         "external_id": CharField(required=False),
                         "paymentmethod": CharField(required=False, help_text="saldo, transferencia")
                     }

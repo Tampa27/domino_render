@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
-from dominoapp.models import Player, DominoGame
+from dominoapp.models import Player, DominoGame, Referral
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
@@ -100,6 +100,18 @@ class PlayerService:
                     alias= google_user['email'].split('@')[0],
                     user= user
                 )
+
+                if "refer_code" in request.data:
+                    try:
+                        referral_model = Referral.objects.get(referral_code = request.data["refer_code"], is_active=True)
+                    except:
+                        referral_model = None
+                    if referral_model:
+                        referral_model.referred_user = player
+                        referral_model.referral_date = timezone.now()
+                        referral_model.is_active = False
+                        referral_model.save(update_fields=["referred_user", "referral_date", "is_active"])
+
                 DiscordConnector.send_event(
                     ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
                     {
@@ -131,3 +143,16 @@ class PlayerService:
                  "message": str(e)}, 
                 status=status.HTTP_401_UNAUTHORIZED
             )
+        
+    @staticmethod
+    def process_refer_code(request):
+        try:
+            referrer_player = Player.objects.get(user__id = request.user.id)
+        except:
+            return Response("Player not found", status= status.HTTP_404_NOT_FOUND)
+        
+        refer_code = Referral.objects.create(referrer = referrer_player)
+
+        return Response(data={
+            "refer_code" : refer_code.referral_code
+        }, status= status.HTTP_201_CREATED)

@@ -3,6 +3,7 @@ from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.utils import timezone
 import uuid
+from shortuuid.django_fields import ShortUUIDField
 from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod
 # Create your models here.
 
@@ -34,7 +35,6 @@ class Player(models.Model):
     
     class Meta:
         ordering = ['alias']
-
     
     
 class DominoGame(models.Model):
@@ -73,7 +73,8 @@ class DominoGame(models.Model):
     created_time = models.DateTimeField(default=timezone.now,null=True,blank=True)
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
-    
+
+
 class Bank(models.Model):
     balance = models.PositiveIntegerField(default=10000)
     created_coins = models.PositiveIntegerField(default=0)
@@ -84,9 +85,11 @@ class Bank(models.Model):
     matches_coins = models.PositiveIntegerField(default=0)
     private_tables_coins = models.PositiveIntegerField(default=0)
 
+
 class Status_Transaction(models.Model):
     status = models.CharField(max_length=32,choices=TransactionStatus.transaction_choices,default="p")
     created_at = models.DateTimeField(auto_now_add=True)
+
 
 class Transaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
@@ -138,6 +141,7 @@ class BlockPlayer(models.Model):
             )
         ]
 
+
 class MoveRegister(models.Model):
     game = models.ForeignKey(DominoGame,related_name="game_played",on_delete=models.SET_NULL, null=True, blank=True)
     game_number = models.BigIntegerField()
@@ -152,3 +156,45 @@ class MoveRegister(models.Model):
     time = models.DateTimeField(auto_now_add=True)
     play_automatic = models.BooleanField(default=False)
     transactions_list = models.ManyToManyField(to=Transaction, blank=True, related_name="transaction_for_movement")
+
+
+class Referral(models.Model):
+    
+    # The user who made the referral (inviter)
+    referrer = models.ForeignKey(
+        Player, related_name='referrals_made',
+        on_delete=models.CASCADE, verbose_name='Referrer'
+    )
+    
+    # The user who was referred (invitee)
+    referred_user = models.OneToOneField(
+        Player, related_name='referred_by',
+        on_delete=models.CASCADE,
+        unique=True, verbose_name='Referred User',
+        blank=True, null=True
+    )
+    
+    referral_date = models.DateTimeField( verbose_name='Referral Date', blank=True, null=True)
+    
+    referral_code = ShortUUIDField(
+        length=6, max_length=7,
+        alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+        unique=True, verbose_name='Referral Code'
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name='Is Active')
+
+    code_date = models.DateTimeField(verbose_name='Code Date', auto_now_add = True)
+
+    reward_granted = models.BooleanField(default=False,verbose_name="Reward Granted") ## recompesa Otorgada
+    
+    class Meta:
+        verbose_name = 'Referral'
+        verbose_name_plural = 'Referrals'
+        unique_together = ('referrer', 'referred_user')
+        ordering = ['-code_date']
+    
+    def __str__(self):
+        return f"{self.referrer} ({self.referral_code}) → {self.referred_user}"
+    
+    
