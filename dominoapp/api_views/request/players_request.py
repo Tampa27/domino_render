@@ -127,7 +127,9 @@ class PlayerRequest:
             return is_valid, message, status_response
 
         validators = {
-            "token": RequestValidator.validate_string
+            "token": RequestValidator.validate_string,
+            "refer_code": RequestValidator.validate_short_uuid
+
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

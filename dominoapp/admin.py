@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -136,6 +136,26 @@ class MoveRegisterAdmin(admin.ModelAdmin):
         "game__id"
         ]
 
+class ReferralAdmin(admin.ModelAdmin):
+    list_display = [
+        "referrer",
+        "referral_code",
+        "code_date",
+        "referred_user",
+        "referral_date",
+        "reward_granted"
+    ]
+    list_filter = [
+        "referrer",
+        "reward_granted"
+    ]
+    list_editable = []
+    search_fields = [
+        "referrer__alias",
+        "referral_code",
+        "referred_user__alias"
+        ]
+
 
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
@@ -145,3 +165,4 @@ admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(Marketing, MarketingAdmin)
 admin.site.register(BlockPlayer, PlayerBlockAdmin)
 admin.site.register(MoveRegister, MoveRegisterAdmin)
+admin.site.register(Referral, ReferralAdmin)

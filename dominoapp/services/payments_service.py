@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction
-from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions
+from dominoapp.models import Player, Bank, Transaction, Referral
+from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.connectors.discord_connector import DiscordConnector
@@ -20,23 +20,42 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
 
         player = Player.objects.get(alias=request.data["alias"])
-        player.recharged_coins+=request.data["coins"]
+        player.recharged_coins+= int(request.data["coins"])
+        player.save(update_fields=["recharged_coins"])
+
+        try:
+            refer_model = Referral.objects.get(referred_user__id = player.id, reward_granted=False)
+            refer_model.referrer.earned_coins += ApiConstants.REFER_REWARD
+            refer_model.referrer.save(update_fields=["earned_coins"])
+
+            refer_model.reward_granted = True
+            refer_model.save(update_fields=["reward_granted"])
+
+            create_promotion_transactions(
+                amount= ApiConstants.REFER_REWARD,
+                from_user=player,
+                to_user= refer_model.referrer,
+                status="cp",
+                descriptions=f"El player {refer_model.referrer.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
+            )
+        except:
+            pass        
         
         try:
             bank = Bank.objects.get(id=1)
         except:
             bank = Bank.objects.create()
 
-        bank.balance+=request.data["coins"]
-        bank.buy_coins+=request.data["coins"]
+        bank.balance+=int(request.data["coins"])
+        bank.buy_coins+=int(request.data["coins"])
         bank.save()
 
         try:
-            admin = Player.objects.filter(alias = request.data.pop("admin", None))
+            admin = Player.objects.get(user__id = request.user.id)
         except:
             admin = None
         create_reload_transactions(
-            to_user=player, amount=request.data["coins"], status="cp", 
+            to_user=player, amount=int(request.data["coins"]), status="cp", 
             admin=admin,
             external_id=request.data.get('external_id', None),
             paymentmethod=request.data.get('paymentmethod', None)
@@ -48,7 +67,7 @@ class PaymentService:
                 "amount": request.data["coins"]
             }
         )
-        player.save()
+        
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
     @staticmethod
@@ -59,26 +78,26 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
 
         player = Player.objects.get(alias=request.data["alias"])
-        if player.earned_coins < request.data["coins"]:
+        if player.earned_coins < int(request.data["coins"]):
             return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
         
-        player.earned_coins -= request.data["coins"]
+        player.earned_coins -= int(request.data["coins"])
         
         try:
             bank = Bank.objects.get(id=1)
         except:
             bank = Bank.objects.create()
 
-        bank.balance+=request.data["coins"]
-        bank.buy_coins+=request.data["coins"]
+        bank.balance+=int(request.data["coins"])
+        bank.buy_coins+=int(request.data["coins"])
         bank.save()
 
         try:
-            admin = Player.objects.filter(alias = request.data.pop("admin", None))
+            admin = Player.objects.get(user__id = request.user.id)
         except:
             admin = None
         create_extracted_transactions(
-            from_user=player, amount=request.data["coins"], status="cp",
+            from_user=player, amount=int(request.data["coins"]), status="cp",
             admin=admin,
             external_id=request.data.get('external_id', None),
             paymentmethod=request.data.get('paymentmethod', None)

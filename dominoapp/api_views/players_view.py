@@ -142,3 +142,20 @@ class PlayerView(viewsets.ModelViewSet):
             }, status = status_response)
 
         return PlayerService.process_login(request)
+    
+    @extend_schema(
+            operation_id="players_refer_code",
+            request=None,
+            responses={
+            200: inline_serializer(
+                name="Refer Code Response",
+                fields={
+                    "refer_code": CharField(max_length = 6, min_length = 6),
+                    },
+            ),
+            
+        }
+    ) 
+    @action(detail=False, methods=["get"])
+    def refer_code(self, request):
+        return PlayerService.process_refer_code(request)

@@ -154,6 +154,10 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'
 }
 
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend"
+]
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=36500),  # Ajusta según necesites
     'REFRESH_TOKEN_LIFETIME': timedelta(days=36500),
@@ -164,11 +168,11 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Domino Club project API Documents',
     'VERSION': '0.0.1',
     'SCHEMA_PATH_PREFIX': '/v2/api/*',   #To separate routes in api_urls so they don't mix together.
-    # 'SERVE_PERMISSIONS': ['api.permissions.IsAdminUser'],  # Must login first
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'],  # Must login first
     'DISABLE_ERRORS_AND_WARNINGS': True,
-    # 'SERVE_AUTHENTICATION': [
-    #                 'rest_framework.authentication.SessionAuthentication',
-    #             ]
+    'SERVE_AUTHENTICATION': [
+                    'rest_framework.authentication.SessionAuthentication',
+                ]
 }
 
 
