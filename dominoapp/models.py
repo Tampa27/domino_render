@@ -24,11 +24,18 @@ class Player(models.Model):
     name = models.CharField(max_length=32,null=True, blank=True)
     isPlaying = models.BooleanField(default=False)
     inactive_player = models.BooleanField(default=False)
+    
+    @property
+    def total_coins(self):
+        return self.earned_coins + self.recharged_coins
+    
     def __str__(self):
         return self.alias
     
     class Meta:
         ordering = ['alias']
+
+    
     
 class DominoGame(models.Model):
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)

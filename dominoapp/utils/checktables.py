@@ -4,7 +4,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
 
 from dominoapp import views
-from dominoapp.models import DominoGame
+from dominoapp.models import DominoGame, Player
 from django.utils import timezone
 from django.db import connection
 from dominoapp.utils.constants import ApiConstants
@@ -45,7 +45,7 @@ def automatic_move_in_game():
                     if game.status == 'fg':
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInSystem
-                            if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME) and player.isPlaying:
+                            if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not ready_to_play(game,player)) and player.isPlaying:
                                 views.exitPlayer(game,player,players,len(players))
                         players = views.playersCount(game)
                         if len(players)<2:
@@ -57,7 +57,7 @@ def automatic_move_in_game():
             elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
-                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME) and player.isPlaying:
+                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not ready_to_play(game, player)) and player.isPlaying:
                         views.exitPlayer(game,player,players,len(players))
                     elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME):
                         views.exitPlayer(game,player,players,len(players))
@@ -153,3 +153,23 @@ def automaticStart(game,players):
     if time_diff.seconds > ApiConstants.AUTO_START_WAIT:
         views.startGame1(game.id,players)
 
+def ready_to_play(game: DominoGame, player: Player)->bool:
+    '''
+        Comprueba si el player tiene suficientes monedas para jugar en la mesa
+    '''
+    
+    min_amount = 0
+    
+    pass_number = 5
+    if game.variant == 'd6':
+        pass_number = 3
+
+    if game.perPoints and game.payMatchValue>0:
+        min_amount = game.payMatchValue
+    elif not game.perPoints and (game.payPassValue>0 or game.payWinValue>0):
+        min_amount = game.payWinValue + (game.payPassValue * pass_number)
+    
+    if player.total_coins >= min_amount:
+        return True
+    
+    return False    
