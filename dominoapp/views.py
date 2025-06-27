@@ -512,6 +512,9 @@ def movement(game_id,player,players,tile, automatic=False):
         if CheckPlayerTile(tile, player) == False:
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
             return(f"{player.alias} intento mover {tile} pero se detecto que la ficha no le pertenese")
+        if not CorrectPassTile(game,player,tile):
+            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que tenia fichas para jugar")
+            return(f"{player.alias} intento pasarse con fichas")
         
         if passTile == False:
             isCapicua = False
@@ -579,14 +582,23 @@ def movement(game_id,player,players,tile, automatic=False):
         logger.info(player.alias+" movio "+tile)
         return None        
 
-def CheckPlayerTile(tile, player):
-    if isPass(tile):
-        return True 
+def CheckPlayerTile(tile:str, player:Player):
+    if isPass(tile):        
+        return True
     tiles = player.tiles.split(',')
     inverse = rTile(tile)
     if tile in tiles or inverse in tiles:
         return True
     return False
+
+def CorrectPassTile(game: DominoGame, player:Player, tile:str):
+    tiles = player.tiles.split(',')
+    if isPass(tile):        
+        numbers = [int(side) for single in tiles for side in single.split('|')]
+        if game.leftValue in numbers or game.rightValue in numbers:
+            # Comprobar que realmente no lleva fichas
+            return False
+    return True 
 
 def isPlayingTile(game,tile,player):
     if isPass(tile):
