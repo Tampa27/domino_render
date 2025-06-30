@@ -9,7 +9,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
                 
-        players_model = Player.objects.annotate(total_coins=(F('earned_coins') + F('recharged_coins'))).filter(total_coins__gte = 50).only(
+        players_model = Player.objects.annotate(total_coins_filter=(F('earned_coins') + F('recharged_coins'))).filter(total_coins_filter__gte = 50).only(
             'alias',
             'earned_coins',
             'recharged_coins',
