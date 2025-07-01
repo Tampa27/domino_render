@@ -134,7 +134,7 @@ class PlayerView(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def login(self, request):
                
-        is_valid, message, status_response = PlayerRequest.validarefer_codete_login(request)
+        is_valid, message, status_response = PlayerRequest.validate_login(request)
         
         if not is_valid:
             return Response(data ={
