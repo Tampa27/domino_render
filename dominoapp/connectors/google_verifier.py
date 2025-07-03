@@ -1,9 +1,12 @@
 from google.oauth2 import id_token, service_account
 from google.auth.transport import requests
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
+from googleapiclient.errors import HttpError
 from django.conf import settings
+from django.core.files.storage import Storage
 from dotenv import load_dotenv
+import io
 import os
 import json
 import logging
@@ -104,3 +107,162 @@ class GoogleDrive:
                     logger.critical(f"No se pudo eliminar {file['name']} en Google Drive => {str(error)}")
         except Exception as error:
             logger.critical(f'Error al buscar archivos en Google Drive => {str(error)}')
+
+class GoogleDriveStorage(Storage):
+    def __init__(self):
+        creds_json = json.loads(os.getenv('GOOGLE_DRIVE_CREDS'))
+        self.credentials = service_account.Credentials.from_service_account_info(creds_json)
+        self.service = build('drive', 'v3', credentials=self.credentials)
+        self.folder_id = os.getenv('GOOGLE_DRIVE_FOLDER_MEDIA_ID')
+        
+
+    def _save(self, name, content):
+        base_name = os.path.basename(name)
+        folder_path = os.path.dirname(name)
+        parent_id = self.folder_id
+        
+        # Crear estructura de carpetas si es necesario
+        if folder_path:
+            folders = folder_path.split('/')
+            for folder in folders:
+                if folder:  # Ignorar strings vacíos
+                    # Verificar si la carpeta ya existe
+                    query = f"name='{folder}' and mimeType='application/vnd.google-apps.folder' and '{parent_id}' in parents and trashed=false"
+                    results = self.service.files().list(
+                        q=query,
+                        fields='files(id)',
+                        pageSize=1
+                    ).execute().get('files', [])
+                    
+                    if results:
+                        parent_id = results[0]['id']
+                    else:
+                        # Crear nueva carpeta
+                        folder_metadata = {
+                            'name': folder,
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [parent_id]
+                        }
+                        new_folder = self.service.files().create(
+                            body=folder_metadata,
+                            fields='id'
+                        ).execute()
+                        parent_id = new_folder['id']
+        # Subir el archivo a la carpeta correspondiente
+        file_metadata = {
+            'name': base_name,
+            'parents': [parent_id]
+        }
+        
+        content.seek(0)
+        media = MediaIoBaseUpload(
+            io.BytesIO(content.read()),
+            mimetype=content.content_type,
+            resumable=True
+        )
+        
+        try:
+            file = self.service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id,webViewLink'
+            ).execute()
+            return name
+        except HttpError as error:
+            raise Exception(f'Error al subir a Google Drive: {error}')
+    
+    def exists(self, name):
+        try:
+            self._get_file_id(name)
+            return True
+        except Exception:
+            return False
+    
+    
+    def url(self, name):
+        try:
+            file_id = self._get_file_id(name)
+            # Generar URL directa de visualización
+            return f"https://drive.google.com/file/d/{file_id}/view?usp=drivesdk"
+            
+            # O para descarga directa:
+            # return f"https://drive.google.com/uc?id={file_id}&export=download"
+        except Exception as error:
+            logger.critical(f'Error al generar URL en Google Drive => {str(error)}')
+            return '#'
+    
+    def delete(self, name):
+        try:
+            file_id = self._get_file_id(name)
+            self.service.files().delete(fileId=file_id).execute()
+        except Exception as error:
+            logger.critical(f'Error al eliminar archivo en Google Drive => {str(error)}')
+            
+    
+    def _get_file_id(self, name):
+        # Extraer el nombre base del archivo
+        base_name = os.path.basename(name)
+        
+        # Si hay subcarpetas en el upload_to, replicarlas en Drive
+        folder_path = os.path.dirname(name)
+        current_folder_id = self.folder_id
+        
+        # Navegar por la estructura de carpetas si existe
+        if folder_path:
+            folders = folder_path.split('/')
+            for folder in folders:
+                if folder:  # Ignorar strings vacíos
+                    # Buscar la subcarpeta dentro del padre actual
+                    query = f"name='{folder}' and mimeType='application/vnd.google-apps.folder' and '{current_folder_id}' in parents and trashed=false"
+                    results = self.service.files().list(
+                        q=query,
+                        fields='files(id)',
+                        pageSize=1
+                    ).execute().get('files', [])
+                    
+                    if not results:
+                        # Crear la carpeta si no existe
+                        folder_metadata = {
+                            'name': folder,
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [current_folder_id]
+                        }
+                        new_folder = self.service.files().create(
+                            body=folder_metadata,
+                            fields='id'
+                        ).execute()
+                        current_folder_id = new_folder['id']
+                    else:
+                        current_folder_id = results[0]['id']
+        
+        # Buscar el archivo en la carpeta final
+        query = f"name='{base_name}' and '{current_folder_id}' in parents and trashed=false"
+        results = self.service.files().list(
+            q=query,
+            fields='files(id)',
+            pageSize=1
+        ).execute().get('files', [])
+        
+        if results:
+            return results[0]['id']
+        raise FileNotFoundError(f"El archivo {name} no existe en Google Drive")
+    
+    def size(self, name):
+        file_id = self._get_file_id(name)
+        file = self.service.files().get(
+            fileId=file_id,
+            fields='size'
+        ).execute()
+        return int(file.get('size', 0))
+    
+    def get_available_name(self, name, max_length=None):
+        if not self.exists(name):
+            return name
+        
+        base, ext = os.path.splitext(name)
+        counter = 1
+        while True:
+            new_name = f"{base}_{counter}{ext}"
+            if not self.exists(new_name):
+                return new_name
+            counter += 1
