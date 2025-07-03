@@ -68,9 +68,17 @@ if PRODUCTION:
 
     CSRF_TRUSTED_ORIGINS = ['https://domino-club-fdc25b05dc8f.herokuapp.com']
 
+    GS_DEFAULT_ACL = 'publicRead'  # Esto hará que los archivos sean públicos
+
+    DEFAULT_FILE_STORAGE   = "dominoapp.connectors.google_verifier.GoogleDriveStorage"
+    
 else:
     # This will display email in Console.
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    STATIC_URL = 'static/'
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 
 ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com", "dominoclubtest.pythonanywhere.com"]
 
@@ -94,7 +102,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
-    'drf_spectacular'
+    'drf_spectacular',
+    'storages'
 ]
 
 MIDDLEWARE = [
@@ -191,11 +200,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-    # Enable the WhiteNoise storage backend, which compresses static files to reduce disk use
-    # and renames the files with unique names for each version to support long-term caching
+
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 #if not DEBUG:
     # Tell Django to copy static assets into a path called `staticfiles` (this is specific to Render)
