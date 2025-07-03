@@ -102,10 +102,9 @@ class BankSerializer(serializers.ModelSerializer):
         fields = ('__all__')
 
 class MarketingSerializer(serializers.ModelSerializer):
-    user = PlayerLoginSerializer()
     class Meta:
         model = Marketing
-        fields = ["user", "image", "text", "url", "created_at", "updated_at"]
+        fields = ["image", "text", "url"]
         depth = 1
 
 class CreateMoveRegister(serializers.ModelSerializer):
