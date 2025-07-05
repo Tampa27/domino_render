@@ -118,10 +118,10 @@ class CreateMoveRegister(serializers.ModelSerializer):
 
     def __perform_creadit__(self, validated_data, instance=None):
 
-        game = validated_data.get("game", None)
+        game: DominoGame = validated_data.get("game", None)
         if not game:
             raise("game is requirement")
-        player_move = validated_data.get("player_move", None)
+        player_move: Player = validated_data.get("player_move", None)
         if not player_move:
             raise("player_move is requirement")
 
@@ -129,7 +129,12 @@ class CreateMoveRegister(serializers.ModelSerializer):
         validated_data["board_in_game"] = game.board if game.board != "" else None
         validated_data["board_left"] = game.leftValue if game.leftValue != -1 else None
         validated_data["board_right"] = game.rightValue if game.rightValue != -1 else None
-
+        if game.perPoints:
+            if game.inPairs:
+                validated_data["score_team1"] = game.scoreTeam1
+                validated_data["score_team2"] = game.scoreTeam2
+            else:
+                validated_data["player_points"] = player_move.points
         validated_data["player_alias"] = player_move.alias
         validated_data["player_tiles"] = player_move.tiles
 
