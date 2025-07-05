@@ -80,8 +80,9 @@ class GameService:
         game = DominoGame.objects.get(id = game_id)
         serializer = GameSerializer(game)
         
+        filters = Q(id = None)
         if game.player1 is not None:
-            filters = Q(id = game.player1.id)
+            filters |= Q(id = game.player1.id)
         if game.player2 is not None:
             filters |= Q(id = game.player2.id)
         if game.player3 is not None:
