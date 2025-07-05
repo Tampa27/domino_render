@@ -916,8 +916,13 @@ def exitGame(request,game_id,alias):
         player = Player.objects.get(alias=alias)
     except:
         return Response({'status': 'error', "message":"Game or player not found"}, status=404)
-    if game.status in ["ru","fi"] and player.isPlaying:
-        return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
+    
+    if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
+        if (game.inPairs and (game.scoreTeam1 > 0 or game.scoreTeam2 > 0)) or (not game.inPairs and player.points > 0):
+            return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
+    elif game.status in ["ru"] and player.isPlaying:
+            return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
+    
     players = playersCount(game)
     players_ru = list(filter(lambda p: p.isPlaying,players))
     exited = exitPlayer(game,player,players_ru,len(players))

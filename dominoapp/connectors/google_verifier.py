@@ -183,7 +183,6 @@ class GoogleDriveStorage(Storage):
         try:
             file_id = self._get_file_id(name)
             # Generar URL directa de visualización
-            # return f"https://drive.google.com/file/d/{file_id}/view?usp=drivesdk"
             return f"https://drive.google.com/uc?export=view&id={file_id}"
             
             # O para descarga directa:
