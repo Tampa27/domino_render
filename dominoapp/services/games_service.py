@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
 from dominoapp.models import Player, DominoGame, AppVersion
-from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerSerializer, PlayerLoginSerializer
+from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp import views
 
 
@@ -80,18 +80,17 @@ class GameService:
         game = DominoGame.objects.get(id = game_id)
         serializer = GameSerializer(game)
         
-        filters = Q(id = None)
+        players = []
         if game.player1 is not None:
-            filters |= Q(id = game.player1.id)
+            players.insert(0,game.player1)
         if game.player2 is not None:
-            filters |= Q(id = game.player2.id)
+            players.insert(1, game.player2)
         if game.player3 is not None:
-            filters |= Q(id = game.player3.id)
+            players.insert(2, game.player3)
         if game.player4 is not None:
-            filters |= Q(id = game.player4.id)
+            players.insert(3, game.player4)
         
-        players = Player.objects.filter(filters)
-        players_data = PlayerSerializer(players, many=True).data
+        players_data = PlayerGameSerializer(players, many=True).data
 
         return Response({'status': 'success', "game":serializer.data,"players":players_data}, status=status.HTTP_200_OK)
     
@@ -112,7 +111,7 @@ class GameService:
         serializer = GameSerializer(game)
         
         players = [player1]
-        playerSerializer = PlayerSerializer(players,many=True)
+        playerSerializer = PlayerGameSerializer(players,many=True)
         
         return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
     
@@ -177,7 +176,7 @@ class GameService:
             # views.updateLastPlayerTime(game,alias)
             game.save()    
             serializerGame = GameSerializer(game)
-            playerSerializer = PlayerSerializer(players,many=True)
+            playerSerializer = PlayerGameSerializer(players,many=True)
             return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
         else:
             return Response({'status': 'error', "message":"Full players"}, status=status.HTTP_409_CONFLICT)
@@ -194,7 +193,7 @@ class GameService:
             players = views.playersCount(game)
             views.startGame1(game.id,players)    
             serializerGame = GameSerializer(game)
-            playerSerializer = PlayerSerializer(players,many=True)
+            playerSerializer = PlayerGameSerializer(players,many=True)
             return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
         return Response ({'status': 'error', "message": "game is running"},status=status.HTTP_409_CONFLICT)
     

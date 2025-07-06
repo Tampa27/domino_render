@@ -50,6 +50,15 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.save()
         return instance     
 
+class PlayerGameSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField()
+    def get_coins(self, obj: Player) -> int:
+        return obj.earned_coins + obj.recharged_coins
+    
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points"]
+
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
     def get_coins(self, obj: Player) -> int:
