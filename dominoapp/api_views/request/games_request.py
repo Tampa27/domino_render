@@ -1,6 +1,6 @@
 from rest_framework import status
 from dominoapp.utils.api_http import RequestValidator
-from dominoapp.models import DominoGame
+from dominoapp.utils.constants import GameVariants
 
 class GameRequest:
 
@@ -36,19 +36,19 @@ class GameRequest:
             return is_valid, message, status_response
 
         validators = {
-            "variant": (RequestValidator.validate_in_array, DominoGame.variant_choices),
-            "maxScore": RequestValidator.validate_integer,
+            "variant": (RequestValidator.validate_in_array_0, GameVariants.variant_choices),
+            "maxScore": RequestValidator.validate_numeric,
             "inPairs": RequestValidator.validate_boolean,
             "perPoints": RequestValidator.validate_boolean,
             "startWinner": RequestValidator.validate_boolean,
             "lostStartInTie": RequestValidator.validate_boolean,
-            "payPassValue": RequestValidator.validate_integer,
-            "payWinValue": RequestValidator.validate_integer,
-            "payMatchValue": RequestValidator.validate_integer,
-            "startAuto": RequestValidator.validate_integer,
+            "payPassValue": RequestValidator.validate_numeric,
+            "payWinValue": RequestValidator.validate_numeric,
+            "payMatchValue": RequestValidator.validate_numeric,
+            "startAuto": RequestValidator.validate_numeric,
             "sumAllPoints": RequestValidator.validate_boolean,
             "capicua":RequestValidator.validate_boolean,
-            "moveTime":RequestValidator.validate_integer,
+            "moveTime":RequestValidator.validate_numeric,
             "password":RequestValidator.validate_password,
         }
         
