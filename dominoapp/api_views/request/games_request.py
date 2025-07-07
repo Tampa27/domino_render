@@ -37,16 +37,15 @@ class GameRequest:
 
         validators = {
             "variant": (RequestValidator.validate_in_array, DominoGame.variant_choices),
-            "next_player": RequestValidator.validate_integer,
             "maxScore": RequestValidator.validate_integer,
             "inPairs": RequestValidator.validate_boolean,
             "perPoints": RequestValidator.validate_boolean,
             "startWinner": RequestValidator.validate_boolean,
             "lostStartInTie": RequestValidator.validate_boolean,
-            "starter": RequestValidator.validate_integer,
             "payPassValue": RequestValidator.validate_integer,
             "payWinValue": RequestValidator.validate_integer,
             "payMatchValue": RequestValidator.validate_integer,
+            "startAuto": RequestValidator.validate_integer,
             "sumAllPoints": RequestValidator.validate_boolean,
             "capicua":RequestValidator.validate_boolean,
             "moveTime":RequestValidator.validate_integer,
