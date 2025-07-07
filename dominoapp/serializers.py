@@ -68,6 +68,13 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
         model = Player
         fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins"]
 
+class GameCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = DominoGame
+        fields = ["variant", "maxScore", "inPairs", "perPoints", "startWinner", "lostStartInTie", "payPassValue", "payWinValue", "payMatchValue", "startAuto", "sumAllPoints", "capicua", "moveTime", "password"]
+
+
 class GameSerializer(serializers.ModelSerializer):
 
     class Meta:
