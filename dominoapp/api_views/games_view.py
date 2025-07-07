@@ -35,8 +35,7 @@ class GameView(viewsets.ModelViewSet):
                 name="Create Game",
                 fields={
                      "status": CharField(default="success"),
-                    "games": GameSerializer(),
-                    "players": PlayerGameSerializer(),
+                    "game": GameSerializer()
                 }
             )            
         }
