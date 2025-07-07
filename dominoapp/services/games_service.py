@@ -109,11 +109,8 @@ class GameService:
         
         game.save()        
         serializer = GameSerializer(game)
-        
-        players = [player1]
-        playerSerializer = PlayerGameSerializer(players,many=True)
-        
-        return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
+                
+        return Response({'status': 'success', "game":serializer.data}, status=200)
     
     @staticmethod
     def process_join(request, game_id):
