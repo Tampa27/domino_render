@@ -1,4 +1,4 @@
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
@@ -103,14 +103,25 @@ class GameService:
         player1.inactive_player = False
         player1.save()
 
-        game = DominoGame.objects.create(player1=player1,variant=request.data["variant"])
-        game.lastTime1 = timezone.now()
-        views.updateLastPlayerTime(game,player1.alias)
+        data = request.data.copy()
+        data["lastTime1"] = timezone.now()
+        data["player1"] = player1.id
         
-        game.save()        
-        serializer = GameSerializer(game)
+        game_serializer = GameSerializer(data = data)
+        try:
+            game_serializer.is_valid(raise_exception=True)
+            game: DominoGame =  game_serializer.save()
+        except serializers.ValidationError as e:
+            return Response(
+                {'status': 'error', 'message': 'Invalid data', 'errors': e.detail},
+                status=400
+            )
+        except Exception as error:
+            return Response({'status': 'error', "message":"Something is wrong at save game"}, status=409)
+
+        views.updateLastPlayerTime(game,player1.alias)
                 
-        return Response({'status': 'success', "game":serializer.data}, status=200)
+        return Response({'status': 'success', "game":game_serializer.data}, status=200)
     
     @staticmethod
     def process_join(request, game_id):
