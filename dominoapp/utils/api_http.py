@@ -110,7 +110,19 @@ class RequestValidator:
             return True
         else:
             return False
-
+    
+    @staticmethod
+    def validate_string_or_empty(value):
+        if value is None or len(value) == 0:
+            return True
+        if not isinstance(value, str):
+            return False
+        safe_pattern = re.compile(r'^[\w \-._ñ@*,]+$', re.UNICODE)
+        if safe_pattern.match(value):
+            return True
+        else:
+            return False
+    
     @staticmethod
     def validate_phone_number(value):
         if not isinstance(value, str):

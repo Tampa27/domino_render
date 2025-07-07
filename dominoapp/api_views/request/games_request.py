@@ -49,7 +49,7 @@ class GameRequest:
             "sumAllPoints": RequestValidator.validate_boolean,
             "capicua":RequestValidator.validate_boolean,
             "moveTime":RequestValidator.validate_numeric,
-            "password":RequestValidator.validate_string,
+            "password":RequestValidator.validate_string_or_empty,
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
