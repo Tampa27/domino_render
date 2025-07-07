@@ -86,7 +86,7 @@ class GameRequest:
             return is_valid, message, status_response
 
         validators = {
-            "tile": RequestValidator.validate_string
+            "tile": RequestValidator.validate_text
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
