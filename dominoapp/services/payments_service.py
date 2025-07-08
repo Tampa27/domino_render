@@ -131,18 +131,23 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
 
         player = Player.objects.get(alias=request.data["alias"])
-        if player.earned_coins < int(request.data["coins"]):
+
+        if player.total_coins < int(request.data["coins"]):
             return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
         
         player.earned_coins -= int(request.data["coins"])
+        if player.earned_coins<0:
+            player.recharged_coins += player.earned_coins
+            player.earned_coins = 0
+
         
         try:
             bank = Bank.objects.get(id=1)
         except:
             bank = Bank.objects.create()
 
-        bank.balance+=int(request.data["coins"])
-        bank.buy_coins+=int(request.data["coins"])
+        bank.balance-=int(request.data["coins"])
+        bank.extracted_coins+=int(request.data["coins"])
         bank.save()
 
         try:
