@@ -71,6 +71,40 @@ class PaymentService:
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
     @staticmethod
+    def process_promotions(request):
+
+        check_player = Player.objects.filter(alias=request.data["alias"]).exists()
+        if not check_player:
+            return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        player = Player.objects.get(alias=request.data["alias"])
+        player.recharged_coins+= int(request.data["coins"])
+        player.save(update_fields=["recharged_coins"])
+
+        try:
+            admin = Player.objects.get(user__id = request.user.id)
+        except:
+            admin = None
+        
+        create_promotion_transactions(
+            amount= int(request.data["coins"]),
+            to_user= player,
+            status="cp",
+            admin=admin
+        )
+        
+        DiscordConnector.send_event(
+            "Promoción",
+            {
+                'player': request.data["alias"],
+                "amount": request.data["coins"]
+            }
+        )
+        
+        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+    
+
+    @staticmethod
     def process_extract(request):
 
         check_player = Player.objects.filter(alias=request.data["alias"]).exists()
