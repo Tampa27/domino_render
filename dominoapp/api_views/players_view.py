@@ -115,7 +115,8 @@ class PlayerView(viewsets.ModelViewSet):
                 name="Login Player Request",
                 fields={
                     "token": CharField(),
-                    "refer_code": CharField(max_length=6, min_length=6, required=False)
+                    "refer_code": CharField(max_length=6, min_length=6, required=False),
+                    "fcm_token": CharField(required=False)
                     },
             ),    
             },

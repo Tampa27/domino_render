@@ -13,4 +13,5 @@ router.register(r"marketing", marketing_view.MarketingView)
 urlpatterns = [
     path("", include(router.urls)),
     path("players/login/refresh/", jwt_views.TokenRefreshView.as_view(), name="token_refresh"),
+    path("players/login/access/", jwt_views.TokenObtainPairView.as_view(), name="token_obtain_pair"),
 ]

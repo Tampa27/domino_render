@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
+from fcm_django.models import FCMDevice
 from dominoapp.models import Player, DominoGame, Referral
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
@@ -125,6 +126,17 @@ class PlayerService:
             player.lastTimeInSystem = timezone.now()
             player.inactive_player = False
             player.save(update_fields=['lastTimeInSystem','inactive_player'])
+
+            # Para registrar un dispositivo
+            fcm_token = request.data.get("fcm_token")
+            if fcm_token:
+                FCMDevice.objects.get_or_create(
+                    registration_id = fcm_token,
+                    defaults={
+                        "user": player.user,  # asociar a un usuario
+                        "type": "android",  # o "ios", "web"
+                    }
+                )
 
             # Genera tokens JWT usando simplejwt
             refresh = RefreshToken.for_user(player.user)

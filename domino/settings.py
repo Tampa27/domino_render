@@ -104,7 +104,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'drf_spectacular',
-    'storages'
+    'storages',
+    'fcm_django'
 ]
 
 MIDDLEWARE = [
@@ -240,4 +241,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'dominoapp.tasks.automatic_move',
         'schedule': 7.0,
     },
+}
+
+FCM_DJANGO_SETTINGS = {
+    "FCM_SERVER_KEY": os.getenv('FCM_SERVER_KEY'),
+    "ONE_DEVICE_PER_USER": False,
+    "DELETE_INACTIVE_DEVICES": True,
 }
