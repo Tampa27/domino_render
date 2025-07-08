@@ -128,7 +128,8 @@ class PlayerRequest:
 
         validators = {
             "token": RequestValidator.validate_string,
-            "refer_code": RequestValidator.validate_short_uuid
+            "refer_code": RequestValidator.validate_short_uuid,
+            "fcm_token": RequestValidator.validate_string
 
         }
         

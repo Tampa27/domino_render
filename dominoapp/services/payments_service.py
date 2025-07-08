@@ -7,6 +7,7 @@ from dominoapp.models import Player, Bank, Transaction, Referral
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
+from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.connectors.discord_connector import DiscordConnector
 
 
@@ -38,6 +39,19 @@ class PaymentService:
                 status="cp",
                 descriptions=f"El player {refer_model.referrer.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
             )
+            FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Recarga en Domino Club",
+            body = f"{refer_model.referrer.name} usted a recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+            )
+            DiscordConnector.send_event(
+                "Promoción",
+                {
+                    'player': str(refer_model.referrer.alias),
+                    "amount": ApiConstants.REFER_REWARD,
+                    "referred_user": str(player.alias)
+                }
+            )   
         except:
             pass        
         
@@ -59,6 +73,11 @@ class PaymentService:
             admin=admin,
             external_id=request.data.get('external_id', None),
             paymentmethod=request.data.get('paymentmethod', None)
+            )
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Recarga en Domino Club",
+            body = f"{player.name} usted a recargado su cuenta en Domino Club con {request.data["coins"]} monedas."
             )
         DiscordConnector.send_event(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
@@ -136,6 +155,12 @@ class PaymentService:
             external_id=request.data.get('external_id', None),
             paymentmethod=request.data.get('paymentmethod', None)
             )
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Extracción en Domino Club",
+            body = f"Felicidades {player.name} 🎉, usted a extraido {request.data["coins"]} monedas de su cuenta en Domino Club."
+            )
+
         DiscordConnector.send_event(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
             {
