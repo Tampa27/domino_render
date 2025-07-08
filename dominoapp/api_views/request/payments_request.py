@@ -26,7 +26,7 @@ class PaymentRequest:
             "coins": RequestValidator.validate_numeric,
             "alias": RequestValidator.validate_string,
             "external_id": RequestValidator.validate_string,
-            "paymentmethod": (RequestValidator.validate_in_array, TransactionPaymentMethod.payment_choices)
+            "paymentmethod": (RequestValidator.validate_in_array_0, TransactionPaymentMethod.payment_choices)
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
