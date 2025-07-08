@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral
 from dominoapp.utils.admin_helpers import AdminHelpers
 
@@ -32,7 +34,6 @@ class PlayerAdmin(admin.ModelAdmin):
     ]
     search_fields = ["alias", "email", "name"]
 
-
 class PlayerBlockAdmin(admin.ModelAdmin):
     list_display = [
         "id",
@@ -50,8 +51,6 @@ class PlayerBlockAdmin(admin.ModelAdmin):
         "player_blocker__email",
         "player_blocker__alias"
         ]
-
-
 
 class StatusTransactionInline(admin.TabularInline):
     model = Transaction.status_list.through
@@ -112,6 +111,57 @@ class MarketingAdmin(admin.ModelAdmin):
         "user__email"
         ]
 
+class TransactionInline(admin.TabularInline):
+    model = MoveRegister.transactions_list.through
+    inline_actions = []
+    fields=['get_id', 'from_user', 'to_user', 'amount', 'type', 'descriptions']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+    def get_id(self, instance):
+        url = reverse("admin:dominoapp_transaction_change", args=[instance.transaction.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.transaction.id}</a>')
+    get_id.short_description = 'ID'
+    
+    def from_user(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.transaction.from_user.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.transaction.from_user.alias}</a>')
+    
+    def to_user(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.transaction.to_user.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.transaction.to_user.alias}</a>')
+    
+    def amount(self, instance):
+        return instance.transaction.amount
+    
+    def type(self, instance):
+        return instance.transaction.type
+    
+    def descriptions(self, instance):
+        return instance.transaction.descriptions
+
+class PlayersInline(admin.TabularInline):
+    model = MoveRegister.players_in_game.through
+    inline_actions = []
+    fields=['alias', 'name', 'email']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+      
+    def alias(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.player.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.player.alias}</a>')
+    
+    def name(self, instance):
+        return instance.player.name
+    
+    def email(self, instance):
+        return instance.player.email
+
 class MoveRegisterAdmin(admin.ModelAdmin):
     list_display = [
         "game_number",
@@ -135,6 +185,7 @@ class MoveRegisterAdmin(admin.ModelAdmin):
         "game_number",
         "game__id"
         ]
+    inlines = [TransactionInline, PlayersInline]
 
 class ReferralAdmin(admin.ModelAdmin):
     list_display = [
