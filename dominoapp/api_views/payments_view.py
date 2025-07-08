@@ -58,6 +58,48 @@ class PaymentView(viewsets.GenericViewSet):
         return PaymentService.process_recharge(request)
 
     @extend_schema(
+            operation_id="payments_promotion",
+            request = {
+                200: inline_serializer(
+                    name="Payments Promotion Request",
+                    fields={
+                        "coins" : IntegerField(required=True),
+                        "alias": CharField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Payments Promotion Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Payments Promotion Response Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def promotion(self, request, pk = None):
+
+        is_valid, message, status_response = PaymentRequest.validate_promotions(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PaymentService.process_promotions(request)
+
+    @extend_schema(
             operation_id="payments_extract",
             request = {
                 200: inline_serializer(
