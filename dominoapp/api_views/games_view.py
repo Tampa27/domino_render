@@ -7,7 +7,7 @@ from dominoapp.models import DominoGame
 from dominoapp.serializers import GameSerializer, GameCreateSerializer, ListGameSerializer,PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.api_views.request.games_request import GameRequest
 from dominoapp.services.games_service import GameService
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from rest_framework.serializers import BooleanField, IntegerField, CharField
 
 
@@ -52,6 +52,9 @@ class GameView(viewsets.ModelViewSet):
         return GameService.process_create(request)
 
     @extend_schema(
+            parameters=[
+                OpenApiParameter("app_version",description="Field to confirm the currently used application version.")
+            ],
             responses={
             200: inline_serializer(
                 name="List Games",
@@ -67,6 +70,14 @@ class GameView(viewsets.ModelViewSet):
         }
     )
     def list(self, request, *args, **kwargs):
+        is_valid, message, status_response = GameRequest.validate_list(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
         queryset = self.filter_queryset(self.get_queryset())
         return GameService.process_list(request, queryset)
     

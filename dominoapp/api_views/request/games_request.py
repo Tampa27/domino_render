@@ -5,6 +5,44 @@ from dominoapp.utils.constants import GameVariants
 class GameRequest:
 
     @staticmethod
+    def validate_list(request):
+        is_valid = False
+        message = None
+        status_response = None
+
+        required_keys = []
+
+        is_valid, message = RequestValidator.validate_required_key(request, required_keys)
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response
+
+        validators = {}
+        
+        is_valid, message = RequestValidator.validate_params(request, validators)
+
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response     
+
+        validators = {
+            "app_version" : RequestValidator.validate_string_or_empty
+        }
+        
+        is_valid, message = RequestValidator.validate_query_params(request, validators)
+
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response     
+
+
+        return True, message, status_response
+
+
+    @staticmethod
     def validate_game_id(game_id):
         is_valid = False
         message = None
