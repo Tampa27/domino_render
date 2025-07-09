@@ -5,7 +5,7 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
 from fcm_django.models import FCMDevice
-from dominoapp.models import Player, DominoGame, Referral
+from dominoapp.models import Player, DominoGame, Referral, BlockPlayer
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
@@ -81,6 +81,10 @@ class PlayerService:
                         "message": str(error)}, 
                         status=status.HTTP_401_UNAUTHORIZED
                     )
+            
+            is_block = BlockPlayer.objects.filter(player_blocked__email=google_user['email']).exists()
+            if is_block:
+                return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
             
             exist = Player.objects.filter(email=google_user['email']).exists()
             
