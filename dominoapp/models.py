@@ -9,7 +9,7 @@ from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes
 
 class Player(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_player')
-    alias = models.CharField(max_length=50) 
+    alias = models.CharField(max_length=50, db_index=True) 
     tiles = models.CharField(max_length=50,default="")
     phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex='^\+{1}?\d{9,15}$')])
     earned_coins = models.IntegerField(default=0)
@@ -117,7 +117,7 @@ class Marketing(models.Model):
 
 
 class AppVersion(models.Model):
-    version = models.CharField(max_length=100)
+    version = models.CharField(max_length=100, unique=True, db_index=True)
     store_link = models.CharField(max_length=100,null=True, blank=True)
     description = models.TextField(max_length=100)
     need_update = models.BooleanField(default=False)

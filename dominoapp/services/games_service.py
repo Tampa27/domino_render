@@ -24,10 +24,14 @@ class GameService:
         
         game_id = -1
         
-        app_version = AppVersion.objects.first()
+        app_version = request.query_params.get('app_version', None)
+        try:
+            app_version_obj = AppVersion.objects.get(version = app_version)
+        except:
+            app_version_obj = None
         
-        if app_version and app_version.need_update:
-            return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version.need_update}, status=200)
+        if app_version_obj and app_version_obj.need_update:
+            return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version_obj.need_update}, status=200)
                 
         inGame = DominoGame.objects.filter(
             Q(player1__id = player.id)|

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral, AppVersion
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -207,6 +207,26 @@ class ReferralAdmin(admin.ModelAdmin):
         "referred_user__alias"
         ]
 
+class AppVersionAdmin(admin.ModelAdmin):
+    list_display = [
+        "version",
+        "store_link",
+        "description",
+        "need_update",
+        "created_at"
+    ]
+    list_filter = [
+        "version",
+        "need_update",
+        "store_link",
+        "created_at"
+    ]
+    list_editable = ["need_update"]
+    search_fields = [
+        "version"
+        ]
+
+
 
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
@@ -217,3 +237,4 @@ admin.site.register(Marketing, MarketingAdmin)
 admin.site.register(BlockPlayer, PlayerBlockAdmin)
 admin.site.register(MoveRegister, MoveRegisterAdmin)
 admin.site.register(Referral, ReferralAdmin)
+admin.site.register(AppVersion, AppVersionAdmin)
