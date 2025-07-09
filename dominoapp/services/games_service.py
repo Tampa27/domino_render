@@ -2,7 +2,7 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
-from dominoapp.models import Player, DominoGame, AppVersion
+from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp import views
 
@@ -12,6 +12,10 @@ class GameService:
     @staticmethod
     def process_list(request, queryset):
         user = request.user
+        is_block = BlockPlayer.objects.filter(player_blocked__user__id=user.id).exists()
+        if is_block:
+            return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+
         check = Player.objects.filter(user__id = user.id ).exists()
         if not check:
             return Response ({'status': 'error', "message": "Player not found"},status=status.HTTP_404_NOT_FOUND)
