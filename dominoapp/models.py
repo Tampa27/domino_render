@@ -108,7 +108,8 @@ class Transaction(models.Model):
 
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")
-    image = models.ImageField(upload_to='media')
+    # image = models.ImageField(upload_to='media') # Por el momento se guarda el url hasta que logre poner a guardar los ficheros
+    image = models.URLField()
     text = models.CharField(max_length=250, blank=True, null = True)
     url = models.URLField(blank=True, null= True)
     created_at = models.DateTimeField(auto_now_add=True)
