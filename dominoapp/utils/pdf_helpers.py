@@ -139,6 +139,43 @@ def create_resume_pdf(transaction_data: dict):
     pdf.cell(50, 8,"Recaudado en Juegos:" , border=border, align='L', fill=0)
     pdf.cell(40, 8, f"{transaction_data['game_amount']} CUP", border=border, align='C', fill=0)
 
+    current_y = pdf.get_y() + 20
+    pdf.set_xy(x_start, current_y)
+    pdf.cell(194, 8,"Desglose por Administrador" , border=0, align='C', fill=0)
+    current_y = pdf.get_y() + 8
+    pdf.set_xy(x_start, current_y)
+
+    pdf.cell(55, 16,"Administrador" , border=border, align='C', fill=0)
+    current_x = pdf.get_x()
+    pdf.cell(66, 8,"Recargas" , border=border, align='C', fill=0)
+    current_y1 = pdf.get_y() + 8
+    pdf.set_xy(current_x, current_y1)
+    pdf.cell(33, 8,"Transferencias" , border=border, align='C', fill=0)
+    pdf.cell(33, 8,"Saldo" , border=border, align='C', fill=0)
+    current_x = pdf.get_x()
+    pdf.set_xy(current_x, current_y)
+    pdf.cell(33, 16,"Extracciones" , border=border, align='C', fill=0)
+    pdf.cell(40, 16,"Balance" , border=border, align='C', fill=0)
+    current_y = pdf.get_y() + 8
+    pdf.set_xy(x_start, current_y)
+    tfont(pdf, '')
+    color = 'gray2'
+    for row in transaction_data['admin_resume']:
+        if color == 'gray2':            
+            color = 'gray1'
+        else:
+            color = 'gray2'
+        set_fillcol(pdf,color)
+        current_y = pdf.get_y() + 8
+        pdf.set_xy(x_start, current_y)
+        pdf.cell(55, 8,row['alias'] , border=border, align='C', fill=1)
+        pdf.cell(33, 8,row['trans_amount_rl'] , border=border, align='C', fill=1)
+        pdf.cell(33, 8,row['saldo_amount_rl'] , border=border, align='C', fill=1)
+        pdf.cell(33, 8,row['total_admin_amount_ext'] , border=border, align='C', fill=1)
+        pdf.cell(40, 8,row['balance'] , border=border, align='C', fill=1)
+
+
+    
 
     return pdf.output(dest='S').encode('latin-1')
 
