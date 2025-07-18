@@ -127,7 +127,7 @@ class RequestValidator:
     def validate_phone_number(value):
         if not isinstance(value, str):
             return False
-        safe_pattern = re.compile(r'^\+?\s*(\d\s*){8,15}$')
+        safe_pattern = re.compile(r'^\+{1}?\d{9,15}$')
         if safe_pattern.match(value):
             return True
         else:

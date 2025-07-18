@@ -38,6 +38,7 @@ class PlayerRequest:
         validators = {
             "email": RequestValidator.validate_email,
             "alias": RequestValidator.validate_string,
+            "phone": RequestValidator.validate_phone_number,
             "tiles": RequestValidator.validate_string,
             "coins": RequestValidator.validate_integer,
             "points": RequestValidator.validate_integer,
@@ -87,6 +88,7 @@ class PlayerRequest:
 
         validators = {
             "email": RequestValidator.validate_email,
+            "phone": RequestValidator.validate_phone_number,
             "alias": RequestValidator.validate_string,
             "tiles": RequestValidator.validate_string,
             "coins": RequestValidator.validate_integer,
@@ -130,7 +132,6 @@ class PlayerRequest:
             "token": RequestValidator.validate_string,
             "refer_code": RequestValidator.validate_short_uuid,
             "fcm_token": RequestValidator.validate_string
-
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
