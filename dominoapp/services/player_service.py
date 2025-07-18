@@ -99,9 +99,7 @@ class PlayerService:
                     )
 
                 player = Player.objects.create(
-                    email=google_user['email'],
-                    name = google_user['name'],
-                    photo_url = google_user.get('picture', None),
+                    email=google_user['email'],                    
                     alias= google_user['email'].split('@')[0],
                     user= user
                 )
@@ -126,10 +124,12 @@ class PlayerService:
                 )
             else:
                 player = Player.objects.get(email=google_user['email'])
-            
+
+            player.name = google_user['name']
+            player.photo_url = google_user.get('picture', None)
             player.lastTimeInSystem = timezone.now()
             player.inactive_player = False
-            player.save(update_fields=['lastTimeInSystem','inactive_player'])
+            player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player'])
 
             # Para registrar un dispositivo
             fcm_token = request.data.get("fcm_token")
