@@ -71,6 +71,12 @@ if PRODUCTION:
     GS_DEFAULT_ACL = 'publicRead'  # Esto hará que los archivos sean públicos
 
     DEFAULT_FILE_STORAGE   = "dominoapp.connectors.google_verifier.GoogleDriveStorage"
+
+    # Configuración para WebSockets seguros
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
     
 else:
     # This will display email in Console.
@@ -247,4 +253,19 @@ FCM_DJANGO_SETTINGS = {
     "FCM_SERVER_KEY": os.getenv('FCM_SERVER_KEY'),
     "ONE_DEVICE_PER_USER": False,
     "DELETE_INACTIVE_DEVICES": True,
+}
+
+# Configuración de Channel Layers
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [
+                {
+                    'address':CELERY_BROKER_URL
+                }
+            ],
+            'prefix': 'domino_club'  # Prefijo para las claves Redis
+        },
+    },
 }

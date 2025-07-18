@@ -24,6 +24,7 @@ import time
 import logging
 from dominoapp.utils.transactions import create_game_transactions, create_reload_transactions, create_extracted_transactions
 from dominoapp.connectors.discord_connector import DiscordConnector
+from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.move_register_utils import movement_register
 
@@ -580,6 +581,17 @@ def movement(game_id,player,players,tile, automatic=False):
         game.save()
         game.refresh_from_db()
         logger.info(player.alias+" movio "+tile)
+        PushNotificationConnector.push_notification(
+                channel=f'mesa_{game.id}',
+                event_name='move_tile',
+                data_notification={
+                    'game_status': game.status,
+                    'player': player.id,
+                    'tile': tile,
+                    'next_player': game.next_player,
+                    'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+                }
+            )
         return None        
 
 def CheckPlayerTile(tile:str, player:Player):
