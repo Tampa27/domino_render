@@ -22,7 +22,7 @@ class Player(models.Model):
     lastTimeInSystem = models.DateTimeField(default=timezone.now)
     email = models.CharField(max_length=250, unique=True, null=True, blank=True)
     photo_url = models.URLField(max_length=250, unique=True, null=True, blank=True)
-    name = models.CharField(max_length=32,null=True, blank=True)
+    name = models.CharField(max_length=50,null=True, blank=True)
     isPlaying = models.BooleanField(default=False)
     inactive_player = models.BooleanField(default=False)
     

@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.response import Response
+from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -10,6 +11,8 @@ from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
+import logging
+logger = logging.getLogger('django')
 
 class PlayerService:
 
@@ -72,7 +75,7 @@ class PlayerService:
         token = request.data.get('token')
 
         try:
-            # Verifica el token de Google
+            ###### Verifica el token de Google  ########
             google_user, error = GoogleTokenVerifier.verify(token)
             
             if error:
@@ -81,84 +84,94 @@ class PlayerService:
                         "message": str(error)}, 
                         status=status.HTTP_401_UNAUTHORIZED
                     )
-            
-            is_block = BlockPlayer.objects.filter(player_blocked__email=google_user['email']).exists()
-            if is_block:
-                return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
-            
-            exist = Player.objects.filter(email=google_user['email']).exists()
-            
-            if not exist:
-                # Busca o crea el usuario
-                user, created = User.objects.get_or_create(
-                        email=google_user['email'],
-                        defaults={
-                            'username': google_user['email'].split('@')[0],
-                            'is_active': True
-                        }
-                    )
-
-                player = Player.objects.create(
-                    email=google_user['email'],                    
-                    alias= google_user['email'].split('@')[0],
-                    user= user
-                )
-
-                if "refer_code" in request.data:
-                    try:
-                        referral_model = Referral.objects.get(referral_code = request.data["refer_code"], is_active=True)
-                    except:
-                        referral_model = None
-                    if referral_model:
-                        referral_model.referred_user = player
-                        referral_model.referral_date = timezone.now()
-                        referral_model.is_active = False
-                        referral_model.save(update_fields=["referred_user", "referral_date", "is_active"])
-
-                DiscordConnector.send_event(
-                    ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
-                    {
-                        "email": google_user['email'],
-                        "name" : google_user['name']
-                    }
-                )
-            else:
-                player = Player.objects.get(email=google_user['email'])
-
-            player.name = google_user['name']
-            player.photo_url = google_user.get('picture', None)
-            player.lastTimeInSystem = timezone.now()
-            player.inactive_player = False
-            player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player'])
-
-            # Para registrar un dispositivo
-            fcm_token = request.data.get("fcm_token")
-            if fcm_token:
-                FCMDevice.objects.get_or_create(
-                    registration_id = fcm_token,
-                    defaults={
-                        "user": player.user,  # asociar a un usuario
-                        "type": "android",  # o "ios", "web"
-                    }
-                )
-
-            # Genera tokens JWT usando simplejwt
-            refresh = RefreshToken.for_user(player.user)
-
-            player_data = PlayerLoginSerializer(player).data            
-            player_data["is_new"] = (not exist)
-
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                'user': player_data
-            })   
         except Exception as e:
             return Response(
                 {"status":'error',
                  "message": str(e)}, 
                 status=status.HTTP_401_UNAUTHORIZED
             )
+        try:
+            with transaction.atomic():
+                is_block = BlockPlayer.objects.filter(player_blocked__email=google_user['email']).exists()
+                if is_block:
+                    return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+                
+                exist = Player.objects.filter(email=google_user['email']).exists()
+                
+                if not exist:
+                    # Busca o crea el usuario
+                    user, created = User.objects.get_or_create(
+                            email=google_user['email'],
+                            defaults={
+                                'username': google_user['email'].split('@')[0],
+                                'is_active': True
+                            }
+                        )
+
+                    player = Player.objects.create(
+                        email=google_user['email'],                    
+                        alias= google_user['email'].split('@')[0],
+                        user= user
+                    )
+
+                    if "refer_code" in request.data:
+                        try:
+                            referral_model = Referral.objects.get(referral_code = request.data["refer_code"], is_active=True)
+                        except:
+                            referral_model = None
+                        if referral_model:
+                            referral_model.referred_user = player
+                            referral_model.referral_date = timezone.now()
+                            referral_model.is_active = False
+                            referral_model.save(update_fields=["referred_user", "referral_date", "is_active"])
+
+                    DiscordConnector.send_event(
+                        ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
+                        {
+                            "email": google_user['email'],
+                            "name" : google_user['name']
+                        }
+                    )
+                else:
+                    player = Player.objects.get(email=google_user['email'])
+
+                player.name = google_user['name']
+                player.photo_url = google_user.get('picture', None)
+                player.lastTimeInSystem = timezone.now()
+                player.inactive_player = False
+                player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player'])
+
+                # Para registrar un dispositivo
+                fcm_token = request.data.get("fcm_token")
+                if fcm_token:
+                    FCMDevice.objects.get_or_create(
+                        registration_id = fcm_token,
+                        defaults={
+                            "user": player.user,  # asociar a un usuario
+                            "type": "android",  # o "ios", "web"
+                        }
+                    )
+
+                # Genera tokens JWT usando simplejwt
+                refresh = RefreshToken.for_user(player.user)
+
+                player_data = PlayerLoginSerializer(player).data            
+                player_data["is_new"] = (not exist)
+
+                return Response({
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                    'user': player_data
+                })
+        except Exception as e:
+            logger.critical(f'No se completo la creación del player {google_user['email']}. Error => {str(e)}')
+            
+            return Response(
+                {"status":'error',
+                 "message": str(e)}, 
+                status=status.HTTP_409_CONFLICT
+            )  
+        
         
     @staticmethod
     def process_refer_code(request):
