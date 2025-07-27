@@ -757,12 +757,13 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
                         
-                        try:
-                            bank = Bank.objects.get(id=1)
-                        except ObjectDoesNotExist:
-                            bank = Bank.objects.create()
-                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        bank.balance+=bank_coins
+                        # try:
+                        #     bank = Bank.objects.get(id=1)
+                        # except ObjectDoesNotExist:
+                        #     bank = Bank.objects.create()
+                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        # bank.balance+=bank_coins
+                        bank_coins=0
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
@@ -784,13 +785,14 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
                         
-                        try:
-                            bank = Bank.objects.get(id=1)
-                        except ObjectDoesNotExist:
-                            bank = Bank.objects.create()
-                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        bank.balance+=bank_coins
-                        
+                        # try:
+                        #     bank = Bank.objects.get(id=1)
+                        # except ObjectDoesNotExist:
+                        #     bank = Bank.objects.create()
+                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        # bank.balance+=bank_coins
+                        bank_coins=0
+
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
@@ -812,12 +814,13 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
                         
-                        try:
-                            bank = Bank.objects.get(id=1)
-                        except ObjectDoesNotExist:
-                            bank = Bank.objects.create()
-                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        bank.balance+=bank_coins
+                        # try:
+                        #     bank = Bank.objects.get(id=1)
+                        # except ObjectDoesNotExist:
+                        #     bank = Bank.objects.create()
+                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        # bank.balance+=bank_coins
+                        bank_coins=0
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins
@@ -839,12 +842,13 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].recharged_coins += players[pos].earned_coins
                             players[pos].earned_coins = 0
                         
-                        try:
-                            bank = Bank.objects.get(id=1)
-                        except ObjectDoesNotExist:
-                            bank = Bank.objects.create()
-                        bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        bank.balance+=bank_coins
+                        # try:
+                        #     bank = Bank.objects.get(id=1)
+                        # except ObjectDoesNotExist:
+                        #     bank = Bank.objects.create()
+                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                        # bank.balance+=bank_coins
+                        bank_coins=0
                         
                         coins = loss_coins - bank_coins
                         players[pos1].earned_coins+=coins

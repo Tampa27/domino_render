@@ -18,7 +18,7 @@ class Command(BaseCommand):
         
         games_models = DominoGame.objects.filter(
             start_time__lt=expired_time
-            ).exclude(id__in=[2,3,4,5,18,21,497,475])
+            ).exclude(id__in=[2,3,4,5,18,21,497,475,639,652])
 
         for game in games_models:
             if len(playersCount(game)) == 0:
