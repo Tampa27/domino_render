@@ -251,6 +251,13 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
         player = Player.objects.get(user__id=request.user.id)
+
+        if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
+            if (game.inPairs and (game.scoreTeam1 > 0 or game.scoreTeam2 > 0)) or (not game.inPairs and player.points > 0):
+                return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
+        elif game.status in ["ru"] and player.isPlaying:
+                return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
+        
         players = views.playersCount(game)
         players_ru = list(filter(lambda p: p.isPlaying,players))
         exited = views.exitPlayer(game,player,players_ru,len(players))
