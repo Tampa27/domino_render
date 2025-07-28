@@ -691,7 +691,7 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
             if i == w:
                 players[i].dataWins+=1
                 if game.payWinValue > 0:
-                    bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)*(n_p-1)
+                    bank_coins = int(game.payWinValue*(n_p-1)*ApiConstants.DISCOUNT_PERCENT/100)
                     bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                     bank.balance+=(bank_coins)
@@ -703,7 +703,7 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 if status == "fg" and game.perPoints:
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
-                        bank_coins = int(game.payMatchValue*ApiConstants.DISCOUNT_PERCENT/100)*(n_p-1)
+                        bank_coins = int(game.payMatchValue*(n_p-1)*ApiConstants.DISCOUNT_PERCENT/100)
                         bank.matches_coins+=bank_coins
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
                         bank.balance+=(bank_coins)
