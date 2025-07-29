@@ -77,14 +77,27 @@ class TransactionStatus:
         TRANSACTION_CANCELED
     ]
 
+class PaymentStatus:
+    Payment_PENDING = ("pending", "pago pendiente")
+    Payment_PAID = ("paid", "pago completado")
+    Payment_CANCELED = ("canceled", "pago cancelado")
+
+    payment_choices = [
+        Payment_PENDING,
+        Payment_PAID,
+        Payment_CANCELED
+    ]
+
 class TransactionPaymentMethod:
     PAYMENT_BY_SALDO = ("saldo", "saldo movil")
     PAYMENT_BY_TRANSFERENCIA = ("transferencia", "transferencia")
+    PAYMENT_BY_PAYPAL = ("paypal", "pago por paypal")
     
 
     payment_choices = [
         PAYMENT_BY_SALDO,
-        PAYMENT_BY_TRANSFERENCIA
+        PAYMENT_BY_TRANSFERENCIA,
+        PAYMENT_BY_PAYPAL
     ]
 
 class TransactionTypes:
