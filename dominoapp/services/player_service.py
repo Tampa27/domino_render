@@ -164,7 +164,7 @@ class PlayerService:
                     'user': player_data
                 })
         except Exception as e:
-            logger.critical(f'No se completo la creación del player {google_user['email']}. Error => {str(e)}')
+            logger.critical(f"No se completo la creación del player {google_user['email']}. Error => {str(e)}")
             
             return Response(
                 {"status":'error',
