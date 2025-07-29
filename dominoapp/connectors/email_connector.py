@@ -49,7 +49,7 @@ class EmailConnector:
             locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
         except locale.Error:
             locale.setlocale(locale.LC_TIME, '')
-            
+
         expiration_time = datetime.now() + timedelta(days=7)
 
         html_message = render_to_string('email/delete_inactive_player.html', {
@@ -66,3 +66,25 @@ class EmailConnector:
                 text= text_content,
                 html = html_message
             )
+    
+    @staticmethod
+    def email_players_db_backup(players_data):
+        subject = f"⚠ Salvado de Base de Datos - Dominó Club ⚠"
+        
+        current_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
+        html_message = render_to_string('email/backups_db_player.html', {
+            'current_date': current_date,
+            'players': players_data,
+            })
+        text_content = strip_tags(html_message)
+        
+        return EmailConnector.django_send_email(
+                [EmailConnector.admin_email],
+                subject,
+                from_email=EmailConnector.admin_email,
+                text= text_content,
+                html = html_message
+            )
+    
+
