@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import uuid
 from shortuuid.django_fields import ShortUUIDField
-from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod
+from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus
 # Create your models here.
 
 class Player(models.Model):
@@ -104,6 +104,23 @@ class Transaction(models.Model):
     external_id = models.CharField(max_length=50, null=True, blank=True)
     paymentmethod = models.CharField(max_length=32,choices=TransactionPaymentMethod.payment_choices, null=True, blank=True)
     descriptions = models.CharField(max_length=100, null=True, blank=True)
+
+
+class Status_Payment(models.Model):
+    status = models.CharField(max_length=32,choices=PaymentStatus.payment_choices,default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Payment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    external_id = models.CharField(max_length=50, null=True, blank=True, db_index=True)
+    status_list = models.ManyToManyField(to=Status_Payment, blank=True, related_name="status_payment")
+    transaction = models.ForeignKey(Transaction, related_name="transaction_payment", on_delete=models.SET_NULL, blank=True, null= True)
+    user = models.ForeignKey(Player,related_name="payer_payment",on_delete=models.PROTECT)
+    amount = models.DecimalField(default=0, decimal_places=2, max_digits= 9)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_time = models.DateTimeField(blank=True, null=True)
+    
 
 
 class Marketing(models.Model):

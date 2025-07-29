@@ -3,12 +3,13 @@ from rest_framework.response import Response
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Referral
+from dominoapp.models import Player, Bank, Transaction, Referral, Status_Payment
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.connectors.discord_connector import DiscordConnector
+from dominoapp.connectors.paypal_connector import PayPalConnector
 
 
 class PaymentService:
@@ -274,3 +275,43 @@ class PaymentService:
         response = HttpResponse(pdf_out, content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="'+ 'model_'+str(player.alias)+'.pdf"'
         return response
+    
+    @staticmethod
+    def process_payment(request):
+        try:
+            user = Player.objects.get(user__id = request.user.id)
+        except:
+            return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if str(request.data['amount']) < str(1):
+            return Response(data={'status': 'error', "message":'The amount must be greater than 0.'}, status=status.HTTP_409_CONFLICT)
+
+        response, error = PayPalConnector.create_payment(amount = request.data['amount'], user_email= user.email)
+
+        if error:
+            return error
+        
+        if response["status"] == "success":
+            return Response(data = response, status=status.HTTP_200_OK)
+        else:
+            return Response(data = response, status=status.HTTP_400_BAD_REQUEST)
+    
+    @staticmethod
+    def process_paypal_capture(request):
+        response = PayPalConnector.capture_payment(external_id=request.data["external_id"])
+
+        if response:
+            return Response(data = {
+                "status": "success",
+                "message": "Payment captured successfully"
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(data = {
+                "status": "error",
+                "message": "Failed to capture payment"
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+
+      
+
+        

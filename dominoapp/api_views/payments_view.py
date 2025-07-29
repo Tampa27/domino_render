@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, AllowAny
+from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
 from dominoapp.models import Transaction
 from dominoapp.api_views.request.payments_request import PaymentRequest
 from dominoapp.services.payments_service import PaymentService
@@ -11,7 +11,17 @@ from rest_framework.serializers import BooleanField, IntegerField, CharField, Li
 
 class PaymentView(viewsets.GenericViewSet):
     queryset = Transaction.objects.all()
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ["recharge", "promotion", "extract"]:
+            permission_classes = [IsAdminUser]
+        elif self.action in ["resume_game"]:
+            permission_classes = [AllowAny]        
+        else:
+            permission_classes = [IsAuthenticated]
+
+        return [permission() for permission in permission_classes]
 
     @extend_schema(
             operation_id="payments_recharge",
@@ -150,7 +160,7 @@ class PaymentView(viewsets.GenericViewSet):
         
         return PaymentService.process_extract(request)
     
-    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["get"])
     def resume_game(self, request, pk = None):
 
         is_valid, message, status_response = PaymentRequest.validate_resume_game(request)
@@ -162,3 +172,85 @@ class PaymentView(viewsets.GenericViewSet):
             }, status = status_response)
         
         return PaymentService.process_resume_game(request)
+
+    @extend_schema(
+            operation_id="payments_create",
+            request = {
+                200: inline_serializer(
+                    name="Payments Create Request",
+                    fields={
+                        "amount" : IntegerField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Payments Create Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Payments Create Response Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    def create(self, request, pk = None):
+
+        is_valid, message, status_response = PaymentRequest.validate_payments_create(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PaymentService.process_payment(request)
+    
+    @extend_schema(
+            operation_id="paypal_capture",
+            request = {
+                200: inline_serializer(
+                    name="Paypal Capture Request",
+                    fields={
+                        "external_id": CharField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Paypal Capture Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Paypal Capture Response Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def paypalcapture(self, request, pk = None):
+
+        is_valid, message, status_response = PaymentRequest.validate_paypal_capture(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PaymentService.process_payment(request)
+    

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral, AppVersion
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral, AppVersion, Payment
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -90,6 +90,32 @@ class TransactionAdmin(admin.ModelAdmin):
 
     def status(self, obj):
         return obj.status_list.last().status
+
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "user",
+        "amount",
+        "external_id",
+        "status",
+        "created_at",
+        "paid_time",
+        "transaction"
+    ]
+    inlines = []
+    list_filter = [
+        "user",
+        "created_at",
+        "paid_time"
+    ]
+    ordering = ["-paid_time", "-created_at"]
+    search_fields = ["user__alias", "user__email", "external_id", "transaction__id"]
+    actions = []
+
+    def status(self, obj):
+        print(obj)
+        return obj.status_list.last().status if obj.status_list.count()>0 else None
+
 
 class MarketingAdmin(admin.ModelAdmin):
     list_display = [
@@ -233,6 +259,7 @@ admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
 admin.site.register(Bank)
 admin.site.register(Transaction, TransactionAdmin)
+admin.site.register(Payment, PaymentAdmin)
 admin.site.register(Marketing, MarketingAdmin)
 admin.site.register(BlockPlayer, PlayerBlockAdmin)
 admin.site.register(MoveRegister, MoveRegisterAdmin)
