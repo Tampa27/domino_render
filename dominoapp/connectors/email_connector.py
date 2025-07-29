@@ -3,10 +3,7 @@ import logging
 import locale
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from django.utils.html import strip_tags
-from django.conf import settings
 from datetime import datetime, timedelta
 import base64
 from io import BytesIO
@@ -49,7 +46,7 @@ class EmailConnector:
     def email_inactive_players(player: Player):
         subject = f"⚠ Tu cuenta en Dominó Club está por expirar ⚠"
 
-        locale.setlocale(locale.LC_TIME, 'spanish') 
+        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
         expiration_time = datetime.now() + timedelta(days=7)
 
         html_message = render_to_string('email/delete_inactive_player.html', {
