@@ -45,8 +45,11 @@ class EmailConnector:
     @staticmethod
     def email_inactive_players(player: Player):
         subject = f"⚠ Tu cuenta en Dominó Club está por expirar ⚠"
-
-        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+        try:
+            locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+        except locale.Error:
+            locale.setlocale(locale.LC_TIME, '')
+            
         expiration_time = datetime.now() + timedelta(days=7)
 
         html_message = render_to_string('email/delete_inactive_player.html', {
