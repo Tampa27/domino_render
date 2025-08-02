@@ -57,13 +57,12 @@ class PaymentService:
             pass        
         
         try:
-            bank = Bank.objects.get(id=1)
+            bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
 
-        bank.balance+=int(request.data["coins"])
         bank.buy_coins+=int(request.data["coins"])
-        bank.save()
+        bank.save(update_fields=['buy_coins'])
 
         try:
             admin = Player.objects.get(user__id = request.user.id)
@@ -100,6 +99,14 @@ class PaymentService:
         player = Player.objects.get(alias=request.data["alias"])
         player.recharged_coins+= int(request.data["coins"])
         player.save(update_fields=["recharged_coins"])
+
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.promotion_coins+=int(request.data["coins"])
+        bank.save(update_fields=['promotion_coins'])  
 
         try:
             admin = Player.objects.get(user__id = request.user.id)
@@ -143,13 +150,12 @@ class PaymentService:
 
         
         try:
-            bank = Bank.objects.get(id=1)
+            bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
 
-        bank.balance-=int(request.data["coins"])
         bank.extracted_coins+=int(request.data["coins"])
-        bank.save()
+        bank.save(update_fields=['extracted_coins'])
 
         try:
             admin = Player.objects.get(user__id = request.user.id)

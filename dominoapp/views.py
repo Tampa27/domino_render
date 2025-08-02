@@ -461,14 +461,29 @@ def startGame1(game_id,players):
             else:
                 game.winner = 6    
         #game.winner=-1
-                
+
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+        
+        ### Pensar aqui en que lugar sumo las datas y los game
+        bank.data_played+=1
+
         game.board = ''
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
             game.scoreTeam1 = 0
             game.scoreTeam2 = 0
             for player in players:
                 player.points = 0
-            game.rounds = 0    
+            game.rounds = 0
+
+            bank.game_played+=1
+        elif not game.perPoints:
+            bank.game_played+=1
+        
+        bank.save(update_fields=['game_played', 'data_played'])
+
         #if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
         #    shuffleCouples(game,players_ru)    
         shuffle(game,players)          
@@ -577,6 +592,19 @@ def movement(game_id,player,players,tile, automatic=False):
                 updatePassCoins(w,game,players, move_register)
             game.next_player = (w+1) % n
         
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+       
+        if game.status == "fg":
+            bank.data_completed+=1
+            bank.game_completed+=1
+        elif game.status == "fi":
+            bank.data_completed+=1
+        
+        bank.save(update_fields=["data_completed","game_completed"])
+
         game.board += (tile+',')
         game.save()
         game.refresh_from_db()
@@ -639,7 +667,7 @@ def rTile(tile)->str:
 
 def updatePlayersData(game,players,w,status,move_register: MoveRegister):
     try:
-        bank = Bank.objects.get(id=1)
+        bank = Bank.objects.all().first()
     except ObjectDoesNotExist:
         bank = Bank.objects.create()
     bank_coins = 0
@@ -654,9 +682,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].dataWins+=1
                 if game.payWinValue > 0:
                     bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)
-                    bank.datas_coins+=bank_coins
                     player_coins = (game.payWinValue-bank_coins)
-                    bank.balance+=(bank_coins)
+                    bank.game_coins+=(bank_coins)
                     players[i].earned_coins+= player_coins
                     create_game_transactions(
                         game=game,to_user=players[i], amount=player_coins, status="cp", 
@@ -666,9 +693,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
                         bank_coins = int(game.payMatchValue*ApiConstants.DISCOUNT_PERCENT/100)
-                        bank.matches_coins+=bank_coins
+                        bank.game_coins+=bank_coins
                         player_coins = (game.payMatchValue-bank_coins)
-                        bank.balance+=(bank_coins)
                         players[i].earned_coins+= player_coins
                         create_game_transactions(
                             game=game, to_user=players[i], amount=player_coins, status="cp", 
@@ -704,9 +730,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].dataWins+=1
                 if game.payWinValue > 0:
                     bank_coins = int(game.payWinValue*(n_p-1)*ApiConstants.DISCOUNT_PERCENT/100)
-                    bank.datas_coins+=bank_coins
+                    bank.game_coins+=bank_coins
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
-                    bank.balance+=(bank_coins)
                     players[i].earned_coins+= player_coins
                     create_game_transactions(
                         game=game, to_user=players[i], amount=player_coins, status="cp", 
@@ -716,9 +741,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     players[i].matchWins+=1
                     if game.payMatchValue > 0:
                         bank_coins = int(game.payMatchValue*(n_p-1)*ApiConstants.DISCOUNT_PERCENT/100)
-                        bank.matches_coins+=bank_coins
+                        bank.game_coins+=bank_coins
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
-                        bank.balance+=(bank_coins)
                         players[i].earned_coins+= player_coins
                         create_game_transactions(
                             game=game, to_user=players[i], amount=player_coins, status="cp", 
@@ -748,7 +772,7 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             descriptions=f"perdi en el juego {game.id}",
                             move_register=move_register)
                 players[i].save()                                    
-    bank.save()
+    bank.save(update_fields=['game_coins'])
 
 def updatePassCoins(pos,game,players,move_register:MoveRegister):
     tiles = game.board.split(',')
@@ -770,11 +794,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].earned_coins = 0
                         
                         # try:
-                        #     bank = Bank.objects.get(id=1)
+                        #     bank = Bank.objects.all().first()
                         # except ObjectDoesNotExist:
                         #     bank = Bank.objects.create()
                         # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.balance+=bank_coins
+                        # bank.game_coins+=bank_coins
                         bank_coins=0
                         
                         coins = loss_coins - bank_coins
@@ -798,11 +822,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].earned_coins = 0
                         
                         # try:
-                        #     bank = Bank.objects.get(id=1)
+                        #     bank = Bank.objects.all().first()
                         # except ObjectDoesNotExist:
                         #     bank = Bank.objects.create()
                         # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.balance+=bank_coins
+                        # bank.game_coins+=bank_coins
                         bank_coins=0
 
                         coins = loss_coins - bank_coins
@@ -827,11 +851,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].earned_coins = 0
                         
                         # try:
-                        #     bank = Bank.objects.get(id=1)
+                        #     bank = Bank.objects.all().first()
                         # except ObjectDoesNotExist:
                         #     bank = Bank.objects.create()
                         # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.balance+=bank_coins
+                        # bank.game_coins+=bank_coins
                         bank_coins=0
                         
                         coins = loss_coins - bank_coins
@@ -855,11 +879,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             players[pos].earned_coins = 0
                         
                         # try:
-                        #     bank = Bank.objects.get(id=1)
+                        #     bank = Bank.objects.all().first()
                         # except ObjectDoesNotExist:
                         #     bank = Bank.objects.create()
                         # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.balance+=bank_coins
+                        # bank.game_coins+=bank_coins
                         bank_coins=0
                         
                         coins = loss_coins - bank_coins
@@ -984,12 +1008,12 @@ def rechargeBalance(request,alias,coins):
     
     player.recharged_coins+=coins
     try:
-        bank = Bank.objects.get(id=1)
+        bank = Bank.objects.all().first()
     except ObjectDoesNotExist:
         bank = Bank.objects.create()
-    bank.balance+=coins
+
     bank.buy_coins+=coins
-    bank.save()   
+    bank.save(update_fields=['buy_coins'])   
     create_reload_transactions(to_user=player, amount=coins, status="cp")
     DiscordConnector.send_event(
         ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
@@ -1019,12 +1043,12 @@ def payment(request,alias,coins):
         player.recharged_coins += player.earned_coins
         player.earned_coins = 0
     try:
-        bank = Bank.objects.get(id=1)
+        bank = Bank.objects.all().first()
     except ObjectDoesNotExist:
         bank = Bank.objects.create()
-    bank.balance-=coins
+    
     bank.extracted_coins+=coins
-    bank.save()
+    bank.save(update_fields=['extracted_coins'])
     create_extracted_transactions(from_user=player, amount=coins, status="cp")
     DiscordConnector.send_event(
         ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
@@ -1105,11 +1129,11 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 loss_coins = (game.payWinValue+game.payMatchValue)
                 coins = loss_coins
                 try:
-                    bank = Bank.objects.get(id=1)
+                    bank = Bank.objects.all().first()
                 except ObjectDoesNotExist:
                     bank = Bank.objects.create()
                 bank_coins = int(coins*ApiConstants.DISCOUNT_PERCENT/100)
-                bank.balance+=bank_coins
+                bank.game_coins+=bank_coins
                 coins -= bank_coins
                 if game.inPairs:
                     coins_value = int(coins/2)
@@ -1140,7 +1164,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 create_game_transactions(
                     game=game, from_user=player, amount=loss_coins, status="cp",
                     descriptions=f"por salir del juego {game.id}")
-                bank.save()                               
+                bank.save(update_fields=['game_coins'])                               
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1

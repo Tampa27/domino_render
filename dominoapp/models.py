@@ -76,14 +76,21 @@ class DominoGame(models.Model):
 
 
 class Bank(models.Model):
-    balance = models.PositiveIntegerField(default=10000)
-    created_coins = models.PositiveIntegerField(default=0)
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
-    ads_coins = models.PositiveIntegerField(default=0)
-    datas_coins = models.PositiveIntegerField(default=0)
-    matches_coins = models.PositiveIntegerField(default=0)
-    private_tables_coins = models.PositiveIntegerField(default=0)
+    promotion_coins = models.PositiveIntegerField(default=0)
+    game_coins = models.PositiveIntegerField(default=0)
+    game_played = models.PositiveIntegerField(default=0)
+    game_completed = models.PositiveIntegerField(default=0)
+    data_played = models.PositiveIntegerField(default=0)
+    data_completed = models.PositiveIntegerField(default=0)
+    time_created = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        ordering = ["-time_created"]
+
+    @property
+    def balance(self):
+        return self.buy_coins - self.extracted_coins
 
 
 class Status_Transaction(models.Model):

@@ -254,10 +254,31 @@ class AppVersionAdmin(admin.ModelAdmin):
 
 
 
+class BankAdmin(admin.ModelAdmin):
+    list_display = [
+        "time_created",
+        "buy_coins",
+        "extracted_coins",
+        "balance",
+        "game_coins",
+        "data_played",
+        "data_completed",
+        "game_played",
+        "game_completed"
+    ]
+    list_filter = [
+        'time_created'
+    ]
+    list_editable = []
+    search_fields = [
+        ]
+
+
+
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
-admin.site.register(Bank)
+admin.site.register(Bank, BankAdmin)
 admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(Payment, PaymentAdmin)
 admin.site.register(Marketing, MarketingAdmin)
