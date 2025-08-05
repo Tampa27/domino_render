@@ -272,10 +272,11 @@ class GameService:
         game = DominoGame.objects.get(id=game_id)
         player = Player.objects.get(user__id=request.user.id)
 
-        have_points = views.havepoints(game)
-
-        if game.status in ["ru","fi"] and player.isPlaying and game.perPoints and have_points:
-            return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
+        
+        if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
+            have_points = views.havepoints(game)
+            if have_points:
+                return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         elif game.status in ["ru"] and player.isPlaying:
                 return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         
