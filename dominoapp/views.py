@@ -1104,26 +1104,25 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
         timediff = timezone.now() - lastTimeMove
         if timediff.seconds >= 60:
             noActivity = True
-    
-    have_points = havepoints(game)
-    if not have_points:
-        if game.player1 is not None and game.player1.alias == player.alias:
-            game.player1 = None
-            exited = True
-        elif game.player2 is not None and game.player2.alias == player.alias:
-            game.player2 = None
-            exited = True        
-        elif game.player3 is not None and game.player3.alias == player.alias:
-            game.player3 = None
-            exited = True
-        elif game.player4 is not None and game.player4.alias == player.alias:
-            game.player4 = None
-            exited = True
+        
+    if game.player1 is not None and game.player1.alias == player.alias:
+        game.player1 = None
+        exited = True
+    elif game.player2 is not None and game.player2.alias == player.alias:
+        game.player2 = None
+        exited = True        
+    elif game.player3 is not None and game.player3.alias == player.alias:
+        game.player3 = None
+        exited = True
+    elif game.player4 is not None and game.player4.alias == player.alias:
+        game.player4 = None
+        exited = True
     
     if exited:
         player.points = 0
         player.tiles = ""
         if player.isPlaying:
+            have_points = havepoints(game)
             if (game.status == "fi" or (game.status == "ru" and (have_points or game.board != ""))) and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
                 loss_coins = (game.payWinValue+game.payMatchValue)
                 coins = loss_coins
