@@ -220,10 +220,10 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
         if game.status != "wt":
+            players = views.playersCount(game)
             for player in players:
                 if not views.ready_to_play(game, player):
-                        views.exitPlayer(game,player,players,len(players))
-            players = views.playersCount(game)
+                        views.exitPlayer(game,player,players,len(players))            
             if (game.inPairs and len(players<4)) or len(players)<2:
                 return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
             views.startGame1(game.id,players)    
