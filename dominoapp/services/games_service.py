@@ -156,6 +156,10 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
+        
+        if not views.ready_to_play(game, player):
+            return Response({"status":'error',"message":"you don't have enough coins"},status=status.HTTP_409_CONFLICT)
+        
         joined,players = views.checkPlayerJoined(player,game)
         if joined != True:
             if game.player1 is None:
@@ -216,7 +220,12 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
         if game.status != "wt":
+            for player in players:
+                if not views.ready_to_play(game, player):
+                        views.exitPlayer(game,player,players,len(players))
             players = views.playersCount(game)
+            if (game.inPairs and len(players<4)) or len(players)<2:
+                return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
             views.startGame1(game.id,players)    
             serializerGame = GameSerializer(game)
             playerSerializer = PlayerGameSerializer(players,many=True)
