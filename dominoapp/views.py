@@ -1098,6 +1098,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
     exited = False
     pos = getPlayerIndex(players,player)
     isStarter = (game.starter == pos)
+    starter = game.starter
     lastTimeMove = getLastMoveTime(game,player)
     noActivity = False
     if lastTimeMove is not None:
@@ -1182,14 +1183,14 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1
-        reorderPlayers(game,player)                                                       
+        reorderPlayers(game,player,players,starter)                                                       
         player.save()
         game.save()    
     return exited    
 
-def reorderPlayers(game,player):
+def reorderPlayers(game:DominoGame, player:Player, players:list, starter:int):
     k = 0
-    players = playersCount(game)
+    # players = playersCount(game)
     pos = getPlayerIndex(players,player)
     n = len(players)
     game.player1 = None
@@ -1206,6 +1207,9 @@ def reorderPlayers(game,player):
                 game.player3 = players[i]
             elif k == 3:
                 game.player4 = players[i]
+            if starter == i:
+                game.starter = k
+            
             k+=1
 
 def updateTeamScore(game, winner, players, sum_points, move_register:MoveRegister):
