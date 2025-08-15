@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, Referral, AppVersion, Payment
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -284,5 +284,4 @@ admin.site.register(Payment, PaymentAdmin)
 admin.site.register(Marketing, MarketingAdmin)
 admin.site.register(BlockPlayer, PlayerBlockAdmin)
 admin.site.register(MoveRegister, MoveRegisterAdmin)
-admin.site.register(Referral, ReferralAdmin)
 admin.site.register(AppVersion, AppVersionAdmin)

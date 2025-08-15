@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Referral, Status_Payment
+from dominoapp.models import Player, Bank, Transaction, Status_Payment
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -26,40 +26,44 @@ class PaymentService:
         player.save(update_fields=["recharged_coins"])
 
         try:
-            refer_model = Referral.objects.get(referred_user__id = player.id, reward_granted=False)
-            refer_model.referrer.earned_coins += ApiConstants.REFER_REWARD
-            refer_model.referrer.save(update_fields=["earned_coins"])
-
-            refer_model.reward_granted = True
-            refer_model.save(update_fields=["reward_granted"])
-
-            create_promotion_transactions(
-                amount= ApiConstants.REFER_REWARD,
-                from_user=player,
-                to_user= refer_model.referrer,
-                status="cp",
-                descriptions=f"El player {refer_model.referrer.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
-            )
-            FCMNOTIFICATION.send_fcm_message(
-            user = player.user,
-            title = "Nueva Recarga en Domino Club",
-            body = f"{refer_model.referrer.name} usted a recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
-            )
-            DiscordConnector.send_event(
-                "Promoción",
-                {
-                    'player': str(refer_model.referrer.alias),
-                    "amount": ApiConstants.REFER_REWARD,
-                    "referred_user": str(player.alias)
-                }
-            )   
-        except:
-            pass        
-        
-        try:
             bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
+        
+        if player.parent and not player.reward_granted:
+            try:
+                player.parent.earned_coins += ApiConstants.REFER_REWARD
+                player.parent.save(update_fields=["earned_coins"])
+
+                player.reward_granted = True
+                player.save(update_fields=["reward_granted"])
+
+                create_promotion_transactions(
+                    amount= ApiConstants.REFER_REWARD,
+                    from_user=player,
+                    to_user= player.parent,
+                    status="cp",
+                    descriptions=f"El player {player.parent.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
+                )
+                
+                bank.promotion_coins+=int(ApiConstants.REFER_REWARD)
+                bank.save(update_fields=['promotion_coins'])
+                
+                FCMNOTIFICATION.send_fcm_message(
+                user = player.parent.user,
+                title = "Nueva Recarga en Domino Club",
+                body = f"{player.parent.name} usted a recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                )
+                DiscordConnector.send_event(
+                    "Promoción",
+                    {
+                        'player': str(player.parent.alias),
+                        "amount": ApiConstants.REFER_REWARD,
+                        "referred_user": str(player.alias)
+                    }
+                )   
+            except:
+                pass
 
         bank.buy_coins+=int(request.data["coins"])
         bank.save(update_fields=['buy_coins'])

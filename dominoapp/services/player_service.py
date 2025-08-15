@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
 from fcm_django.models import FCMDevice
-from dominoapp.models import Player, DominoGame, Referral, BlockPlayer
+from dominoapp.models import Player, DominoGame, BlockPlayer
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
@@ -116,15 +116,13 @@ class PlayerService:
 
                     if "refer_code" in request.data:
                         try:
-                            referral_model = Referral.objects.get(referral_code = request.data["refer_code"], is_active=True)
+                            referral_model = Player.objects.get(referral_code = request.data["refer_code"], inactive_player=False)
                         except:
                             referral_model = None
                         if referral_model:
-                            referral_model.referred_user = player
-                            referral_model.referral_date = timezone.now()
-                            referral_model.is_active = False
-                            referral_model.save(update_fields=["referred_user", "referral_date", "is_active"])
-
+                            player.parent = referral_model
+                            player.save(update_fields=['parent'])
+                            
                     DiscordConnector.send_event(
                         ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
                         {
@@ -179,9 +177,7 @@ class PlayerService:
             referrer_player = Player.objects.get(user__id = request.user.id)
         except:
             return Response("Player not found", status= status.HTTP_404_NOT_FOUND)
-        
-        refer_code = Referral.objects.create(referrer = referrer_player)
 
         return Response(data={
-            "refer_code" : refer_code.referral_code
-        }, status= status.HTTP_201_CREATED)
+            "refer_code" : referrer_player.referral_code
+        }, status= status.HTTP_200_OK)

@@ -5,14 +5,16 @@ import logging
 logger = logging.getLogger('django')
 
 class PushNotificationConnector:
-    pusher_client = pusher.Pusher(
-        app_id=os.getenv("PUSHER_APP_ID"),
-        key=os.getenv("PUSHER_KEY"),
-        secret=os.getenv("PUSHER_SECRET"),
-        cluster='mt1',
-        ssl=True
-    )
-
+    try:
+        pusher_client = pusher.Pusher(
+            app_id=os.getenv("PUSHER_APP_ID"),
+            key=os.getenv("PUSHER_KEY"),
+            secret=os.getenv("PUSHER_SECRET"),
+            cluster='mt1',
+            ssl=True
+        )
+    except:
+        pusher_client = None
     
     @staticmethod
     def push_notification(channel, event_name, data_notification, socket_id= None):
