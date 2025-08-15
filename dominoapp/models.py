@@ -26,6 +26,15 @@ class Player(models.Model):
     isPlaying = models.BooleanField(default=False)
     inactive_player = models.BooleanField(default=False)
     
+    referral_code = ShortUUIDField(
+        length=6, max_length=7,
+        alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+        verbose_name='Referral Code', db_index=True,
+        unique=True
+    )
+    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_profiles')
+    reward_granted = models.BooleanField(default=False,verbose_name="Reward Granted") ## recompesa Otorgada
+    
     @property
     def total_coins(self):
         return self.earned_coins + self.recharged_coins
@@ -184,45 +193,3 @@ class MoveRegister(models.Model):
     time = models.DateTimeField(auto_now_add=True)
     play_automatic = models.BooleanField(default=False)
     transactions_list = models.ManyToManyField(to=Transaction, blank=True, related_name="transaction_for_movement")
-
-
-class Referral(models.Model):
-    
-    # The user who made the referral (inviter)
-    referrer = models.ForeignKey(
-        Player, related_name='referrals_made',
-        on_delete=models.CASCADE, verbose_name='Referrer'
-    )
-    
-    # The user who was referred (invitee)
-    referred_user = models.OneToOneField(
-        Player, related_name='referred_by',
-        on_delete=models.CASCADE,
-        unique=True, verbose_name='Referred User',
-        blank=True, null=True
-    )
-    
-    referral_date = models.DateTimeField( verbose_name='Referral Date', blank=True, null=True)
-    
-    referral_code = ShortUUIDField(
-        length=6, max_length=7,
-        alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
-        unique=True, verbose_name='Referral Code'
-    )
-
-    is_active = models.BooleanField(default=True, verbose_name='Is Active')
-
-    code_date = models.DateTimeField(verbose_name='Code Date', auto_now_add = True)
-
-    reward_granted = models.BooleanField(default=False,verbose_name="Reward Granted") ## recompesa Otorgada
-    
-    class Meta:
-        verbose_name = 'Referral'
-        verbose_name_plural = 'Referrals'
-        unique_together = ('referrer', 'referred_user')
-        ordering = ['-code_date']
-    
-    def __str__(self):
-        return f"{self.referrer} ({self.referral_code}) → {self.referred_user}"
-    
-    
