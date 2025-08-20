@@ -15,24 +15,42 @@ load_dotenv('.env', override=True)
 
 class GoogleTokenVerifier:
     @staticmethod
-    def verify(token):
+    def verify(token, device:str=None):
+        GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+        GOOGLE_CLIENT_ID_WEB = os.getenv('GOOGLE_CLIENT_ID_WEB')
+        try:
+            if device == 'web':
+                # Especifica el CLIENT_ID de la app web que accede al backend
+                idinfo = id_token.verify_oauth2_token(
+                    token, 
+                    requests.Request(), 
+                    GOOGLE_CLIENT_ID_WEB
+                )
+
+                # Verifica que el token sea emitido para tu cliente
+                if idinfo['aud'] != GOOGLE_CLIENT_ID_WEB:
+                    raise ValueError("El token no fue emitido para este cliente")
+            else:
+                # Especifica el CLIENT_ID de la app que accede al backend
+                idinfo = id_token.verify_oauth2_token(
+                    token, 
+                    requests.Request(), 
+                    GOOGLE_CLIENT_ID
+                )
+                # Verifica que el token sea emitido para tu cliente
+                if idinfo['aud'] != GOOGLE_CLIENT_ID:
+                    raise ValueError("El token no fue emitido para este cliente")
+
+                
+        except ValueError as e:
+            logger.critical(f'Google Token is wront => {str(e)}')
+            return None, e
         
         try:
-            # Especifica el CLIENT_ID de la app que accede al backend
-            idinfo = id_token.verify_oauth2_token(
-                token, 
-                requests.Request(), 
-                settings.GOOGLE_CLIENT_ID
-            )
-
-            # Verifica que el token sea emitido para tu cliente
-            if idinfo['aud'] != settings.GOOGLE_CLIENT_ID:
-                raise ValueError("El token no fue emitido para este cliente")
-
             # Verifica que el email esté verificado
             if not idinfo.get('email_verified', False):
                 raise ValueError("Email no verificado por Google")
-
+            
             return {
                 'email': idinfo['email'],
                 'name': idinfo.get('name', ''),
@@ -40,7 +58,7 @@ class GoogleTokenVerifier:
                 'picture': idinfo.get('picture', ''),
             }, None
         except Exception as e:
-            logger.critical(f'Google Cliend is wront => {str(e)}')
+            logger.critical(f'Google Verification is wront => {str(e)}')
             return None, e
         
 class GoogleDrive:
