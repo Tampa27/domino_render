@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.db.models import Q
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
-from dominoapp import views
+from dominoapp.utils import game_tools
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 
 
@@ -128,7 +128,7 @@ class GameService:
         except Exception as error:
             return Response({'status': 'error', "message":"Something is wrong at save game"}, status=409)
 
-        views.updateLastPlayerTime(game,player1.alias)
+        game_tools.updateLastPlayerTime(game,player1.alias)
                 
         return Response({'status': 'success', "game":game_serializer.data}, status=200)
     
@@ -157,10 +157,10 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
         
-        if not views.ready_to_play(game, player):
+        if not game_tools.ready_to_play(game, player):
             return Response({"status":'error',"message":"you don't have enough coins"},status=status.HTTP_409_CONFLICT)
         
-        joined,players = views.checkPlayerJoined(player,game)
+        joined,players = game_tools.checkPlayerJoined(player,game)
         if joined != True:
             if game.player1 is None:
                 game.player1 = player
@@ -194,7 +194,7 @@ class GameService:
                 for player in players:
                     player.tiles=""
                     player.save()            
-            # views.updateLastPlayerTime(game,alias)
+            # game_tools.updateLastPlayerTime(game,alias)
             game.save()    
             serializerGame = GameSerializer(game)
             PushNotificationConnector.push_notification(
@@ -220,13 +220,13 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
         if game.status != "wt":
-            players = views.playersCount(game)
+            players = game_tools.playersCount(game)
             for player in players:
-                if not views.ready_to_play(game, player):
-                        views.exitPlayer(game,player,players,len(players))            
+                if not game_tools.ready_to_play(game, player):
+                        game_tools.exitPlayer(game,player,players,len(players))            
             if (game.inPairs and len(players<4)) or len(players)<2:
                 return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
-            views.startGame1(game.id,players)    
+            game_tools.startGame1(game.id,players)    
             serializerGame = GameSerializer(game)
             playerSerializer = PlayerGameSerializer(players,many=True)
             PushNotificationConnector.push_notification(
@@ -259,7 +259,7 @@ class GameService:
             if not check:
                 return Response({'status': 'error', 'message': "These Player are not in this game"}, status=400)
             
-            error = views.move1(game_id,player.alias,tile)
+            error = game_tools.move1(game_id,player.alias,tile)
             if error is None:
                 profile = Player.objects.get(alias = player.alias)
                 profile.lastTimeInSystem = timezone.now()
@@ -283,15 +283,15 @@ class GameService:
 
         
         if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
-            have_points = views.havepoints(game)
+            have_points = game_tools.havepoints(game)
             if have_points:
                 return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         elif game.status in ["ru"] and player.isPlaying:
                 return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         
-        players = views.playersCount(game)
+        players = game_tools.playersCount(game)
         players_ru = list(filter(lambda p: p.isPlaying,players))
-        exited = views.exitPlayer(game,player,players_ru,len(players))
+        exited = game_tools.exitPlayer(game,player,players_ru,len(players))
         if exited:
             PushNotificationConnector.push_notification(
                 channel=f'mesa_{game.id}',
@@ -314,7 +314,7 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
 
-        views.setWinner1(game,request.data["winner"])
+        game_tools.setWinner1(game,request.data["winner"])
         game.save()
         return Response({'status': 'success'}, status=200)
     
@@ -349,7 +349,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
-        views.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
+        game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
         game.save()
         return Response({'status': 'success'}, status=200)
 
@@ -361,7 +361,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
-        players = views.playersCount(game)
+        players = game_tools.playersCount(game)
         if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
             return Response({'status': 'success'}, status=200)  
         else:    

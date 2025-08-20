@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from dominoapp.models import DominoGame
 from dominoapp.serializers import GameSerializer, GameCreateSerializer, ListGameSerializer,PlayerLoginSerializer, PlayerGameSerializer
-from dominoapp.api_views.request.games_request import GameRequest
+from dominoapp.views.request.games_request import GameRequest
 from dominoapp.services.games_service import GameService
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from rest_framework.serializers import BooleanField, IntegerField, CharField
