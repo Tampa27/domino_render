@@ -107,6 +107,16 @@ class GameService:
     def process_create(request):
         
         player1 = Player.objects.get(user__id= request.user.id)
+        check_others_game = DominoGame.objects.filter(
+            Q(player1__id = player1.id)|
+            Q(player2__id = player1.id)|
+            Q(player3__id = player1.id)|
+            Q(player4__id = player1.id)
+        ).exists()
+
+        if check_others_game:
+            return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
+
         player1.tiles = ""
         player1.lastTimeInSystem = timezone.now()
         player1.inactive_player = False
