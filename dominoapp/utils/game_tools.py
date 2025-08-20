@@ -625,7 +625,6 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
 
 def reorderPlayers(game:DominoGame, player:Player, players:list, starter:int):
     k = 0
-    # players = playersCount(game)
     pos = getPlayerIndex(players,player)
     n = len(players)
     game.player1 = None
