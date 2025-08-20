@@ -3,8 +3,8 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
 
-from dominoapp import views
-from dominoapp.models import DominoGame, Player
+from dominoapp.utils import game_tools
+from dominoapp.models import DominoGame
 from django.utils import timezone
 from django.db import connection
 from dominoapp.utils.constants import ApiConstants
@@ -24,7 +24,7 @@ def automatic_move_in_game():
         ).iterator()
         
         for game in games:
-            players = views.playersCount(game)
+            players = game_tools.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
@@ -45,9 +45,9 @@ def automatic_move_in_game():
                     if game.status == 'fg':
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInSystem
-                            if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not views.ready_to_play(game,player)) and player.isPlaying:
-                                views.exitPlayer(game,player,players,len(players))
-                        players = views.playersCount(game)
+                            if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player)) and player.isPlaying:
+                                game_tools.exitPlayer(game,player,players,len(players))
+                        players = game_tools.playersCount(game)
                         if len(players)<2:
                             restargame = False
                     if restargame:
@@ -57,10 +57,10 @@ def automatic_move_in_game():
             elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
-                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not views.ready_to_play(game, player)) and player.isPlaying:
-                        views.exitPlayer(game,player,players,len(players))
+                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player)) and player.isPlaying:
+                        game_tools.exitPlayer(game,player,players,len(players))
                     elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME):
-                        views.exitPlayer(game,player,players,len(players))
+                        game_tools.exitPlayer(game,player,players,len(players))
                 
                 game.refresh_from_db()
                 if game.status == 'wt' and len(players)<2:
@@ -83,9 +83,9 @@ def automaticCoupleStarter(game):
     logger_api.info("Entro a automaticCouple")
     logger_api.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
     if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
-        views.setWinner1(game,next)
+        game_tools.setWinner1(game,next)
     elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
-        views.setWinnerStarterNext1(game,patner,patner,patner)
+        game_tools.setWinnerStarterNext1(game,patner,patner,patner)
     game.save()         
 
 def automaticMove(game,players):
@@ -94,45 +94,45 @@ def automaticMove(game,players):
     MOVE_TILE_TIME = game.moveTime
     time_diff = timezone.now() - lastMove(game)
     if len(game.board) == 0:
-        tile = views.takeRandomTile(player_w.tiles)
+        tile = game_tools.takeRandomTile(player_w.tiles)
         if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
-                error = views.movement(game.id,player_w,players,tile,automatic=True)
+                error = game_tools.movement(game.id,player_w,players,tile,automatic=True)
                 if error is not None:
                     logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
-                views.updateLastPlayerTime(game,player_w.alias)  
-                #views.move1(game.id,player_w.alias,tile)
+                game_tools.updateLastPlayerTime(game,player_w.alias)  
+                # game_tools.move1(game.id,player_w.alias,tile)
             except Exception as e:
                 logger.critical(f"Error critico en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
-            #views.updateLastPlayerTime(game,player_w.alias)
+            # game_tools.updateLastPlayerTime(game,player_w.alias)
     else:
-        tile = views.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
-        if views.isPass(tile):
+        tile = game_tools.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
+        if game_tools.isPass(tile):
             if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
                 try:
                     # with transaction.atomic():
-                    error = views.movement(game.id,player_w,players,tile,automatic=True)
+                    error = game_tools.movement(game.id,player_w,players,tile,automatic=True)
                     if error is not None:
                         logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
-                    views.updateLastPlayerTime(game,player_w.alias)  
-                    #views.move1(game.id,player_w.alias,tile)
+                    game_tools.updateLastPlayerTime(game,player_w.alias)  
+                    # game_tools.move1(game.id,player_w.alias,tile)
                 except Exception as e:
                     logger.critical(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
-                #views.movement(game,player_w,players,tile)
-                #views.updateLastPlayerTime(game,player_w.alias) 
+                # game_tools.movement(game,player_w,players,tile)
+                # game_tools.updateLastPlayerTime(game,player_w.alias) 
         elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
-                error = views.movement(game.id,player_w,players,tile,automatic=True)
+                error = game_tools.movement(game.id,player_w,players,tile,automatic=True)
                 if error is not None:
                     logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
-                views.updateLastPlayerTime(game,player_w.alias)  
-                #views.move1(game.id,player_w.alias,tile)
+                game_tools.updateLastPlayerTime(game,player_w.alias)  
+                # game_tools.move1(game.id,player_w.alias,tile)
             except Exception as e:
                 logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
-            #views.movement(game,player_w,players,tile)
-            #views.updateLastPlayerTime(game,player_w.alias)        
+            # game_tools.movement(game,player_w,players,tile)
+            # game_tools.updateLastPlayerTime(game,player_w.alias)        
     # game.save()
 
 def lastMove(game):
@@ -151,4 +151,4 @@ def automaticStart(game,players):
     lastMoveTime = lastMove(game)
     time_diff = timezone.now() - lastMoveTime
     if time_diff.seconds > ApiConstants.AUTO_START_WAIT:
-        views.startGame1(game.id,players)
+        game_tools.startGame1(game.id,players)

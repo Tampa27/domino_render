@@ -185,7 +185,7 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'DOMINO_CLUB',
     'DESCRIPTION': 'Domino Club project API Documents',
     'VERSION': '0.0.1',
-    'SCHEMA_PATH_PREFIX': '/v2/api/*',   #To separate routes in api_urls so they don't mix together.
+    'SCHEMA_PATH_PREFIX': '/v2/api/*',   #To separate routes in urls so they don't mix together.
     'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'],  # Must login first
     'DISABLE_ERRORS_AND_WARNINGS': True,
     'SERVE_AUTHENTICATION': [

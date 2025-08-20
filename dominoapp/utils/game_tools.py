@@ -1,286 +1,24 @@
-from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status 
-from .models import Player, BlockPlayer
-from .serializers import PlayerSerializer
-from .serializers import MyPlayerSerializer
-from .models import DominoGame, MoveRegister
-from .models import Bank
-from .models import User
-from .serializers import GameSerializer
-from .serializers import BankSerializer
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
-from rest_framework.decorators import api_view
-from rest_framework import generics
+from ..models import Player
+from ..models import DominoGame, MoveRegister
+from ..models import Bank
 from django.utils import timezone
-from django.db import connection
 from django.core.exceptions import ObjectDoesNotExist
 import random
-from django.conf import settings
-from django.views import View
 from django.db import transaction
-import time
 import logging
-from dominoapp.utils.transactions import create_game_transactions, create_reload_transactions, create_extracted_transactions
-from dominoapp.connectors.discord_connector import DiscordConnector
+from dominoapp.utils.transactions import create_game_transactions
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.move_register_utils import movement_register
 
 logger = logging.getLogger(__name__)
 
-# Create your views here.
-class PlayerView(APIView):
-
-    def get(self, request, id):
-        result = Player.objects.get(id=id)
-        if id:
-            serializer = PlayerSerializer(result)
-            return Response({"status":'success',"player":serializer.data},status=200)
-        
-        result = Player.objects.all()
-        serializer = PlayerSerializer(result,many=True)
-        return Response({"status":'success',"player":serializer.data},status=200)
-    
-    def post(self, request):  
-        serializer = PlayerSerializer(data=request.data)  
-        if serializer.is_valid():  
-            serializer.save()  
-            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)  
-        else:  
-            return Response({"status": "error", "data": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        
-    def patch(self, request, id):  
-        result = Player.objects.get(id=id)  
-        serializer = PlayerSerializer(result, data = request.data, partial=True)  
-        if serializer.is_valid():  
-            serializer.save()  
-            return Response({"status": "success", "data": serializer.data})  
-        else:  
-            return Response({"status": "error", "data": serializer.errors})  
-  
-    def delete(self, request, id=None):  
-        result = get_object_or_404(Player, id=id)  
-        result.delete()  
-        return Response({"status": "success", "data": "Record Deleted"})    
-
-class PlayerCreate(generics.CreateAPIView):
-    queryset = Player.objects.all()
-    serializer_class = MyPlayerSerializer
-    def post(self, request, *args, **kwargs):    
-        serializer = self.get_serializer(data=request.data)  
-        if serializer.is_valid():  
-            self.perform_create(serializer)  
-            return Response({"status": "success", "player": serializer.data}, status=status.HTTP_200_OK)  
-        else:  
-            return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-class PlayerUpdate(generics.CreateAPIView):
-    queryset = Player.objects.all()
-    serializer_class = MyPlayerSerializer        
-    def patch(self, request, alias):  
-        result = Player.objects.get(alias=alias)  
-        serializer = self.get_serializer(result, data = request.data, partial=True)  
-        if serializer.is_valid():  
-            serializer.save()  
-            return Response({"status": "success", "player": serializer.data})  
-        else:  
-            return Response({"status": "error", "data": serializer.errors})      
-
-class PlayersView(APIView):
-    def get(self, request, *args, **kwargs):  
-        result = Player.objects.all()  
-        serializers = PlayerSerializer(result, many=True)  
-        return Response({'status': 'success', "players":serializers.data}, status=200)  
-
-class GameCreate(generics.CreateAPIView):
-    queryset = DominoGame.objects.all()
-    serializer_class = GameSerializer
-    def post(self, request, alias):    
-        serializer = self.get_serializer(data=request.data)  
-        if serializer.is_valid():  
-            self.perform_create(serializer)  
-            try:
-                player = Player.objects.get(alias=alias)
-            except ObjectDoesNotExist:
-                return Response ({'status': 'error'},status=400)
-            # if player1.coins == 0:
-            #     return Response ({'status': 'error'},status=400)
-            player.tiles = ""
-            player.points=0
-            player.lastTimeInSystem = timezone.now()
-            player.inactive_player = False
-            player.save()
-            players = [player]
-            serializer.save(player1=player)
-            playerSerializer = PlayerSerializer(players,many=True)
-            return Response({"status": "success", "game": serializer.data,"players":playerSerializer.data}, status=status.HTTP_200_OK)  
-        else:  
-            return Response({"status": "error", "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-@api_view(['GET',])
-def getPlayer(request,id):
-    result = DominoGame.objects.get(id=id)
-    serializer =PlayerSerializer(result)
-    return Response({'status': 'success', "player":serializer.data,}, status=200)
-
-@api_view(['GET',])
-def login(request,alias,email,photo_url,name):
-    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
-    if is_block:
-        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
-
-    exist = Player.objects.filter(alias=alias).exists()
-    if not exist:
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                'username': str(email).split('@')[0],
-                'is_active': True
-            }
-        )
-        player = Player.objects.create(
-            alias=alias,
-            user= user
-            )
-        
-        player.email = email
-        player.photo_url = photo_url
-        player.name = name
-
-        DiscordConnector.send_event(
-            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
-            {
-                "email": email,
-                "name": name
-            }
-        )
-
-    else:
-        player = player = Player.objects.get(alias = alias)
-
-    player.lastTimeInSystem = timezone.now()
-    player.inactive_player = False
-    player.save()
-    serializer =PlayerSerializer(player)
-    return Response({'status': 'success', "player":serializer.data}, status=200)        
-
-@api_view(['GET',])
-def getAllGames(request,alias):
-    needUpdate = False
-    #return Response ({'status': 'error'},status=400)
-    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
-    if is_block:
-        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
-
-    try:
-        player = Player.objects.get(alias=alias)
-    except ObjectDoesNotExist:
-        return Response ({'status': 'error'},status=400)    
-    player.lastTimeInSystem = timezone.now()
-    player.inactive_player = False
-    player.save()
-    game_id = -1
-    playerSerializer = PlayerSerializer(player)
-    if needUpdate:
-        return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":needUpdate}, status=200)
-    result = DominoGame.objects.all()
-    for game in result:
-        # inGame = checkPlayersTimeOut1(game,alias)        
-        inGame = DominoGame.objects.filter(id = game.id).filter(
-            Q(player1__alias = alias)|
-            Q(player2__alias = alias)|
-            Q(player3__alias = alias)|
-            Q(player4__alias = alias)
-            ).exists()
-        if inGame:
-            game_id = game.id
-    serializer =GameSerializer(result,many=True)
-    return Response({'status': 'success', "games":serializer.data,"player":playerSerializer.data,"game_id":game_id,"update":needUpdate}, status=200)
-
-@api_view(['GET',])
-def deleteTable(request,game_id):
-    try:
-        DominoGame.objects.get(id = game_id).delete()
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    return Response({'status': 'game deleted'}, status=200)
-
-@api_view(['GET',])
-def getGame(request,game_id,alias):
-    try:
-        result = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-
-    serializer = GameSerializer(result)
-    players = playersCount(result)
-    # for player in players:
-    #     if player.alias == alias and result.status != 'ru' or player.isPlaying == False:
-            # player.lastTimeInSystem = timezone.now()
-        #     #if result.status == "ru":
-        #     #    tiles = player.tiles.split(',')
-        #     #    if len(tiles) > 0:
-        #     #        for tile in tiles:
-        #     #            isPlayingTile(result,tile,player) 
-            # player.save()
-        # else:
-        #     diff_time = timezone.now() - player.lastTimeInSystem
-        #     diff_time2 = timezone.now()- result.start_time
-        #     if(diff_time.seconds >= ApiConstants.EXIT_TABLE) and result.status != "ru" and result.status != "fi" and result.status != "fg":
-        #         exitPlayer(result,player,players,len(players))    
-        #     elif result.status == "fg" and (diff_time.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
-        #         exitPlayer(result,player,players,len(players))           
-    playerSerializer = PlayerSerializer(players,many=True)
-    return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
-
-@api_view(['GET',])
-def setWinner(request,game_id,winner):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    setWinner1(game,winner)
-    game.save()
-    return Response({'status': 'success'}, status=200)
 
 def setWinner1(game,winner):
     game.winner = winner
     game.start_time = timezone.now()
 
-@api_view(['GET',])
-def setStarter(request,game_id,starter):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    game.starter = starter
-    game.save()
-    return Response({'status': 'success'}, status=200)
-
-@api_view(['GET',])
-def setWinnerStarter(request,game_id,winner,starter):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    game.starter = starter
-    game.winner = winner
-    game.save()
-    return Response({'status': 'success'}, status=200)
-
-@api_view(['GET',])
-def setWinnerStarterNext(request,game_id,winner,starter,next_player):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    setWinnerStarterNext1(game,winner,starter,next_player)
-    game.save()
-    return Response({'status': 'success'}, status=200)
 
 def setWinnerStarterNext1(game,winner,starter,next_player):
     game.starter = starter
@@ -288,100 +26,6 @@ def setWinnerStarterNext1(game,winner,starter,next_player):
     game.next_player = next_player
     game.start_time = timezone.now()
 
-@api_view(['GET',])
-def getPlayer(request,alias):
-    try:
-        player = Player.objects.get(alias=alias)
-    except ObjectDoesNotExist:
-        return Response ({'status': 'error'},status=400)
-    serializer = PlayerSerializer(player)
-    return Response({'status': 'success', "player":serializer.data}, status=200)
-
-@api_view(['GET',])
-def createGame(request,alias,variant):
-    try:
-        player1 = Player.objects.get(alias=alias)
-    except ObjectDoesNotExist:
-        return Response ({'status': 'error'},status=400)
-    player1.tiles = ""
-    player1.lastTimeInSystem = timezone.now()
-    player1.inactive_player = False
-    player1.save()
-    game = DominoGame.objects.create(player1=player1,variant=variant)
-    game.lastTime1 = timezone.now()
-    updateLastPlayerTime(game,alias)
-    game.created_time = timezone.now()
-    game.save()
-    serializer = GameSerializer(game)
-    players = [player1]
-    playerSerializer = PlayerSerializer(players,many=True)
-    return Response({'status': 'success', "game":serializer.data,"players":playerSerializer.data}, status=200)
-
-@api_view(['GET',])
-def joinGame(request,alias,game_id):
-    try:
-        player = Player.objects.get(alias=alias)
-    except ObjectDoesNotExist:
-        return Response ({'status': 'error'},status=400)
-    player.lastTimeInSystem = timezone.now()
-    player.inactive_player = False
-    player.save()
-
-    check_others_game = DominoGame.objects.filter(
-            Q(player1__id = player.id)|
-            Q(player2__id = player.id)|
-            Q(player3__id = player.id)|
-            Q(player4__id = player.id)
-        ).exclude(id = game_id).exists()
-
-    if check_others_game:
-        return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
-
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    joined,players = checkPlayerJoined(player,game)
-    if joined != True:
-        if game.player1 is None:
-            game.player1 = player
-            joined = True
-            players.insert(0,player)
-        elif game.player2 is None:
-            game.player2 = player
-            joined = True
-            players.insert(1,player)
-        elif game.player3 is None :
-            game.player3 = player
-            joined = True
-            players.insert(2,player)
-        elif game.player4 is None:
-            game.player4 = player
-            joined = True
-            players.insert(3,player)
-
-    if joined == True:
-        if game.inPairs:
-            if len(players) == 4 and game.status != "ru":
-               game.status = "ready"
-            elif game.status != "ru":
-                game.status = "wt"
-        else:                
-            if len(players) >= 2 and game.status != "ru" and game.status != "fi":
-                game.status = "ready"
-            elif game.status != "ru" and game.status != "fi":
-                game.status = "wt"
-        if game.status == "wt" or game.status == "ready":
-            for player in players:
-                player.tiles=""
-                player.save()            
-        #updateLastPlayerTime(game,alias)
-        game.save()    
-        serializerGame = GameSerializer(game)
-        playerSerializer = PlayerSerializer(players,many=True)
-        return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
-    else:
-        return Response({'status': 'Full players', "game":None}, status=300)
 
 def checkPlayerJoined(player,game):
     res = False
@@ -404,36 +48,6 @@ def checkPlayerJoined(player,game):
             res = True
     return res,players
 
-@api_view(['GET',])
-def clearGames(request,alias):
-    DominoGame.objects.all().delete()
-    return Response({'status': 'success', "message":'All games deleted'}, status=200)
-
-@api_view(['GET',])
-def cleanPlayers(request,alias):
-    Player.objects.all().delete()
-    return Response({'status': 'success', "message":'All players deleted'}, status=200)
-
-def checkingMove(game):
-    while game.status == 'ru':
-        game.hours_active+=1
-        game.save()
-        time.sleep(1)
-
-@api_view(['GET',])
-def startGame(request,game_id):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    
-    if game.status != "wt":
-        players = playersCount(game)
-        startGame1(game.id,players)    
-        serializerGame = GameSerializer(game)
-        playerSerializer = PlayerSerializer(players,many=True)
-        return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
-    return Response ({'status': 'error'},status=400)
 
 def startGame1(game_id,players):
     with transaction.atomic():
@@ -497,11 +111,6 @@ def startGame1(game_id,players):
         game.lastTime4 = timezone.now()
         game.save()
 
-@api_view(['GET',])
-def getBank(request):
-    bank = Bank.objects.all()
-    serializerBank = BankSerializer(bank,many=True)
-    return Response({'status': 'success', "bank":serializerBank.data}, status=200)
 
 def movement(game_id,player,players,tile, automatic=False):
     with transaction.atomic():
@@ -639,18 +248,6 @@ def CorrectPassTile(game: DominoGame, player:Player, tile:str):
             # Comprobar que realmente no lleva fichas
             return False
     return True 
-
-def isPlayingTile(game,tile,player):
-    if isPass(tile):
-        return False
-    tiles = game.board.split(',')
-    rtile = rTile(tile)
-    for t in tiles:
-        if t == tile or t == rtile:
-            tiles_count,tiles = updateTiles(player,tile)
-            player.tiles = tiles
-            return True
-    return False    
 
 def noCorrect(game,tile):
     values = tile.split('|')
@@ -900,31 +497,6 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                         players[pos1].save()
                 break                            
 
-@api_view(['GET',])
-def move(request,game_id,alias,tile):
-    try:
-        check = DominoGame.objects.filter(id=game_id).exists()
-        if not check:
-            return Response({'status': "Game not found"}, status=404)
-        check = Player.objects.filter(alias=alias).exists()
-        if not check:
-            return Response({'status': "Player not found"}, status=404)
-        filteres = Q(player1__alias=alias)|Q(player2__alias=alias)|Q(player3__alias=alias)|Q(player4__alias=alias)
-        check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
-        if not check:
-            return Response({'status': "These Player are not in this game"}, status=400)
-        # with transaction.atomic():
-        error = move1(game_id,alias,tile)
-        if error is None:
-            profile = Player.objects.get(alias = alias)
-            profile.lastTimeInSystem = timezone.now()
-            profile.inactive_player = False
-            profile.save()
-            return Response({'status': 'success'}, status=200)
-        else:
-            return Response({'status': 'fail', 'message': error}, status=400)
-    except Exception as e:        
-        return Response({'status': str(e)}, status=404)    
 
 def move1(game_id,alias,tile):
     # game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
@@ -949,143 +521,6 @@ def move1(game_id,alias,tile):
     
     return error
 
-@api_view(['GET',])
-def exitGame(request,game_id,alias):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-        player = Player.objects.get(alias=alias)
-    except:
-        return Response({'status': 'error', "message":"Game or player not found"}, status=404)
-    
-    if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
-        if (game.inPairs and (game.scoreTeam1 > 0 or game.scoreTeam2 > 0)) or (not game.inPairs and player.points > 0):
-            return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
-    elif game.status in ["ru"] and player.isPlaying:
-            return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
-    
-    players = playersCount(game)
-    players_ru = list(filter(lambda p: p.isPlaying,players))
-    exited = exitPlayer(game,player,players_ru,len(players))
-    if exited:
-        return Response({'status': 'success', "message":'Player exited'}, status=200)
-    return Response({'status': 'error', "message":'Player no found'}, status=300)
-
-@api_view(['GET',])
-def setPatner(request,game_id,alias):
-    try:
-        game = DominoGame.objects.get(id=game_id)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    players = playersCount(game)
-    if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
-        #shuffleCouples(game,players)
-        return Response({'status': 'success'}, status=200)  
-    else:    
-        for player in players:
-            if player.alias == alias:
-                patner = player
-                break
-        aux = game.player3
-        if game.player2.alias == alias:
-            game.player2 = aux
-            game.player3 = patner
-        elif game.player4.alias == alias:
-            game.player4 = aux
-            game.player3 = patner
-    game.save()    
-    return Response({'status': 'success'}, status=200)         
-
-@api_view(['GET',])
-def rechargeBalance(request,alias,coins):
-    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
-    if is_block:
-        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
-
-    try:
-        player = Player.objects.get(alias=alias)
-    except:
-        return Response({'status': 'error', "message":"PLayer not found"}, status=404)
-    
-    player.recharged_coins+=coins
-    try:
-        bank = Bank.objects.all().first()
-    except ObjectDoesNotExist:
-        bank = Bank.objects.create()
-
-    bank.buy_coins+=coins
-    bank.save(update_fields=['buy_coins'])   
-    create_reload_transactions(to_user=player, amount=coins, status="cp")
-    DiscordConnector.send_event(
-        ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
-        {
-            'player': alias,
-            'amount': coins
-        }
-    )
-    player.save()
-    return Response({'status': 'success', "message":'Balance recharged'}, status=200)
-
-@api_view(['GET',])
-def payment(request,alias,coins):
-    is_block = BlockPlayer.objects.filter(player_blocked__alias=alias).exists()
-    if is_block:
-        return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
-
-    try:
-        player = Player.objects.get(alias=alias)
-    except:
-        return Response({'status': 'error', "message":"Game not found"}, status=404)
-    if (player.earned_coins + player.recharged_coins) < coins:
-        return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=409)
-    
-    player.earned_coins-=coins
-    if player.earned_coins<0:
-        player.recharged_coins += player.earned_coins
-        player.earned_coins = 0
-    try:
-        bank = Bank.objects.all().first()
-    except ObjectDoesNotExist:
-        bank = Bank.objects.create()
-    
-    bank.extracted_coins+=coins
-    bank.save(update_fields=['extracted_coins'])
-    create_extracted_transactions(from_user=player, amount=coins, status="cp")
-    DiscordConnector.send_event(
-        ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
-        {
-            'player': alias,
-            'amount': coins
-        }
-    )
-    player.save()
-    return Response({'status': 'success', "message":'Payment done!!'}, status=200)
-
-@api_view(['GET',])
-def deleteInactivePlayers(request,alias):
-    players = Player.objects.all()
-    total_deleted = 0
-    for player in players:
-        if player.email is None:
-            Player.objects.get(id = player.id).delete()
-            total_deleted+=1
-        elif player.lastTimeInSystem is not None:
-            timediff = timezone.now() - player.lastTimeInSystem
-            if timediff.days > ApiConstants.INACTIVE_PlAYER_DAYS and (player.recharged_coins+player.earned_coins) >= 50 and (player.recharged_coins+player.earned_coins) <=100:
-                Player.objects.get(id = player.id).delete()
-                total_deleted+=1
-    return Response({'status': str(total_deleted)+' players deleted'}, status=200)    
-
-@api_view(['GET',])
-def deleteInactiveTables(request,days):
-    games = DominoGame.objects.all()
-    total_deleted = 0
-    for game in games:
-        if game.start_time is not None:
-            timediff = timezone.now() - game.start_time
-            if (game.payMatchValue > 0 or game.payWinValue > 0):
-                DominoGame.objects.get(id = game.id).delete()
-                total_deleted+=1
-    return Response({'status': str(total_deleted)+' tables deleted'}, status=200)    
 
 def shuffleCouples(game,players):
     random.shuffle(players)
@@ -1379,18 +814,7 @@ def checkClosedGame1(game, playersCount):
             else:
                 return False    
     return False
-            
-def checkClosedGame(game,players):
-    for player in players:
-        tiles = player.tiles.split(',')
-        for tile in tiles:
-            values = tile.split('|')
-            val0 = int(values[0])
-            val1 = int(values[1])
-            if val0 == game.leftValue or val0 == game.rightValue or val1 == game.leftValue or val1 == game.rightValue:
-                return False
-    return True    
-
+   
 def isPass(tile):
     values = tile.split('|')
     return values[0] == "-1"
@@ -1441,91 +865,6 @@ def checkCapicua(game,tile):
     val1 = int(values[0])
     val2 = int(values[1])
     return (val1 == game.leftValue and game.rightValue == val2) or (val2 == game.leftValue and game.rightValue == val1) 
-
-def checkPlayersTimeOut1(game,alias):
-    n = 0
-    players = []
-    inGame = False
-    diff_time2 = timezone.now()- game.start_time
-    if game.player1 is not None:
-        if game.player1.lastTimeInSystem is not None:
-            timediff = timezone.now() - game.player1.lastTimeInSystem
-            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "ru" and game.status != "fi" and game.status != "fg":
-                players.append(game.player1)
-                game.player1 = None
-            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
-                players.append(game.player1)
-                game.player1 = None    
-            else:
-                if game.player1.alias == alias:
-                    inGame = True
-                n+=1
-        else:
-            if game.player1.alias == alias:
-                inGame = True
-            n+=1                
-    if game.player2 is not None:
-        if game.player2.lastTimeInSystem is not None:
-            timediff = timezone.now() - game.player2.lastTimeInSystem
-            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "ru" and game.status != "fg" and game.status != "fi":
-                players.append(game.player2)
-                game.player2 = None
-            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
-                players.append(game.player2)
-                game.player2 = None     
-            else:
-                if game.player2.alias == alias:
-                    inGame = True
-                n+=1
-        else:
-            if game.player2.alias == alias:
-                inGame = True
-            n+=1            
-    if game.player3 is not None:
-        if game.player3.lastTimeInSystem is not None:
-            timediff = timezone.now() - game.player3.lastTimeInSystem
-            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "fg" and game.status != "ru" and game.status != "fi":
-                players.append(game.player3)
-                game.player3 = None
-            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
-                players.append(game.player3)
-                game.player3 = None     
-            else:
-                if game.player3.alias == alias:
-                    inGame = True
-                n+=1
-        else:
-            if game.player3.alias == alias:
-                inGame = True
-            n+=1            
-    if game.player4 is not None:
-        if game.player4.lastTimeInSystem is not None:
-            timediff = timezone.now() - game.player4.lastTimeInSystem
-            if timediff.seconds > ApiConstants.EXIT_GAME_TIME and game.status != "ru" and game.status != "fi" and game.status != "fg":
-                players.append(game.player4)
-                game.player4 = None
-            elif game.status == "fg" and (timediff.seconds >= ApiConstants.EXIT_TABLE_2) and (diff_time2.seconds >= ApiConstants.GAME_FINISH_TIME):
-                players.append(game.player4)
-                game.player4 = None     
-            else:
-                if game.player4.alias == alias:
-                    inGame = True
-                n+=1
-        else:
-            if game.player4.alias == alias:
-                inGame = True
-            n+=1        
-    if n < 2 or (n < 4 and game.inPairs):
-        game.status = "wt"
-        game.starter=-1
-        game.board = ""
-    for player in players:
-        player.tiles = ""
-        player.points = 0
-        player.isPlaying = False
-        player.save()        
-    game.save()
-    return inGame
 
 def updateLastPlayerTime(game,alias):
     game.refresh_from_db()
@@ -1583,21 +922,6 @@ def takeRandomCorrectTile(tiles,left,right):
     
     return best_tile if best_tile is not None else "-1|-1"
 
-def previusPlayer(pos,n):
-    if pos == 0: 
-        return n-1
-    return pos-1
-
-def getLastPlayerMoveTime(game,pos):
-    if pos == 0:
-        return game.lastTime1
-    elif pos == 1:
-        return game.lastTime2
-    elif pos == 2:
-        return game.lastTime3
-    else:
-        return game.lastTime4
-    
 def isMyTurn(board,myPos,starter,n):
     moves_count = len(board.split(","))-1
     res = moves_count%n

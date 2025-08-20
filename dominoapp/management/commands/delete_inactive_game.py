@@ -8,7 +8,7 @@ django.setup()
 from django.core.management.base import BaseCommand
 from django.utils.timezone import timedelta, now
 from dominoapp.models import DominoGame
-from dominoapp.views import playersCount
+from dominoapp.utils.game_tools import playersCount
 
 class Command(BaseCommand):
     help = "Delete games with an inactivity time greater than 10 hours."

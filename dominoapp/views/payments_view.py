@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
 from dominoapp.models import Transaction
-from dominoapp.api_views.request.payments_request import PaymentRequest
+from dominoapp.views.request.payments_request import PaymentRequest
 from dominoapp.services.payments_service import PaymentService
 from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
 from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField 

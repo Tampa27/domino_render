@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from dominoapp.models import Player
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.services.player_service import PlayerService
-from dominoapp.api_views.request.players_request import PlayerRequest
+from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework.serializers import IntegerField, CharField
 
