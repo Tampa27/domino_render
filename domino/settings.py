@@ -93,7 +93,6 @@ RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 
 # Application definition
 INSTALLED_APPS = [
@@ -111,7 +110,8 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'drf_spectacular',
     'storages',
-    'fcm_django'
+    'fcm_django',
+    'django_user_agents'
 ]
 
 MIDDLEWARE = [
@@ -123,6 +123,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_user_agents.middleware.UserAgentMiddleware',
 ]
 
 ROOT_URLCONF = 'domino.urls'
