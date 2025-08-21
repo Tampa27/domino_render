@@ -379,19 +379,19 @@ class GameService:
             return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
         
         players = game_tools.playersCount(game)
-        if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
-            return Response({'status': 'success'}, status=200)  
-        else:    
-            for player in players:
-                if player.alias == request.data["alias"]:
-                    patner = player
-                    break
-            aux = game.player3
-            if game.player2.alias == request.data["alias"]:
-                game.player2 = aux
-                game.player3 = patner
-            elif game.player4.alias == request.data["alias"]:
-                game.player4 = aux
-                game.player3 = patner
+        # if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
+        #     return Response({'status': 'success'}, status=200)  
+        # else:    
+        for player in players:
+            if player.alias == request.data["alias"]:
+                patner = player
+                break
+        aux = game.player3
+        if game.player2.alias == request.data["alias"]:
+            game.player2 = aux
+            game.player3 = patner
+        elif game.player4.alias == request.data["alias"]:
+            game.player4 = aux
+            game.player3 = patner
         game.save()    
         return Response({'status': 'success'}, status=200) 
