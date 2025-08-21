@@ -9,11 +9,7 @@ def get_client_ip(request):
         return ip
     
 def get_device_hash(request):
-    is_mobile = request.user_agent.is_mobile
-    is_pc = request.user_agent.is_pc
-    ip_address = get_client_ip(request)
-    
-    print("is_mobile: ", is_mobile, ", is_pc: ", is_pc)
+    ip_address = get_client_ip(request)    
     print('ip: ', ip_address)
         
     if not ip_address:
