@@ -27,7 +27,7 @@ class PlayerView(viewsets.ModelViewSet):
     ]
     
     def get_permissions(self):
-        if self.action in ["login"]:
+        if self.action in ["login","refer_register"]:
             permission_classes = [AllowAny]
         else:  
             permission_classes = [IsAuthenticated]
@@ -161,3 +161,14 @@ class PlayerView(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def refer_code(self, request):
         return PlayerService.process_refer_code(request)
+    
+    @extend_schema(
+            operation_id="players_refer_register",
+            request=None,
+            responses={
+            status.HTTP_308_PERMANENT_REDIRECT: None            
+        }
+    ) 
+    @action(detail=False, methods=["get"], url_path="refer")
+    def refer_register(self, request):
+        return PlayerService.process_refer_register(request)

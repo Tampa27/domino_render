@@ -193,3 +193,11 @@ class MoveRegister(models.Model):
     time = models.DateTimeField(auto_now_add=True)
     play_automatic = models.BooleanField(default=False)
     transactions_list = models.ManyToManyField(to=Transaction, blank=True, related_name="transaction_for_movement")
+
+class ReferralPlayers(models.Model):
+    referrer_player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="referral_player")
+    created_at = models.DateTimeField(auto_now_add=True)
+    referral_code = models.CharField(max_length=100, unique=True, db_index=True)
+    
+    class Meta:
+        ordering = ["-created_at"]
