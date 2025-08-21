@@ -9,10 +9,12 @@ def get_client_ip(request):
         return ip
     
 def get_device_hash(request):
-    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    user_agent = request.user_agent
+    device = request.user_agent.device
     language = request.META.get('HTTP_ACCEPT_LANGUAGE', '')
     ip_address = get_client_ip(request)
     
+    print("device: ", device)
     print('user_agent: ', user_agent)
     print('language: ', language)
     print('ip: ', ip_address)
