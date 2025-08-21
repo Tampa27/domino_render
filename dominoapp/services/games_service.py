@@ -374,19 +374,23 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
+        
+        if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
+            return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
+        
         players = game_tools.playersCount(game)
         if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
             return Response({'status': 'success'}, status=200)  
         else:    
             for player in players:
-                if player.id == request.data["patner_id"]:
+                if player.alias == request.data["alias"]:
                     patner = player
                     break
             aux = game.player3
-            if game.player2.id == request.data["patner_id"]:
+            if game.player2.alias == request.data["alias"]:
                 game.player2 = aux
                 game.player3 = patner
-            elif game.player4.alias == request.data["patner_id"]:
+            elif game.player4.alias == request.data["alias"]:
                 game.player4 = aux
                 game.player3 = patner
         game.save()    
