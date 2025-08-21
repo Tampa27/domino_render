@@ -1,3 +1,4 @@
+import os
 from rest_framework import serializers
 from .models import Player
 from .models import DominoGame
@@ -61,12 +62,18 @@ class PlayerGameSerializer(serializers.ModelSerializer):
 
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
+    url = serializers.SerializerMethodField()
+    
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
     
+    def get_url(self, obj: Player) -> str:
+        BACKEND_URL = os.getenv("BACKEND_URL", "localhost:8000/v2/api")
+        return f"{BACKEND_URL}/players/refer/?refer_code={obj.referral_code}"
+    
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url"]
 
 class GameCreateSerializer(serializers.ModelSerializer):
 
