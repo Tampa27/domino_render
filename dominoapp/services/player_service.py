@@ -211,7 +211,7 @@ class PlayerService:
         
         return Response(data={
             "refer_code" : referrer_player.referral_code,
-            "url": f"{BACKEND_URL}/players/refer/?refer_code={referrer_player.referral_code}"
+            "url": f"{BACKEND_URL}/refer/?refer_code={referrer_player.referral_code}"
         }, status= status.HTTP_200_OK)
         
     @staticmethod
