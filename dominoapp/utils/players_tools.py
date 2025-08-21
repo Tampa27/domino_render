@@ -12,13 +12,13 @@ def get_device_hash(request):
     user_agent = request.META.get('HTTP_USER_AGENT', '')
     language = request.META.get('HTTP_ACCEPT_LANGUAGE', '')
     ip_address = get_client_ip(request)
-        
-    if not user_agent or not language or not ip_address:
-        return None
     
     print('user_agent: ', user_agent)
     print('language: ', language)
     print('ip: ', ip_address)
+        
+    if not user_agent or not language or not ip_address:
+        return None
     
     # Concatenate the values and create a SHA-256 hash
     texto = f"{user_agent}{language}{ip_address}"
