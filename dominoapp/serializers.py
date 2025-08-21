@@ -69,7 +69,7 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
     
     def get_url(self, obj: Player) -> str:
         BACKEND_URL = os.getenv("BACKEND_URL", "localhost:8000/v2/api")
-        return f"{BACKEND_URL}/players/refer/?refer_code={obj.referral_code}"
+        return f"{BACKEND_URL}/refer/?refer_code={obj.referral_code}"
     
     class Meta:
         model = Player

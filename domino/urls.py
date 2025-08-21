@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from dominoapp.views.players_view import PlayerView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,5 +28,5 @@ urlpatterns = [
     path('v2/api/docs/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     # Opcional: UI de Redoc
     path('v2/api/docs/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-
+    path("refer/", PlayerView.as_view({'get': 'refer_register'}), name="share_refer")
 ]
