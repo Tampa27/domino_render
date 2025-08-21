@@ -1,3 +1,4 @@
+import os
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.response import Response
@@ -5,12 +6,14 @@ from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.shortcuts import redirect
 from fcm_django.models import FCMDevice
-from dominoapp.models import Player, DominoGame, BlockPlayer
+from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
+from dominoapp.utils.players_tools import get_device_hash
 import logging
 logger = logging.getLogger('django')
 
@@ -134,7 +137,20 @@ class PlayerService:
                         if referral_model:
                             player.parent = referral_model
                             player.save(update_fields=['parent'])
+                    else:
+                        hash_sha256 = get_device_hash(request)
+                        print(f"SHA-256: {hash_sha256}")
+                        
+                        try:
+                            referral_model = ReferralPlayers.objects.get(referral_code=hash_sha256)
+                        except:
+                            referral_model = None
+                        if referral_model:
+                            player.parent = referral_model.referrer_player
+                            player.save(update_fields=['parent'])
                             
+                            referral_model.delete()  # Elimina el modelo de referencia una vez usado      
+                    
                     DiscordConnector.send_event(
                         ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
                         {
@@ -142,6 +158,7 @@ class PlayerService:
                             "name" : google_user['name']
                         }
                     )
+                    
                 else:
                     player = Player.objects.get(email=google_user['email'])
 
@@ -190,6 +207,39 @@ class PlayerService:
         except:
             return Response("Player not found", status= status.HTTP_404_NOT_FOUND)
 
+        BACKEND_URL = os.getenv("BACKEND_URL", "localhost:8000/v2/api")
+        
         return Response(data={
-            "refer_code" : referrer_player.referral_code
+            "refer_code" : referrer_player.referral_code,
+            "url": f"{BACKEND_URL}/players/refer/?refer_code={referrer_player.referral_code}"
         }, status= status.HTTP_200_OK)
+        
+    @staticmethod
+    def process_refer_register(request):
+        referrer_player = None
+        try:
+            refer_code = request.query_params.get('refer_code', None)
+            referrer_player = Player.objects.get(referral_code = refer_code, inactive_player=False)
+        except:
+            pass
+        
+        if referrer_player:
+            hash_sha256 = get_device_hash(request)
+            print(f"SHA-256: {hash_sha256}")
+            
+            try:
+                ReferralPlayers.objects.get_or_create(
+                    referrer_player=referrer_player,
+                    referral_code=hash_sha256
+                )
+            except Exception as error:
+                logger.error(f"Error creating referral player: {str(error)}")
+                pass
+            
+        
+        app = AppVersion.objects.first()
+        if app and app.store_link:
+            return redirect(app.store_link)
+        
+        return redirect('https://play.google.com/store/games')
+        
