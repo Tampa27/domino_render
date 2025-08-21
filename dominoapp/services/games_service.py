@@ -237,7 +237,7 @@ class GameService:
             
             ### Actualizo los players por si se saco alguno
             players = game_tools.playersCount(game)
-            if (game.inPairs and len(players<4)) or len(players)<2:
+            if (game.inPairs and len(players)<4) or len(players)<2:
                 return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
             game_tools.startGame1(game.id,players)    
             serializerGame = GameSerializer(game)
