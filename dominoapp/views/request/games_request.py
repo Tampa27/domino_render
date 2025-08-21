@@ -299,7 +299,7 @@ class GameRequest:
             return is_valid, message, status_response
 
         required_keys = [
-            "patner_id"
+            "alias"
         ]
 
         is_valid, message = RequestValidator.validate_required_key(request, required_keys)
@@ -309,7 +309,7 @@ class GameRequest:
             return is_valid, message, status_response
 
         validators = {
-            "patner_id": RequestValidator.validate_numeric
+            "alias": RequestValidator.validate_string
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
