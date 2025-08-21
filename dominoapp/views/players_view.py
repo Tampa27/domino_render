@@ -7,7 +7,7 @@ from dominoapp.models import Player
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.services.player_service import PlayerService
 from dominoapp.views.request.players_request import PlayerRequest
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from rest_framework.serializers import IntegerField, CharField
 
 
@@ -164,6 +164,11 @@ class PlayerView(viewsets.ModelViewSet):
     
     @extend_schema(
             operation_id="players_refer_register",
+            parameters=[
+                OpenApiParameter(
+                    name="refer_code",
+                    type=str,)
+                ],
             request=None,
             responses={
             status.HTTP_308_PERMANENT_REDIRECT: None            
