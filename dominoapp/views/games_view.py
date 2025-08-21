@@ -355,7 +355,7 @@ class GameView(viewsets.ModelViewSet):
                 200: inline_serializer(
                     name="Set Patner Game Request",
                     fields={
-                        "patner_id" : IntegerField(required=True)
+                        "alias" : CharField(required=True)
                     }
                 )
             },
