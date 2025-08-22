@@ -111,10 +111,12 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'storages',
     'fcm_django',
-    'django_user_agents'
+    'django_user_agents',
+    'corsheaders'
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -124,6 +126,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_user_agents.middleware.UserAgentMiddleware',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8081",
+    "https://domino-club-fdc25b05dc8f.herokuapp.com",
+    # Add more allowed origins as needed
 ]
 
 ROOT_URLCONF = 'domino.urls'
