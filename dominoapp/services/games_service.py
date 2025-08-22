@@ -303,8 +303,7 @@ class GameService:
                 return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         
         players = game_tools.playersCount(game)
-        players_ru = list(filter(lambda p: p.isPlaying,players))
-        exited = game_tools.exitPlayer(game,player,players_ru,len(players))
+        exited = game_tools.exitPlayer(game,player,players,len(players))
         if exited:
             PushNotificationConnector.push_notification(
                 channel=f'mesa_{game.id}',
