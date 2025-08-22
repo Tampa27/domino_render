@@ -87,7 +87,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
-ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com", "dominoclubtest.pythonanywhere.com"]
+ALLOWED_HOSTS = ["*","ahmedlp9.pythonanywhere.com", "dominoclubtest.pythonanywhere.com", "http://localhost:8081"]
 
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
