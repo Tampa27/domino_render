@@ -77,22 +77,23 @@ class PlayerService:
     def process_login(request):
         token = request.data.get('token')
 
-        browsers = [
-            'mozilla', 'chrome', 'safari', 'firefox', 'edge', 'opera',
-            'ie/', 'internet explorer', 'netscape', 'webkit', 'gecko',
-            'mobile', 'android', 'iphone', 'ipad', 'windows'
-        ]
-        print("browser: ", request.user_agent.browser.family)
-        print("is_bot: ", request.user_agent.is_bot)
+        # browsers = [
+        #     'mozilla', 'chrome', 'safari', 'firefox', 'edge', 'opera',
+        #     'ie/', 'internet explorer', 'netscape', 'webkit', 'gecko',
+        #     'mobile', 'android', 'iphone', 'ipad', 'windows'
+        # ]
+        # print("browser: ", request.user_agent.browser.family)
+        # print("is_bot: ", request.user_agent.is_bot)
 
         try:
-            if (not request.user_agent.is_bot) and (request.user_agent.browser.family.lower() in browsers):
-                ###### Verifica el token de Google para Web  ########
-                google_user, error = GoogleTokenVerifier.verify(token, device='web')
-            else:
-                ###### Verifica el token de Google  ########
-                google_user, error = GoogleTokenVerifier.verify(token)
-                
+            # if (not request.user_agent.is_bot) and (request.user_agent.browser.family.lower() in browsers):
+            #     ###### Verifica el token de Google para Web  ########
+            #     google_user, error = GoogleTokenVerifier.verify(token, device='web')
+            # else:
+            #     ###### Verifica el token de Google  ########
+            #     google_user, error = GoogleTokenVerifier.verify(token)
+            google_user, error = GoogleTokenVerifier.verify(token)
+            
             if error:
                 return Response(
                         {"status":'error',
