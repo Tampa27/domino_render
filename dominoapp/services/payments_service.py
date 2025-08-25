@@ -1,3 +1,4 @@
+import shortuuid
 import os
 from rest_framework import status
 from rest_framework.response import Response
@@ -124,17 +125,22 @@ class PaymentService:
             to_user=player, amount=int(request.data["coins"]), status="p",
             )
         
+        transaction_id= shortuuid.random(length=6)
+        
         send_request = DiscordConnector.send_transaction_request(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
             {   
                 'player_name': player.name,
                 'player_alias': player.alias,
                 'amount': request.data["coins"],
-                'player_phone': request.data["phone"]
+                'player_phone': request.data["phone"],
+                'transaction_id': transaction_id
             }
         )
         if send_request:
-            return Response({'status': 'success', "message":'Request recharged send'}, status=status.HTTP_200_OK)
+            return Response({'status': 'success', "data":{
+                "transaction_id": transaction_id                                  
+            }}, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -270,6 +276,7 @@ class PaymentService:
             from_user=player, amount=int(request.data["coins"]), status="p"
             )
 
+        transaction_id= shortuuid.random(length=6)
         send_request = DiscordConnector.send_transaction_request(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
             {   
@@ -278,7 +285,8 @@ class PaymentService:
                 'amount': request.data["coins"],
                 'coins':request.data["coins"],
                 'card_number': request.data["card_number"],
-                'player_phone': request.data["phone"]
+                'player_phone': request.data["phone"],
+                'transaction_id': transaction_id
             }
         )
         
@@ -297,7 +305,9 @@ class PaymentService:
             bank.extracted_coins+=int(request.data["coins"])
             bank.save(update_fields=['extracted_coins'])
             
-            return Response({'status': 'success', "message":'Request extraction send'}, status=status.HTTP_200_OK)
+            return Response({'status': 'success', "data":{
+                "transaction_id": transaction_id
+                }}, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
       
