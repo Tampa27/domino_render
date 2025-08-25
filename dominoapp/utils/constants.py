@@ -92,12 +92,14 @@ class TransactionPaymentMethod:
     PAYMENT_BY_SALDO = ("saldo", "saldo movil")
     PAYMENT_BY_TRANSFERENCIA = ("transferencia", "transferencia")
     PAYMENT_BY_PAYPAL = ("paypal", "pago por paypal")
+    PAYMENT_BY_ZELLE = ("zelle", "pago por zelle")
     
 
     payment_choices = [
         PAYMENT_BY_SALDO,
         PAYMENT_BY_TRANSFERENCIA,
-        PAYMENT_BY_PAYPAL
+        PAYMENT_BY_PAYPAL,
+        PAYMENT_BY_ZELLE
     ]
 
 class TransactionTypes:

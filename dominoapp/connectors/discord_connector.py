@@ -7,6 +7,7 @@ from dominoapp.utils.constants import ApiConstants
 class DiscordConnector:
     errors_url = os.environ.get('DISCORD_ERRORS_URL', '')
     events_url = os.environ.get('DISCORD_EVENTS_URL', '')
+    transactions_url = os.environ.get('DISCORD_TRANSACTIONS_URL', '')
     environment = (os.environ.get('PRODUCTION', "True")=="True")
     
     @staticmethod
@@ -16,8 +17,11 @@ class DiscordConnector:
             res = requests.post(url, json=payload)
             if res.status_code != 204:
                 logger.error(f'Failed to send message to Discord with status {res.status_code}. Payload: {payload}')
+                return False
+            return True
         except requests.RequestException as e:
             logger.error(f'DiscordConnector => {str(e)}')
+            return False
 
     @staticmethod
     def send_error(message):
@@ -56,3 +60,23 @@ class DiscordConnector:
             }
 
             DiscordConnector._make_request(DiscordConnector.events_url, payload)
+            
+    @staticmethod
+    def send_transaction_request(event_type, params):
+        if DiscordConnector.transactions_url!='':
+            if event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key:
+                content = f"🚨 Alerta! 🚨, 🤑 Solicitud de Recarga 🤑\n Hemos recibido una solicitud de recarga de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** `{params.get('player_phone')}`"
+            elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key:
+                content = f"🚨 Alerta! 🚨, 💸 Solicitud de Extracción 💸\n Hemos recibido una solicitud de extracción de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** `{params.get('player_phone')}`\n\n**💳 Tarjeta:** `{params.get('card_number')}`\n\n**Dinero a transferir:** `{params.get('coins')}`  💵"
+            else:
+                content = f"🚨 New Event! 🚨 Type: {event_type} - Details: {params}"
+
+            
+            payload = {
+                "username": f'DOMINO CLUB ({"Production" if DiscordConnector.environment else "Development"})',
+                "content": content,
+                "allowed_mentions": {"parse": ["everyone"]}
+            }
+            
+            return DiscordConnector._make_request(DiscordConnector.transactions_url, payload)
+        return False

@@ -132,6 +132,16 @@ class RequestValidator:
             return True
         else:
             return False
+    
+    @staticmethod
+    def validate_card_number(value):
+        if not isinstance(value, str):
+            return False
+        safe_pattern = re.compile(r'^\d{16}$')
+        if safe_pattern.match(value):
+            return True
+        else:
+            return False
 
     @staticmethod
     def validate_text(value):
