@@ -72,7 +72,7 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         return False
     
 
-def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None):
+def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None, bankaccount=None):
     
     try:
         if not from_user and not to_user:
@@ -93,7 +93,8 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
             type="ex",
             admin = admin if admin else None,
             external_id = external_id if external_id else None,
-            paymentmethod = paymentmethod if paymentmethod else None
+            paymentmethod = paymentmethod if paymentmethod else None,
+            bank_account = bankaccount if bankaccount else None
         )
         
         new_transaction.status_list.add(new_status)

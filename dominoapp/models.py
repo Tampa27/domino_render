@@ -11,7 +11,7 @@ class Player(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_player')
     alias = models.CharField(max_length=50, db_index=True) 
     tiles = models.CharField(max_length=50,default="")
-    phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex='^\+{1}?\d{9,15}$')])
+    phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex=r'^\+{1}?\d{9,15}$')])
     earned_coins = models.IntegerField(default=0)
     recharged_coins = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
@@ -44,7 +44,20 @@ class Player(models.Model):
     
     class Meta:
         ordering = ['alias']
+
+class BankAccount(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='bank_accounts')
+    account_number = models.CharField(max_length=50)
+    phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex=r'^\+{1}?\d{9,15}$')])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+     # Ensure a player cannot have duplicate bank accounts with the same account number
+    class Meta:
+        unique_together = ('player', 'account_number')
+        ordering = ['-created_at']
     
+    def __str__(self):
+        return self.account_number
     
 class DominoGame(models.Model):
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
@@ -83,7 +96,6 @@ class DominoGame(models.Model):
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
 
-
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
@@ -100,7 +112,6 @@ class Bank(models.Model):
     @property
     def balance(self):
         return self.buy_coins - self.extracted_coins
-
 
 class Status_Transaction(models.Model):
     status = models.CharField(max_length=32,choices=TransactionStatus.transaction_choices,default="p")
@@ -120,7 +131,9 @@ class Transaction(models.Model):
     external_id = models.CharField(max_length=50, null=True, blank=True)
     paymentmethod = models.CharField(max_length=32,choices=TransactionPaymentMethod.payment_choices, null=True, blank=True)
     descriptions = models.CharField(max_length=100, null=True, blank=True)
+    bank_account = models.ForeignKey(BankAccount, related_name="bank_account_transaction", on_delete=models.SET_NULL, null=True, blank=True)
 
+    
 
 class Status_Payment(models.Model):
     status = models.CharField(max_length=32,choices=PaymentStatus.payment_choices,default="pending")
