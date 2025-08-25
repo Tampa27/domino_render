@@ -84,7 +84,12 @@ class PaymentView(viewsets.GenericViewSet):
                 name="Payments Request Recharge Response",
                 fields={
                     "status": CharField(default="success"),
-                    "message": CharField()
+                    "data": inline_serializer(
+                        name="Payments Request Recharge Data",
+                        fields={
+                        'transaction_id': CharField(max_length=6, min_length=6)
+                        }
+                        )
                     },
             ),
             404: inline_serializer(
@@ -220,7 +225,12 @@ class PaymentView(viewsets.GenericViewSet):
                 name="Payments Request Extraction Response",
                 fields={
                     "status": CharField(default="success"),
-                    "message": CharField()
+                    "data": inline_serializer(
+                        name="Payments Request Extraction Data",
+                        fields={
+                        'transaction_id': CharField(max_length=6, min_length=6)
+                        }
+                        )
                     },
             ),
             404: inline_serializer(
