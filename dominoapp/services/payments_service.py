@@ -1,9 +1,10 @@
+import os
 from rest_framework import status
 from rest_framework.response import Response
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Status_Payment
+from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -72,12 +73,30 @@ class PaymentService:
             admin = Player.objects.get(user__id = request.user.id)
         except:
             admin = None
-        create_reload_transactions(
-            to_user=player, amount=int(request.data["coins"]), status="cp", 
-            admin=admin,
-            external_id=request.data.get('external_id', None),
-            paymentmethod=request.data.get('paymentmethod', None)
-            )
+        
+        transaction = Transaction.objects.filter(
+            to_user__alias=request.data["alias"], type='rl'
+        ).annotate(
+            latest_status_name=Subquery(
+                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='p').order_by('-time').first()
+        
+        if transaction:
+            transaction.amount = int(request.data["coins"])
+            transaction.admin = admin
+            transaction.paymentmethod=request.data.get('paymentmethod', None)
+            transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
+            new_status = Status_Transaction.objects.create(status = 'cp')
+            transaction.status_list.add(new_status)
+        else:
+            create_reload_transactions(
+                to_user=player, amount=int(request.data["coins"]), status="cp", 
+                admin=admin,
+                external_id=request.data.get('external_id', None),
+                paymentmethod=request.data.get('paymentmethod', None)
+                )
+    
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Recarga en Domino Club",
@@ -92,6 +111,32 @@ class PaymentService:
         )
         
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+    
+    @staticmethod
+    def process_request_recharge(request):
+        try:
+            player = Player.objects.get(user__id=request.user.id)
+        except:
+            return Response(data={'status': 'error', "message":"User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+               
+        
+        create_reload_transactions(
+            to_user=player, amount=int(request.data["coins"]), status="p",
+            )
+        
+        send_request = DiscordConnector.send_transaction_request(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+            {   
+                'player_name': player.name,
+                'player_alias': player.alias,
+                'amount': request.data["coins"],
+                'player_phone': request.data["phone"]
+            }
+        )
+        if send_request:
+            return Response({'status': 'success', "message":'Request recharged send'}, status=status.HTTP_200_OK)
+        
+        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @staticmethod
     def process_promotions(request):
@@ -134,7 +179,6 @@ class PaymentService:
         
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
-
     @staticmethod
     def process_extract(request):
 
@@ -144,33 +188,53 @@ class PaymentService:
 
         player = Player.objects.get(alias=request.data["alias"])
 
-        if player.total_coins < int(request.data["coins"]):
-            return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
-        
-        player.earned_coins -= int(request.data["coins"])
-        if player.earned_coins<0:
-            player.recharged_coins += player.earned_coins
-            player.earned_coins = 0
-
-        
-        try:
-            bank = Bank.objects.all().first()
-        except:
-            bank = Bank.objects.create()
-
-        bank.extracted_coins+=int(request.data["coins"])
-        bank.save(update_fields=['extracted_coins'])
-
         try:
             admin = Player.objects.get(user__id = request.user.id)
         except:
             admin = None
-        create_extracted_transactions(
-            from_user=player, amount=int(request.data["coins"]), status="cp",
-            admin=admin,
-            external_id=request.data.get('external_id', None),
-            paymentmethod=request.data.get('paymentmethod', None)
-            )
+        
+                
+        transaction = Transaction.objects.filter(
+            from_user__alias=request.data["alias"], type='ex'
+        ).annotate(
+            latest_status_name=Subquery(
+                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='p').order_by('-time').first()
+        
+        if transaction:
+            transaction.amount = int(request.data["coins"])
+            transaction.admin = admin
+            transaction.paymentmethod=request.data.get('paymentmethod', None)
+            transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
+            new_status = Status_Transaction.objects.create(status = 'cp')
+            transaction.status_list.add(new_status)
+        else:
+            if player.total_coins < int(request.data["coins"]):
+                return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+            
+            player.earned_coins -= int(request.data["coins"])
+            if player.earned_coins<0:
+                player.recharged_coins += player.earned_coins
+                player.earned_coins = 0
+
+            player.save(update_fields=['earned_coins', 'recharged_coins'])
+            
+            try:
+                bank = Bank.objects.all().first()
+            except:
+                bank = Bank.objects.create()
+
+            bank.extracted_coins+=int(request.data["coins"])
+            bank.save(update_fields=['extracted_coins'])
+
+            create_extracted_transactions(
+                from_user=player, amount=int(request.data["coins"]), status="cp",
+                admin=admin,
+                external_id=request.data.get('external_id', None),
+                paymentmethod=request.data.get('paymentmethod', None)
+                )
+            
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Extracción en Domino Club",
@@ -184,9 +248,59 @@ class PaymentService:
                 "amount": request.data["coins"]
             }
         )
-        player.save()
+        
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
+    @staticmethod
+    def process_request_extraction(request):
+        try:
+            player = Player.objects.get(user__id=request.user.id)
+        except:
+            return Response(data={'status': 'error', "message":"User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        min_extraction = int(os.environ.get('MIN_EXTRACTION',800))
+        
+        if player.total_coins < min_extraction:
+            return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+        
+        if player.total_coins < int(request.data["coins"]):
+            return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+               
+        create_extracted_transactions(
+            from_user=player, amount=int(request.data["coins"]), status="p"
+            )
+
+        send_request = DiscordConnector.send_transaction_request(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+            {   
+                'player_name': player.name,
+                'player_alias': player.alias,
+                'amount': request.data["coins"],
+                'coins':request.data["coins"],
+                'card_number': request.data["card_number"],
+                'player_phone': request.data["phone"]
+            }
+        )
+        
+        if send_request:
+            player.earned_coins -= int(request.data["coins"])
+            if player.earned_coins<0:
+                player.recharged_coins += player.earned_coins
+                player.earned_coins = 0
+            player.save(update_fields=['earned_coins', 'recharged_coins'])
+            
+            try:
+                bank = Bank.objects.all().first()
+            except:
+                bank = Bank.objects.create()
+
+            bank.extracted_coins+=int(request.data["coins"])
+            bank.save(update_fields=['extracted_coins'])
+            
+            return Response({'status': 'success', "message":'Request extraction send'}, status=status.HTTP_200_OK)
+        
+        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+      
     @staticmethod
     def process_resume_game(request):
         alias = request.query_params.get('alias', None)

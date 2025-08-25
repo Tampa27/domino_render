@@ -68,6 +68,49 @@ class PaymentView(viewsets.GenericViewSet):
         return PaymentService.process_recharge(request)
 
     @extend_schema(
+            operation_id="payments_request_recharge",
+            request = {
+                200: inline_serializer(
+                    name="Payments Request Recharge",
+                    fields={
+                        "coins" : IntegerField(required=True),
+                        "external_id": CharField(required=False),
+                        "paymentmethod": CharField(required=False, help_text="saldo, transferencia, zelle")
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Payments Request Recharge Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Payments Request Recharge Response Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def request_recharge(self, request, pk = None):
+
+        is_valid, message, status_response = PaymentRequest.validate_request_recharge(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PaymentService.process_request_recharge(request)
+    
+    @extend_schema(
             operation_id="payments_promotion",
             request = {
                 200: inline_serializer(
@@ -159,6 +202,57 @@ class PaymentView(viewsets.GenericViewSet):
             }, status = status_response)
         
         return PaymentService.process_extract(request)
+    
+    @extend_schema(
+            operation_id="payments_request_extraction",
+            request = {
+                200: inline_serializer(
+                    name="Payments Request Extraction",
+                    fields={
+                        "coins" : IntegerField(required=True),
+                        "card_number": CharField(required=True, min_length=16,max_length=16),
+                        "phone": CharField(required=True)
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Payments Request Extraction Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Payments Request Extraction Response Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Payments Request Extract Response Error 2",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def request_extract(self, request, pk = None):
+
+        is_valid, message, status_response = PaymentRequest.validate_request_extraction(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PaymentService.process_request_extraction(request)
+    
     
     @action(detail=False, methods=["get"])
     def resume_game(self, request, pk = None):
