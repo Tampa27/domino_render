@@ -2,6 +2,7 @@ import logging
 import os
 import requests
 from dominoapp.utils.constants import ApiConstants
+import urllib.parse
 
 
 class DiscordConnector:
@@ -65,9 +66,40 @@ class DiscordConnector:
     def send_transaction_request(event_type, params):
         if DiscordConnector.transactions_url!='':
             if event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key:
-                content = f"🚨 Alerta! 🚨, 🤑 Solicitud de Recarga 🤑\n Hemos recibido una solicitud de recarga de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** https://wa.me/{params.get('player_phone')}/"
+                texto_original = f"""
+                Hola *{params.get('player_name')}*,
+                
+Tu solicitud de recarga para la cuenta **{params.get('player_alias')}** en Domino Club por un monto de {params.get('amount')} pesos ha sido recibida con éxito.
+                
+Por favor, elige tu método de pago:
+    📱 Saldo Móvil
+    💳 Transferencia Bancaria
+
+**ID de tu solicitud**: {params.get('transaction_id')}
+                """
+                texto_codificado = urllib.parse.quote(texto_original)
+                content = f"""🚨 Alerta! 🚨, 🤑 Solicitud de Recarga 🤑
+Hemos recibido una solicitud de recarga de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n
+    **Alias:** `{params.get('player_alias')}`\n
+    **📞 WhatsApp:** https://wa.me/{params.get('player_phone')}/?text={texto_codificado}
+                """
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key:
-                content = f"🚨 Alerta! 🚨, 💸 Solicitud de Extracción 💸\n Hemos recibido una solicitud de extracción de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** https://wa.me/{params.get('player_phone')}/\n\n**💳 Tarjeta:** `{params.get('card_number')}`\n\n**Dinero a transferir:** `{params.get('coins')}`  💵"
+                texto_original = f"""
+                Hola *{params.get('player_name')}*,
+                
+Tu solicitud de extraer un monto de {params.get('amount')} pesos de la cuenta **{params.get('player_alias')}** en Domino Club ha sido recibida con éxito.
+                
+**ID de tu solicitud**: {params.get('transaction_id')}
+                """
+                texto_codificado = urllib.parse.quote(texto_original)
+                content = f"""🚨 Alerta! 🚨, 💸 Solicitud de Extracción 💸
+Hemos recibido una solicitud de extracción de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n
+    **Alias:** `{params.get('player_alias')}`\n
+    **💳 Tarjeta:** `{params.get('card_number')}`\n
+    **💵 A transferir:** `{params.get('coins')}`\n
+    **📞 Contacto:** `{params.get('player_phone')}`\n
+    **📞 WhatsApp:** https://wa.me/{params.get('player_phone')}/?text={texto_codificado}
+                """
             else:
                 content = f"🚨 New Event! 🚨 Type: {event_type} - Details: {params}"
 
