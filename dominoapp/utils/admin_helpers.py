@@ -1,8 +1,8 @@
 from django.http import HttpResponse
 from django.contrib import messages
-from django.db.models import Sum
+from django.db.models import Sum, OuterRef, Subquery
 from dominoapp.utils.pdf_helpers import create_resume_pdf
-from dominoapp.models import Player
+from dominoapp.models import Player, Status_Transaction
 
 class AdminHelpers:
     
@@ -11,6 +11,11 @@ class AdminHelpers:
         """
             here we recive a queryset that is a list of the selected transactions
         """  
+        queryset = queryset.annotate(
+            latest_status_name=Subquery(
+                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='cp')
         queryset_exist = queryset.count()
         if queryset_exist > 0:
             queryset = queryset.order_by("time")

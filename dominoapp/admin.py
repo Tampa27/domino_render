@@ -70,6 +70,7 @@ class StatusTransactionInline(admin.TabularInline):
 class TransactionAdmin(admin.ModelAdmin):
     list_display = [
         "id",
+        "status",
         "from_user",
         "to_user",
         "amount",
