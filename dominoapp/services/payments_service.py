@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction
+from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -271,9 +271,22 @@ class PaymentService:
         
         if player.total_coins < int(request.data["coins"]):
             return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+        
+        try:
+            bankaccount = BankAccount.objects.get(player__id = player.id, account_number=request.data["card_number"])
+            if bankaccount and str(bankaccount.phone) != (request.data["phone"]):
+                bankaccount.phone = request.data["phone"]
+                bankaccount.save(update_fields=['phone'])
+        except:
+            bankaccount = BankAccount.objects.create(
+                player = player, 
+                account_number=request.data["card_number"],
+                phone = request.data["phone"]
+                )
                
         create_extracted_transactions(
-            from_user=player, amount=int(request.data["coins"]), status="p"
+            from_user=player, amount=int(request.data["coins"]), status="p",
+            bankaccount=bankaccount
             )
 
         transaction_id= shortuuid.random(length=6)
