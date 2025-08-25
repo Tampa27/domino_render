@@ -65,9 +65,9 @@ class DiscordConnector:
     def send_transaction_request(event_type, params):
         if DiscordConnector.transactions_url!='':
             if event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key:
-                content = f"🚨 Alerta! 🚨, 🤑 Solicitud de Recarga 🤑\n Hemos recibido una solicitud de recarga de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** `{params.get('player_phone')}`"
+                content = f"🚨 Alerta! 🚨, 🤑 Solicitud de Recarga 🤑\n Hemos recibido una solicitud de recarga de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** https://wa.me/{params.get('player_phone')}/"
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key:
-                content = f"🚨 Alerta! 🚨, 💸 Solicitud de Extracción 💸\n Hemos recibido una solicitud de extracción de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** `{params.get('player_phone')}`\n\n**💳 Tarjeta:** `{params.get('card_number')}`\n\n**Dinero a transferir:** `{params.get('coins')}`  💵"
+                content = f"🚨 Alerta! 🚨, 💸 Solicitud de Extracción 💸\n Hemos recibido una solicitud de extracción de {params.get('player_name')} con un monto de {params.get('amount')} pesos!\n\n **Alias:** `{params.get('player_alias')}`\n\n**📞 Contacto:** https://wa.me/{params.get('player_phone')}/\n\n**💳 Tarjeta:** `{params.get('card_number')}`\n\n**Dinero a transferir:** `{params.get('coins')}`  💵"
             else:
                 content = f"🚨 New Event! 🚨 Type: {event_type} - Details: {params}"
 
