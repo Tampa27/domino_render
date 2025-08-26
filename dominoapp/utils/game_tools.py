@@ -680,8 +680,8 @@ def updateAllPoints(game,players,winner,move_register:MoveRegister,isCapicua=Fal
     if game.sumAllPoints:
         for i in range(n):
             sum_points+=totalPoints(players[i].tiles)
-            if isCapicua and game.capicua:
-                sum_points*=2     
+        if isCapicua and game.capicua:
+            sum_points*=2     
         if game.inPairs:
             updateTeamScore(game,winner,players,sum_points,move_register)                
         else:
