@@ -33,7 +33,6 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
         logger_api.info(f"Transaction of {amount} pesos satisfactory of {from_user} for {to_user}")
         return True
     except Exception as e:
-        print(f"error: {e}")
         logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     
@@ -67,7 +66,6 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         logger_api.info(f"Transaction of {amount} pesos satisfactory of {from_user} for {to_user}")
         return True
     except Exception as e:
-        print(f"error: {e}")
         logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     
@@ -102,7 +100,6 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
         logger_api.info(f"Transaction of {amount} pesos satisfactory of {from_user} for {to_user}")
         return True
     except Exception as e:
-        print(f"error: {e}")
         logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     
@@ -135,7 +132,6 @@ def create_promotion_transactions(amount, from_user:Player=None, to_user:Player=
         logger_api.info(f"Promotion of {amount} pesos satisfactory for {to_user} make a refer to {from_user}.")
         return True
     except Exception as e:
-        print(f"error: {e}")
         logger.critical(f"Promotion of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     

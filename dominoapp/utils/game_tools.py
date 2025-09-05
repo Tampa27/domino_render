@@ -1,6 +1,6 @@
 from rest_framework.response import Response
 from ..models import Player
-from ..models import DominoGame, MoveRegister
+from ..models import DominoGame, MoveRegister, DataGame, MatchGame
 from ..models import Bank
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
@@ -15,43 +15,106 @@ from dominoapp.utils.move_register_utils import movement_register
 logger = logging.getLogger(__name__)
 
 
-def setWinner1(game,winner):
-    game.winner = winner
-    game.start_time = timezone.now()
+def setWinner1(data_game: DataGame,winner: int):
+    data_game.winner = winner
+    data_game.start_time = timezone.now()
 
 
-def setWinnerStarterNext1(game,winner,starter,next_player):
-    game.starter = starter
-    game.winner = winner
-    game.next_player = next_player
-    game.start_time = timezone.now()
+def setWinnerStarterNext1(data_game: DataGame,winner:int,starter:int,next_player:int):
+    data_game.starter = starter
+    data_game.winner = winner
+    data_game.next_player = next_player
+    data_game.start_time = timezone.now()
 
 
-def checkPlayerJoined(player,game):
+def checkPlayerJoined(player:Player, data_game:DataGame):
     res = False
     players = []
-    if game.player1 is not None:
-        players.append(game.player1)
-        if game.player1.alias == player.alias:
+    if data_game.player1 is not None:
+        players.append(data_game.player1)
+        if data_game.player1.alias == player.alias:
             res = True
-    if game.player2 is not None:
-        players.append(game.player2)
-        if game.player2.alias == player.alias:
+    if data_game.player2 is not None:
+        players.append(data_game.player2)
+        if data_game.player2.alias == player.alias:
             res = True
-    if game.player3 is not None:
-        players.append(game.player3)
-        if game.player3.alias == player.alias:
+    if data_game.player3 is not None:
+        players.append(data_game.player3)
+        if data_game.player3.alias == player.alias:
             res = True
-    if game.player4 is not None:
-        players.append(game.player4)
-        if game.player4.alias == player.alias:
+    if data_game.player4 is not None:
+        players.append(data_game.player4)
+        if data_game.player4.alias == player.alias:
             res = True
     return res,players
 
+def joinplayer(data_game:DataGame, player:Player, players:list[Player]):
+    joined = False
+    
+    if data_game.player1 is None:
+        data_game.player1 = player
+        joined = True
+        players.insert(0,player)
+    elif data_game.player2 is None:
+        data_game.player2 = player
+        joined = True
+        players.insert(1,player)
+    elif data_game.player3 is None:
+        data_game.player3 = player
+        joined = True
+        players.insert(2,player)
+    elif data_game.player4 is None:
+        data_game.player4 = player
+        joined = True
+        players.insert(3,player)
+    return joined,players
 
-def startGame1(game_id,players):
+
+def startGame1(game_id:int,players:list[Player]):
     with transaction.atomic():
         game = DominoGame.objects.select_for_update().get(id=game_id)
+        data_game = DataGame.objects.filter(active=True, match__domino_game__id = game.id).order_by('-id').first()
+        
+        n = len(players)
+        if data_game.status == 'fi':
+            match = data_game.match
+            if data_game.match.status == 'fg':
+                match = MatchGame.objects.create(
+                    domino_game = game,
+                    rounds = 0,
+                    active = True,
+                    status = 'ru'
+                )
+                data_game.match.active = False
+                data_game.match.save(update_fields=['active'])
+
+            new_data_game = DataGame.objects.create(
+                match = match,
+                active = True,
+                status = 'ru',
+                starter = data_game.starter,
+                next_player = data_game.next_player                         
+                )
+            
+            data_game.active = False
+            data_game.save(update_fields=['active'])
+            
+            data_game = new_data_game
+            k = 0
+            for i in range(n):
+                if k == 0:
+                    data_game.player1 = players[i]
+                elif k == 1:
+                    data_game.player2 = players[i]
+                elif k == 2:
+                    data_game.player3 = players[i]
+                elif k == 3:
+                    data_game.player4 = players[i]
+                k+=1
+            
+            data_game.save()
+                
+        
         # if game.status != "fi":
         #     for player in players:
         #         if player.isPlaying == False:
@@ -61,19 +124,19 @@ def startGame1(game_id,players):
         # for player in players:
         #     if player.isPlaying:
         #         players_ru.append(player)       
-        n = len(players)
-        if game.starter == -1 or game.starter >= n:
-            game.next_player = random.randint(0,n-1)
-            game.starter = game.next_player
-        else:
+        
+        if data_game.starter == -1 or data_game.starter >= n:
+            data_game.next_player = random.randint(0,n-1)
+            data_game.starter = data_game.next_player
+        # else:
             # if players[game.starter].alias != players_ru[game.starter].alias:
             #     game.starter = getPlayerIndex(players_ru,players[game.starter])
-            game.next_player = game.starter
-        if game.inPairs and game.winner != 4:
-            if game.starter == 0 or game.starter == 2:
-                game.winner = 5
+
+        if game.inPairs and data_game.winner != 4:
+            if data_game.starter == 0 or data_game.starter == 2:
+                data_game.winner = 5
             else:
-                game.winner = 6    
+                data_game.winner = 6
         #game.winner=-1
 
         try:
@@ -84,13 +147,14 @@ def startGame1(game_id,players):
         ### Pensar aqui en que lugar sumo las datas y los game
         bank.data_played+=1
 
-        game.board = ''
+        # new.board = ''
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
-            game.scoreTeam1 = 0
-            game.scoreTeam2 = 0
-            for player in players:
-                player.points = 0
-            game.rounds = 0
+        #     # old_data_game.match.scoreTeam1 = 0
+        #     # old_data_game.match.scoreTeam2 = 0
+        #     for player in players:
+        #         player.points = 0
+            # old_data_game.match.rounds = 0
+            # old_data_game.match.save(update_fields=["rounds","scoreTeam1","scoreTeam2"])
 
             bank.game_played+=1
         elif not game.perPoints:
@@ -100,19 +164,20 @@ def startGame1(game_id,players):
 
         #if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
         #    shuffleCouples(game,players_ru)    
-        shuffle(game,players)          
-        game.status = "ru"
-        game.start_time = timezone.now()
-        game.leftValue = -1
-        game.rightValue = -1
-        game.lastTime1 = timezone.now()
-        game.lastTime2 = timezone.now()
-        game.lastTime3 = timezone.now()
-        game.lastTime4 = timezone.now()
-        game.save()
+        shuffle(data_game,players)          
+        data_game.status = "ru"
+        data_game.match.status = "ru"
+        data_game.match.rounds += 1
+        data_game.start_time = timezone.now()
+        data_game.lastTime1 = timezone.now()
+        data_game.lastTime2 = timezone.now()
+        data_game.lastTime3 = timezone.now()
+        data_game.lastTime4 = timezone.now()
+        data_game.match.save()
+        data_game.save()
 
 
-def movement(game_id,player,players,tile, automatic=False):
+def movement(game_id:int,player: Player,players:list[Player],tile:str, automatic=False):
     with transaction.atomic():
         try:
             game = DominoGame.objects.select_for_update().get(id=game_id)
@@ -122,84 +187,100 @@ def movement(game_id,player,players,tile, automatic=False):
         w = getPlayerIndex(players,player)
         passTile = isPass(tile)
         
-        if isMyTurn(game.board,w,game.starter,n) == False:
+        data_game = DataGame.objects.select_for_update().get(match__domino_game__id = game.id, active=True)
+        
+        if isMyTurn(data_game.board,w,data_game.starter,n) == False:
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
             return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno")
-        if noCorrect(game,tile):
+        if noCorrect(data_game,tile):
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
             return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
         if (passTile and (game.status == 'fi' or game.status == 'fg')):
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que el juego habia terminado")
             return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia terminado")
-        if (len(game.board) == 0 and passTile):
+        if (len(data_game.board) == 0 and passTile):
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que el juego habia empezado")
             return(f"{player.alias} intento mover {tile} pero se detecto que el juego habia empezado")
         if CheckPlayerTile(tile, player) == False:
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que la ficha no le pertenese")
             return(f"{player.alias} intento mover {tile} pero se detecto que la ficha no le pertenese")
-        if not CorrectPassTile(game,player,tile):
+        if not CorrectPassTile(data_game,player,tile):
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que tenia fichas para jugar")
             return(f"{player.alias} intento pasarse con fichas")
         
         if passTile == False:
             isCapicua = False
             if game.perPoints:
-                isCapicua = checkCapicua(game,tile)
-            
-            move_register = movement_register(game, player, tile, players, automatic) 
-            updateSides(game,tile)
+                isCapicua = checkCapicua(data_game,tile)
+
+            move_register = movement_register(data_game, player, tile, players, automatic) 
+            updateSides(data_game,tile)
             tiles_count,tiles = updateTiles(player,tile)
             player.tiles = tiles
             player.save()
             player.refresh_from_db()
             if tiles_count == 0:
-                game.status = 'fg'
-                game.start_time = timezone.now()
+                # game.status = 'fg'
+                data_game.status = 'fi'
+                data_game.end_time = timezone.now()
+                # game.start_time = timezone.now()
                 if game.startWinner:
-                    game.starter = w
-                    game.next_player = w
+                    data_game.starter = w
+                    data_game.next_player = w
                 else:
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter    
-                game.winner = w
+                    data_game.starter = (data_game.starter+1)%n
+                    data_game.next_player = data_game.starter    
+                data_game.winner = w
                 if game.perPoints:
-                    game.rounds+=1
-                    updateAllPoints(game,players,w,move_register,isCapicua)
+                    updateAllPoints(game,data_game,players,w,move_register,isCapicua)
                 else:
+                    data_game.match.status = 'fg'
+                    data_game.match.end_time = timezone.now()
                     updatePlayersData(game,players,w,"fg",move_register)                                        
             else:
-                game.next_player = (w+1) % n 
-        elif checkClosedGame1(game,n):
-            move_register = movement_register(game, player, tile, players, automatic)
+                data_game.next_player = (w+1) % n 
+        elif checkClosedGame1(data_game,n):
+            move_register = movement_register(data_game, player, tile, players, automatic)
             winner = getWinner(players,game.inPairs,game.variant)
-            game.status = 'fg'
-            game.start_time = timezone.now()
-            game.winner = winner
-            if game.perPoints:
-                game.rounds+=1
+            # game.status = 'fg'
+            data_game.status = 'fi'
+            data_game.end_time = timezone.now()
+            # game.start_time = timezone.now()
+            data_game.winner = winner
+            # if game.perPoints:
+            #     ## Buscar otro lugar para saber si el juego termino o sigue
+            #     data_game.match.rounds+=1
             if winner < 4:
                 if game.startWinner:
-                    game.starter = winner
-                    game.next_player = winner
+                    data_game.starter = winner
+                    data_game.next_player = winner
                 else:
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter        
+                    data_game.starter = (data_game.starter+1)%n
+                    data_game.next_player = data_game.starter        
             if game.perPoints and winner < 4:
-                updateAllPoints(game,players,winner,move_register)
+                updateAllPoints(game,data_game,players,winner,move_register)
             elif game.perPoints and winner == 4:
-                game.status = "fi"
+                # game.status = "fi"
                 if game.startWinner and (game.lostStartInTie != True or game.inPairs == False):
-                    game.next_player = game.starter
+                    data_game.next_player = data_game.starter
                 else:    
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter
+                    data_game.starter = (data_game.starter+1)%n
+                    data_game.next_player = data_game.starter
             else:
+                data_game.match.status = 'fg'
+                data_game.match.end_time = timezone.now()
                 updatePlayersData(game,players,winner,"fg",move_register)                
         else:
-            move_register = movement_register(game, player, tile, players, automatic) 
+            move_register = movement_register(data_game, player, tile, players, automatic) 
             if game.payPassValue > 0:
-                updatePassCoins(w,game,players, move_register)
-            game.next_player = (w+1) % n
+                updatePassCoins(w,game,data_game,players, move_register)
+            data_game.next_player = (w+1) % n
+
+        data_game.board += (tile+',')
+        data_game.save()
+        data_game.match.save()
+        game.save()
+        game.refresh_from_db()
         
         try:
             bank = Bank.objects.all().first()
@@ -214,9 +295,6 @@ def movement(game_id,player,players,tile, automatic=False):
         
         bank.save(update_fields=["data_completed","game_completed"])
 
-        game.board += (tile+',')
-        game.save()
-        game.refresh_from_db()
         logger.info(player.alias+" movio "+tile)
         PushNotificationConnector.push_notification(
                 channel=f'mesa_{game.id}',
@@ -225,7 +303,7 @@ def movement(game_id,player,players,tile, automatic=False):
                     'game_status': game.status,
                     'player': player.id,
                     'tile': tile,
-                    'next_player': game.next_player,
+                    'next_player': data_game.next_player,
                     'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
                 }
             )
@@ -240,21 +318,21 @@ def CheckPlayerTile(tile:str, player:Player):
         return True
     return False
 
-def CorrectPassTile(game: DominoGame, player:Player, tile:str):
+def CorrectPassTile(data_game: DataGame, player:Player, tile:str):
     tiles = player.tiles.split(',')
     if isPass(tile):        
         numbers = [int(side) for single in tiles for side in single.split('|')]
-        if game.leftValue in numbers or game.rightValue in numbers:
+        if data_game.leftValue in numbers or data_game.rightValue in numbers:
             # Comprobar que realmente no lleva fichas
             return False
     return True 
 
-def noCorrect(game,tile):
+def noCorrect(data_game: DataGame,tile:str):
     values = tile.split('|')
     val0 = int(values[0])
-    if val0 == -1 or (game.leftValue == -1 and game.rightValue == -1):
+    if val0 == -1 or (data_game.leftValue == -1 and data_game.rightValue == -1):
         return False
-    if game.leftValue == val0 or game.rightValue == val0:
+    if data_game.leftValue == val0 or data_game.rightValue == val0:
         return False
     return True
 
@@ -262,7 +340,7 @@ def rTile(tile)->str:
     values = tile.split('|')
     return (values[1]+"|"+values[0])
 
-def updatePlayersData(game,players,w,status,move_register: MoveRegister):
+def updatePlayersData(game:DominoGame,players:list[Player],w:int,status:str,move_register: MoveRegister):
     try:
         bank = Bank.objects.all().first()
     except ObjectDoesNotExist:
@@ -371,8 +449,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].save()                                    
     bank.save(update_fields=['game_coins'])
 
-def updatePassCoins(pos,game,players,move_register:MoveRegister):
-    tiles = game.board.split(',')
+def updatePassCoins(pos:int,game:DominoGame, data_game: DataGame,players:list[Player],move_register:MoveRegister):
+    tiles = data_game.board.split(',')
     rtiles = reversed(tiles)
     prev = 1
     n = len(players)
@@ -402,11 +480,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp", 
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp", 
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
@@ -430,11 +508,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
@@ -459,11 +537,11 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
@@ -487,21 +565,22 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                         players[pos1].earned_coins+=coins
                         create_game_transactions(
                             game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         create_game_transactions(
                             game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {data_game.leftValue} y a {data_game.rightValue}",
                             move_register=move_register)
                         players[pos].save()
                         players[pos1].save()
                 break                            
 
 
-def move1(game_id,alias,tile):
+def move1(game_id:int,alias:str,tile:str):
     # game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
     game = DominoGame.objects.get(id=game_id)
-    players = playersCount(game)
+    data_game = DataGame.objects.filter(match__domino_game__id = game.id, active=True).order_by('-id').first()
+    players = playersCount(data_game)
     players_ru = list(filter(lambda p: p.isPlaying,players))
     for p in players:
         if p.alias == alias:
@@ -509,57 +588,59 @@ def move1(game_id,alias,tile):
     # currentPlayer = Player.objects.select_for_update(nowait=False).get(id=player.id)      
     error = movement(game_id,player,players_ru,tile)
     
-    updateLastPlayerTime(game,alias)
-    if game.player1 and game.player1.id:
-        game.player1.save() 
-    if game.player2 and game.player2.id:
-        game.player2.save() 
-    if game.player3 and game.player3.id:
-        game.player3.save()
-    if game.player4 and game.player4.id:
-        game.player4.save() 
+    
+    updateLastPlayerTime(data_game,alias)
+    if data_game.player1 and data_game.player1.id==player.id:
+        data_game.player1.save() 
+    if data_game.player2 and data_game.player2.id==player.id:
+        data_game.player2.save() 
+    if data_game.player3 and data_game.player3.id==player.id:
+        data_game.player3.save()
+    if data_game.player4 and data_game.player4.id==player.id:
+        data_game.player4.save() 
     
     return error
 
 
-def shuffleCouples(game,players):
+def shuffleCouples(data_game:DataGame,players:list[Player]):
     random.shuffle(players)
-    game.player1 = players[0]
-    game.player2 = players[1]
-    game.player3 = players[2]
-    game.player4 = players[3]
+    data_game.player1 = players[0]
+    data_game.player2 = players[1]
+    data_game.player3 = players[2]
+    data_game.player4 = players[3]
 
-def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: int):
+def exitPlayer(data_game: DataGame, player: Player, players: list[Player], totalPlayers: int):
+    game = data_game.match.domino_game
     exited = False
     pos = getPlayerIndex(players,player)
-    isStarter = (game.starter == pos)
-    starter = game.starter
-    lastTimeMove = getLastMoveTime(game,player)
+    starter = data_game.starter
+    isStarter = starter == pos
+    lastTimeMove = getLastMoveTime(data_game,player)
     noActivity = False
     if lastTimeMove is not None:
         timediff = timezone.now() - lastTimeMove
         if timediff.seconds >= 60:
             noActivity = True
         
-    if game.player1 is not None and game.player1.alias == player.alias:
-        game.player1 = None
+    if data_game.player1 is not None and data_game.player1.alias == player.alias:
+        # data_game.player1 = None
         exited = True
-    elif game.player2 is not None and game.player2.alias == player.alias:
-        game.player2 = None
+    elif data_game.player2 is not None and data_game.player2.alias == player.alias:
+        # data_game.player2 = None
         exited = True        
-    elif game.player3 is not None and game.player3.alias == player.alias:
-        game.player3 = None
+    elif data_game.player3 is not None and data_game.player3.alias == player.alias:
+        # data_game.player3 = None
         exited = True
-    elif game.player4 is not None and game.player4.alias == player.alias:
-        game.player4 = None
+    elif data_game.player4 is not None and data_game.player4.alias == player.alias:
+        # data_game.player4 = None
         exited = True
     
     if exited:
-        player.points = 0
+        # player.points = 0
         player.tiles = ""
         if player.isPlaying:
-            have_points = havepoints(game)
-            if (game.status == "fi" or (game.status == "ru" and (have_points or game.board != ""))) and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
+            have_points = havepoints(data_game.match)
+            if (game.status == "fi" or (game.status == "ru" and (have_points or (data_game.board != "")))) and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
                 loss_coins = (game.payWinValue+game.payMatchValue)
                 coins = loss_coins
                 try:
@@ -600,81 +681,159 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     descriptions=f"por salir del juego {game.id}")
                 bank.save(update_fields=['game_coins'])                               
             if totalPlayers <= 2 or game.inPairs:
-                game.status = "wt"
-                game.starter = -1
+                # game.status = "wt"
+                if data_game.status in ['wt', 'ready']:
+                    data_game.status = "wt"
+                    data_game.match.status = "wt"
+                else:
+                    data_game.status = "fi"
+                    data_game.end_time = timezone.now()
+                    data_game.match.status = "fg"
+                    data_game.match.end_time = timezone.now()
             elif (totalPlayers > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
-                game.status = "ready"
-                game.starter = -1
+                # game.status = "ready"
+                if data_game.status in ['wt', 'ready']:
+                    data_game.status = "ready"
+                    data_game.match.status = "ready"
+                else:
+                    data_game.status = "fi"
+                    data_game.end_time = timezone.now()
+                    data_game.match.status = "fg"
+                    data_game.match.end_time = timezone.now()
             elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
-                if isStarter and game.startWinner:
-                    game.starter = -1
-                elif not isStarter:
-                    if game.starter > pos:
-                        game.starter-=1
-                if game.winner < 4 and game.winner > pos:
-                    game.winner-=1
+                # if isStarter and game.startWinner:
+                #     data_game.starter = -1
+                # elif not isStarter:
+                #     if data_game.starter > pos:
+                #         data_game.starter-=1
+                # if data_game.winner < 4 and data_game.winner > pos:
+                #     data_game.winner-=1
+                if data_game.active:
+                    data_game.status = "fi"
+                    # data_game.starter = -1
+                    data_game.end_time = timezone.now()
+                    data_game.match.status = "fg"
+                    data_game.match.end_time = timezone.now()
             player.isPlaying = False
         else:
             if totalPlayers <= 2 or game.inPairs:
-                game.status = "wt"
-                game.starter = -1
-        reorderPlayers(game,player,players,starter)                                                       
+                # game.status = "wt"
+                if data_game.status in ['wt', 'ready']:
+                    data_game.status = "wt"
+                    data_game.match.status = "wt"
+                    
+                else:
+                    data_game.status = "fi"
+                    data_game.end_time = timezone.now()
+                    # data_game.starter = -1
+                    data_game.match.status = "fg"
+                    data_game.match.end_time = timezone.now()
+                    
+                    
+        if data_game.status != "wt" and data_game.status != "ready":
+            data_game.end_time = timezone.now()
+            data_game.match.end_time = timezone.now()
         player.save()
-        game.save()    
+        data_game.match.save()
+        data_game.save()   
+        reorderPlayers(game,data_game,player,players,starter)                                                       
+              
     return exited    
 
-def reorderPlayers(game:DominoGame, player:Player, players:list, starter:int):
+def reorderPlayers(game: DominoGame,data_game:DataGame, player:Player, players:list, starter:int):
     k = 0
     pos = getPlayerIndex(players,player)
     n = len(players)
-    game.player1 = None
-    game.player2 = None
-    game.player3 = None
-    game.player4 = None
+    if data_game.status in ['wt', 'ready']:
+        data_game.player1 = None
+        data_game.player2 = None
+        data_game.player3 = None
+        data_game.player4 = None
+    else:
+        data_game.active = False
+        data_game.match.active = False
+        data_game.save(update_fields=["active"])
+        data_game.match.save(update_fields=["active"])
+        macth = MatchGame.objects.create(
+                                domino_game=game,
+                                status="wt",
+                                rounds=0,
+                                active = True
+                                )
+        data_game = DataGame.objects.create(
+                                match = macth,
+                                status="wt",
+                                active = True
+                                )
     for i in range(n):
         if i != pos:
             if k == 0:
-                game.player1 = players[i]
+                data_game.player1 = players[i]
             elif k == 1:
-                game.player2 = players[i]
+                data_game.player2 = players[i]
+                if not game.inPairs:
+                    data_game.status = "ready"
+                    data_game.match.status = "ready"
             elif k == 2:
-                game.player3 = players[i]
+                data_game.player3 = players[i]
             elif k == 3:
-                game.player4 = players[i]
+                data_game.player4 = players[i]
+                if game.inPairs:
+                    data_game.status = "ready"
+                    data_game.match.status = "ready"
             if starter == i:
-                game.starter = k
-            
+                data_game.starter = k
             k+=1
+    data_game.save()
+    data_game.match.save()
 
-def updateTeamScore(game, winner, players, sum_points, move_register:MoveRegister):
+def updateTeamScore(game:DominoGame, data_game:DataGame, winner:int, players:list[Player], sum_points:int, move_register:MoveRegister):
     n = len(players)
     if winner == 0 or winner == 2:
-        game.scoreTeam1 += sum_points
-        players[0].points+=sum_points
-        players[2].points+=sum_points
-        players[0].save()
-        players[2].save()
+        data_game.match.scoreTeam1 += sum_points
+        data_game.match.score_player1 += sum_points
+        data_game.match.score_player3 += sum_points
+        data_game.score_player1 += sum_points
+        data_game.score_player3 += sum_points
+        # players[0].points+=sum_points
+        # players[2].points+=sum_points
+        # players[0].save()
+        # players[2].save()
     else:
-        game.scoreTeam2 += sum_points
-        players[1].points+=sum_points
-        players[3].points+=sum_points
-        players[1].save()
-        players[3].save()
-    if game.scoreTeam1 >= game.maxScore:
-        game.status="fg"
+        data_game.match.scoreTeam2 += sum_points
+        data_game.match.score_player2 += sum_points
+        data_game.match.score_player4 += sum_points
+        data_game.score_player2 += sum_points
+        data_game.score_player4 += sum_points
+        # players[1].points+=sum_points
+        # players[3].points+=sum_points
+        # players[1].save()
+        # players[3].save()
+    if data_game.match.scoreTeam1 >= game.maxScore:
+        # game.status="fg"
+        data_game.match.status = "fg"
+        data_game.match.end_time = timezone.now()
+        data_game.status = "fi"
+        data_game.end_time = timezone.now()
         updatePlayersData(game,players,winner,"fg",move_register)
-        game.start_time = timezone.now()
-        game.winner = 5 #Gano el equipo 1
-    elif game.scoreTeam2 >= game.maxScore:
-        game.status="fg"
+        # game.start_time = timezone.now()
+        data_game.winner = 5 #Gano el equipo 1
+    elif data_game.match.scoreTeam2 >= game.maxScore:
+        # game.status="fg"
+        data_game.match.status = "fg"
+        data_game.match.end_time = timezone.now()
+        data_game.status = "fi"
+        data_game.end_time = timezone.now()
         updatePlayersData(game,players,winner,"fg", move_register)
-        game.start_time = timezone.now()
-        game.winner = 6 #Gano el equipo 2
+        # game.start_time = timezone.now()
+        data_game.winner = 6 #Gano el equipo 2
     else:
         updatePlayersData(game,players,winner,"fi",move_register)
-        game.status="fi"    
+        # game.status="fi"
+        data_game.status = "fi"
+        data_game.end_time = timezone.now()    
     
-def updateAllPoints(game,players,winner,move_register:MoveRegister,isCapicua=False):
+def updateAllPoints(game:DominoGame, data_game:DataGame, players:list[Player], winner:int, move_register:MoveRegister,isCapicua=False):
     sum_points = 0
     n = len(players)
     if game.sumAllPoints:
@@ -683,15 +842,23 @@ def updateAllPoints(game,players,winner,move_register:MoveRegister,isCapicua=Fal
         if isCapicua and game.capicua:
             sum_points*=2     
         if game.inPairs:
-            updateTeamScore(game,winner,players,sum_points,move_register)                
+            updateTeamScore(game,data_game,winner,players,sum_points,move_register)                
         else:
-            players[winner].points+=sum_points
-            players[winner].save()
-            if players[winner].points >= game.maxScore:
-                game.status = "fg"
+            # players[winner].points+=sum_points
+            # players[winner].save()
+            setwinnerpoints(data_game,players,winner,sum_points)
+            winner_points = getwinnerpoints(data_game,players,winner)
+            if winner_points >= game.maxScore:
+                # game.status = "fg"
+                data_game.match.status = "fg"
+                data_game.match.end_time = timezone.now()
+                data_game.status = "fi"
+                data_game.end_time = timezone.now()
                 updatePlayersData(game,players,winner,"fg",move_register)
             else:
-                game.status = "fi"
+                # game.status = "fi"
+                data_game.status = "fi"
+                data_game.end_time = timezone.now()
                 updatePlayersData(game,players,winner,"fi",move_register)                              
     else:#En caso en que se sumen los puntos solo de los perdedores
         for i in range(n):
@@ -706,35 +873,81 @@ def updateAllPoints(game,players,winner,move_register:MoveRegister,isCapicua=Fal
         else:
             if isCapicua and game.capicua:
                 sum_points*=2
-            players[winner].points+=sum_points
-            players[winner].save()
-            if players[winner].points >= game.maxScore:
-                game.status = "fg"
+            # players[winner].points+=sum_points
+            # players[winner].save()
+            setwinnerpoints(data_game,players,winner,sum_points)
+            winner_points = getwinnerpoints(data_game,players,winner)
+            if winner_points >= game.maxScore:
+                # game.status = "fg"
+                data_game.match.status = "fg"
+                data_game.match.end_time = timezone.now()
+                data_game.status = "fi"
+                data_game.end_time = timezone.now()
                 updatePlayersData(game,players,winner,"fg", move_register)
             else:
-                game.status = "fi"
+                # game.status = "fi"
+                data_game.status = "fi"
+                data_game.end_time = timezone.now()
                 updatePlayersData(game,players,winner,"fi", move_register)    
 
-def getPlayerIndex(players,player):
+def setwinnerpoints(data_game:DataGame, players:list[Player], winner:int, points:int):
+    if data_game.player1 is not None and data_game.player1.id == players[winner].id:
+        data_game.match.score_player1 += points
+        data_game.score_player1 += points
+    elif data_game.player2 is not None and data_game.player2.id == players[winner].id:
+        data_game.match.score_player2 += points
+        data_game.score_player2 += points
+    elif data_game.player3 is not None and data_game.player3.id == players[winner].id:
+        data_game.match.score_player3 += points
+        data_game.score_player3 += points
+    elif data_game.player4 is not None and data_game.player4.id == players[winner].id:
+        data_game.match.score_player4 += points
+        data_game.score_player4 += points
+    data_game.match.save(update_fields=["score_player1","score_player2","score_player3","score_player4"])
+    data_game.save(update_fields=["score_player1","score_player2","score_player3","score_player4"])
+
+def getwinnerpoints(data_game:DataGame, players:list[Player], winner:int)->int:
+    if data_game.player1 is not None and data_game.player1.id == players[winner].id:
+        return data_game.match.score_player1
+    elif data_game.player2 is not None and data_game.player2.id == players[winner].id:
+        return data_game.match.score_player2
+    elif data_game.player3 is not None and data_game.player3.id == players[winner].id:
+        return data_game.match.score_player3
+    elif data_game.player4 is not None and data_game.player4.id == players[winner].id:
+        return data_game.match.score_player4
+    return 0
+
+def getplayerpoints(data_game:DataGame, player:Player)->int:
+    if data_game.player1 is not None and data_game.player1.id == player.id:
+        return data_game.match.score_player1
+    elif data_game.player2 is not None and data_game.player2.id == player.id:
+        return data_game.match.score_player2
+    elif data_game.player3 is not None and data_game.player3.id == player.id:
+        return data_game.match.score_player3
+    elif data_game.player4 is not None and data_game.player4.id == player.id:
+        return data_game.match.score_player4
+    return 0
+
+def getPlayerIndex(players: list[Player],player: Player):
     for i in range(len(players)):
         if player.id == players[i].id:
             return i
     return -1
 
-def updateSides(game,tile):
+def updateSides(data_game:DataGame,tile:str):
     values = tile.split('|')
     value1 = int(values[0])
     value2 = int(values[1])
-    if len(game.board) == 0:
-        game.leftValue = value1
-        game.rightValue = value2
+    if len(data_game.board) == 0:
+        data_game.leftValue = value1
+        data_game.rightValue = value2
     else:    
-        if value1 == game.leftValue:
-            game.leftValue = value2
+        if value1 == data_game.leftValue:
+            data_game.leftValue = value2
         else:
-            game.rightValue = value2    
+            data_game.rightValue = value2    
 
-def updateTiles(player,tile):
+def updateTiles(player: Player,tile:str):
     tiles = player.tiles.split(',')
 
     inverse = rTile(tile)
@@ -751,7 +964,7 @@ def updateTiles(player,tile):
             res+=','        
     return len(tiles),res
 
-def getWinner(players,inPairs,variant):
+def getWinner(players:list[Player],inPairs:bool,variant:str):
     i = 0
     min = 1000
     res = -1
@@ -800,8 +1013,8 @@ def getPoints(tile):
     values = tile.split('|')
     return int(values[0])+int(values[1])    
 
-def checkClosedGame1(game, playersCount):
-    tiles = game.board.split(',')
+def checkClosedGame1(data_game: DataGame, playersCount:int):
+    tiles = data_game.board.split(',')
     lastPasses = 0
     rtiles = reversed(tiles)
     for tile in rtiles:
@@ -814,26 +1027,27 @@ def checkClosedGame1(game, playersCount):
                 return False    
     return False
    
-def isPass(tile):
+def isPass(tile:str):
     values = tile.split('|')
     return values[0] == "-1"
 
-def playersCount(game):
+def playersCount(data_game: DataGame):
     players = []
-    if game.player1 is not None:
-        players.append(game.player1)
-    if game.player2 is not None:
-        players.append(game.player2)
-    if game.player3 is not None:
-        players.append(game.player3)
-    if game.player4 is not None:
-        players.append(game.player4)
+    if data_game.active:
+        if data_game.player1 is not None:
+            players.append(data_game.player1)
+        if data_game.player2 is not None:
+            players.append(data_game.player2)
+        if data_game.player3 is not None:
+            players.append(data_game.player3)
+        if data_game.player4 is not None:
+            players.append(data_game.player4)
     return players
 
-def shuffle(game, players):
+def shuffle(data_game: DataGame, players):
     tiles = []
     max = 0
-    if game.variant == "d6":
+    if data_game.match.domino_game.variant == "d6":
         max = 7
     else:
         max = 10
@@ -847,35 +1061,35 @@ def shuffle(game, players):
     for i in range(len(players)):
         player = players[i]
         player.tiles = ""
-        if game.status !="fi":
+        if data_game.status !="fi":
             player.isPlaying = True
-        if game.perPoints and (game.status =="ready" or game.status =="fg"):
-            player.points = 0  
+        # if data_game.match.domino_game.perPoints and (data_game.match.domino_game.status =="ready" or data_game.match.domino_game.status =="fg"):
+        #     player.points = 0  
         for j in range(max):
             player.tiles+=tiles[i*max+j]
             if j < (max-1):
                 player.tiles+=","
         player.save()    
 
-def checkCapicua(game,tile):
-    if game.leftValue == game.rightValue:
+def checkCapicua(data_game: DataGame,tile:str):
+    if data_game.leftValue == data_game.rightValue:
         return False
     values = tile.split('|')
     val1 = int(values[0])
     val2 = int(values[1])
-    return (val1 == game.leftValue and game.rightValue == val2) or (val2 == game.leftValue and game.rightValue == val1) 
+    return (val1 == data_game.leftValue and data_game.rightValue == val2) or (val2 == data_game.leftValue and data_game.rightValue == val1) 
 
-def updateLastPlayerTime(game,alias):
-    game.refresh_from_db()
-    if game.player1 is not None and game.player1.alias == alias:
-        game.lastTime1 = timezone.now()
-    elif game.player2 is not None and game.player2.alias == alias:
-        game.lastTime2 = timezone.now()
-    if game.player3 is not None and game.player3.alias == alias:
-        game.lastTime3 = timezone.now()
-    if game.player4 is not None and game.player4.alias == alias:
-        game.lastTime4 = timezone.now()
-    game.save()
+def updateLastPlayerTime(data_game:DataGame, alias:str):
+    data_game.refresh_from_db()
+    if data_game.player1 is not None and data_game.player1.alias == alias:
+        data_game.lastTime1 = timezone.now()
+    elif data_game.player2 is not None and data_game.player2.alias == alias:
+        data_game.lastTime2 = timezone.now()
+    if data_game.player3 is not None and data_game.player3.alias == alias:
+        data_game.lastTime3 = timezone.now()
+    if data_game.player4 is not None and data_game.player4.alias == alias:
+        data_game.lastTime4 = timezone.now()
+    data_game.save()
 
 def takeRandomTile(tiles):
     list_tiles = tiles.split(',')
@@ -902,7 +1116,7 @@ def takeRandomTile(tiles):
     # Devolver el mayor doble si existe, sino la mayor ficha
     return max_double if max_double is not None else max_tile
 
-def takeRandomCorrectTile(tiles,left,right):
+def takeRandomCorrectTile(tiles:str,left:int,right:int)->str:
     list_tiles = tiles.split(',')
     best_tile = None
     best_sum = -1
@@ -926,33 +1140,33 @@ def isMyTurn(board,myPos,starter,n):
     res = moves_count%n
     return (starter+res)%n == myPos
 
-def getLastMoveTime(game,player):
-    if game.player1 is not None and game.player1.alias == player.alias:
-        return game.lastTime1
-    elif game.player2 is not None and game.player2.alias == player.alias:
-        return game.lastTime2
-    elif game.player3 is not None and game.player3.alias == player.alias:
-        return game.lastTime3
-    elif game.player4 is not None and game.player4.alias == player.alias:
-        return game.lastTime4
+def getLastMoveTime(data_game:DataGame, player:Player):
+    if data_game.player1 is not None and data_game.player1.alias == player.alias:
+        return data_game.lastTime1
+    elif data_game.player2 is not None and data_game.player2.alias == player.alias:
+        return data_game.lastTime2
+    elif data_game.player3 is not None and data_game.player3.alias == player.alias:
+        return data_game.lastTime3
+    elif data_game.player4 is not None and data_game.player4.alias == player.alias:
+        return data_game.lastTime4
     return None
 
 
-def havepoints(game: DominoGame):
+def havepoints(match_game: MatchGame) -> bool:
     """
     Retorna si algun jugador tiene puntos en una mesa por puntos
     """
-    have_points = False
-    if game.perPoints:
-        if game.player1 is not None and not have_points:
-            have_points = game.player1.points>0
-        elif game.player2 is not None and not have_points:
-            have_points = game.player2.points>0
-        elif game.player3 is not None and not have_points:
-            have_points = game.player3.points>0
-        elif game.player4 is not None and  not have_points:
-            have_points = game.player4.points>0
-    return have_points
+    if match_game.domino_game.perPoints:
+        return any(
+            [
+                match_game.score_player1 > 0,
+                match_game.score_player2 > 0,
+                match_game.score_player3 > 0,
+                match_game.score_player4 > 0,
+                match_game.scoreTeam1 > 0,
+                match_game.scoreTeam2 > 0
+            ]  
+        )
 
 def ready_to_play(game: DominoGame, player: Player)->bool:
     '''
