@@ -21,7 +21,7 @@ class PushNotificationConnector:
         """
         Enviar notificaciones PUSHER desde el server para la apk\n
         **channel** = 'mesa_{*game.id*}'\n
-        **event_name** = `'move_tile'` | `'join_player'` | `'exit_player'` | `'start_game'` | `'end_game'`\n
+        **event_name** = `'create_game'` | `'move_tile'` | `'join_player'` | `'exit_player'` | `'start_game'` | `'end_game'`\n
         **data_notification**: `dic` con toda la informacion necesaria para la apk.
         """
 
@@ -33,7 +33,6 @@ class PushNotificationConnector:
                 socket_id = socket_id
             )
         except Exception as e:
-            print(f"exception={e}, message = Error sending push notification.")
             logger.critical(f"Error sending push notification, exception={e}")
             return False
         return True

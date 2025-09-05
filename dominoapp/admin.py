@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment, ReferralPlayers
+from .models import Player, Bank, DominoGame, MatchGame, DataGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment, ReferralPlayers
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -12,13 +12,41 @@ class DominoAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "variant",
+        "maxScore",
+        "inPairs",
+        "perPoints",
+        "payPassValue",
+        "payWinValue",
+        "payMatchValue"
+    ]
+
+class MatchAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "status",
+        "domino_game",
+        "start_time",
+        "end_time",
+        "rounds",
+        "scoreTeam1",
+        "scoreTeam2",
+        "active"
+    ]
+    list_filter = ["domino_game", "start_time","end_time"]
+    
+class DataAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
         "status",
         "player1",
         "player2",
         "player3",
         "player4",
-        "start_time"
+        "active",
+        "match"
+        
     ]
+    list_filter = ["match", "match__domino_game"]
 
 class PlayerAdmin(admin.ModelAdmin):
     list_display = [
@@ -28,7 +56,6 @@ class PlayerAdmin(admin.ModelAdmin):
         "name",
         "earned_coins",
         "recharged_coins",
-        "points",
         "isPlaying",
         "lastTimeInSystem"
     ]
@@ -89,8 +116,8 @@ class TransactionAdmin(admin.ModelAdmin):
     search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
     actions = [AdminHelpers.get_pdf_resume_transaction]
 
-    def status(self, obj):
-        return obj.status_list.last().status
+    def status(self, obj:Transaction):
+        return obj.status_list.last().status if obj.status_list.last() else 'p'
 
 class PaymentAdmin(admin.ModelAdmin):
     list_display = [
@@ -114,7 +141,6 @@ class PaymentAdmin(admin.ModelAdmin):
     actions = []
 
     def status(self, obj):
-        print(obj)
         return obj.status_list.last().status if obj.status_list.count()>0 else None
 
 
@@ -210,7 +236,7 @@ class MoveRegisterAdmin(admin.ModelAdmin):
         "player_move__alias",
         "player_alias",
         "game_number",
-        "game__id"
+        # "game__id"
         ]
     inlines = [TransactionInline, PlayersInline]
 
@@ -292,6 +318,8 @@ class ReferralPlayersAdmin(admin.ModelAdmin):
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
+admin.site.register(MatchGame, MatchAdmin)
+admin.site.register(DataGame, DataAdmin)
 admin.site.register(Bank, BankAdmin)
 admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(Payment, PaymentAdmin)
