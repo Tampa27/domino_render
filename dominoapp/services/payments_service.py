@@ -138,9 +138,8 @@ class PaymentService:
             }
         )
         if send_request:
-            return Response({'status': 'success', "data":{
-                "transaction_id": transaction_id                                  
-            }}, status=status.HTTP_200_OK)
+            return Response({'status': 'success', "transaction_id": transaction_id
+            }, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -318,9 +317,8 @@ class PaymentService:
             bank.extracted_coins+=int(request.data["coins"])
             bank.save(update_fields=['extracted_coins'])
             
-            return Response({'status': 'success', "data":{
-                "transaction_id": transaction_id
-                }}, status=status.HTTP_200_OK)
+            return Response({'status': 'success', "transaction_id": transaction_id
+                }, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
       
