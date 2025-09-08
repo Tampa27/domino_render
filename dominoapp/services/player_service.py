@@ -158,7 +158,7 @@ class PlayerService:
                 # Para registrar un dispositivo
                 fcm_token = request.data.get("fcm_token")
                 if fcm_token:
-                    FCMDevice.objects.get_or_create(
+                    FCMDevice.objects.update_or_create(
                         registration_id = fcm_token,
                         defaults={
                             "user": player.user,  # asociar a un usuario
@@ -197,7 +197,7 @@ class PlayerService:
                      "message": "fcm_token is required"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            FCMDevice.objects.get_or_create(
+            FCMDevice.objects.update_or_create(
                 registration_id = fcm_token,
                 defaults={
                     "user": request.user,  # asociar a un usuario
