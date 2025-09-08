@@ -185,6 +185,28 @@ class PlayerService:
                 status=status.HTTP_409_CONFLICT
             )  
         
+    @staticmethod
+    def process_fcm_register(request):
+        try:            
+            # Para registrar un dispositivo
+            fcm_token = request.data.get("fcm_token")
+            if str(fcm_token).strip() == "":
+                return Response(
+                    {"status":'error',
+                     "message": "fcm_token is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            FCMDevice.objects.get_or_create(
+                registration_id = fcm_token,
+                defaults={
+                    "user": request.user,  # asociar a un usuario
+                    "type": "android",  # o "ios", "web"
+                }
+            )
+        except Exception as error:
+            logger.error(f"Error creating FCM Device for user {request.user.username}, Error->: {str(error)}")
+            
+        return Response(status=status.HTTP_204_NO_CONTENT)
         
     @staticmethod
     def process_refer_code(request):
