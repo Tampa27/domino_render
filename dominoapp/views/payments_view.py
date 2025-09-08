@@ -74,8 +74,7 @@ class PaymentView(viewsets.GenericViewSet):
                     name="Payments Request Recharge",
                     fields={
                         "coins" : IntegerField(required=True),
-                        "external_id": CharField(required=False),
-                        "paymentmethod": CharField(required=False, help_text="saldo, transferencia, zelle")
+                        "phone": CharField(required=True)
                     }
                 )
             },

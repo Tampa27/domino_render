@@ -12,10 +12,13 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
+import json
 import sys
 import dj_database_url
 from dotenv import load_dotenv
 from datetime import timedelta
+from firebase_admin import credentials
+from firebase_admin import initialize_app
 # Cargar variables del archivo .env
 load_dotenv('.env', override=True)
 
@@ -258,11 +261,29 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-FCM_DJANGO_SETTINGS = {
-    "FCM_SERVER_KEY": os.getenv('FCM_SERVER_KEY'),
-    "ONE_DEVICE_PER_USER": False,
-    "DELETE_INACTIVE_DEVICES": True,
-}
+try:
+    firebase_config = os.environ.get('FCM_SERVER_KEY')
+    if firebase_config is not None:
+        firebase_config = json.loads(firebase_config)
+        cred = credentials.Certificate(firebase_config)
+        FIREBASE_APP = initialize_app(cred)
+    FCM_DJANGO_SETTINGS = {
+        # an instance of firebase_admin.App to be used as default for all fcm-django requests
+        # default: None (the default Firebase app)
+        "DEFAULT_FIREBASE_APP": FIREBASE_APP,
+        # default: _('FCM Django')
+        # "APP_VERBOSE_NAME": "[string for AppConfig's verbose_name]",
+        # true if you want to have only one active device per registered user at a time
+        # default: False
+        "ONE_DEVICE_PER_USER": False,
+        # devices to which notifications cannot be sent,
+        # are deleted upon receiving error response from FCM
+        # default: False
+        "DELETE_INACTIVE_DEVICES": False
+    }
+except:
+    pass
+
 
 # Configuración de Channel Layers
 CHANNEL_LAYERS = {
