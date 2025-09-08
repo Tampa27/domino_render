@@ -146,6 +146,34 @@ class PlayerView(viewsets.ModelViewSet):
         return PlayerService.process_login(request)
     
     @extend_schema(
+            operation_id="fcm_register",
+            request={
+                204: inline_serializer(
+                name="FCM Register Request",
+                fields={
+                    "fcm_token": CharField(required=False)
+                    },
+            ),    
+            },
+            responses={
+            204: None
+            
+        }
+    ) 
+    @action(detail=False, methods=["post"])
+    def fcm_register(self, request):
+               
+        is_valid, message, status_response = PlayerRequest.validate_fcm_register(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+
+        return PlayerService.process_fcm_register(request)
+    
+    @extend_schema(
             operation_id="players_refer_code",
             request=None,
             responses={
