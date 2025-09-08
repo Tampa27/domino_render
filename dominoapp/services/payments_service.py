@@ -138,6 +138,13 @@ class PaymentService:
             }
         )
         if send_request:
+            admins = Player.objects.filter(user__is_superuser=True)
+            for admin in admins:
+                FCMNOTIFICATION.send_fcm_message(
+                    user = admin.user,
+                    title = "🚨Solicitud de Recarga🚨",
+                    body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰."
+                    )
             return Response({'status': 'success', "transaction_id": transaction_id
             }, status=status.HTTP_200_OK)
         
@@ -316,6 +323,14 @@ class PaymentService:
 
             bank.extracted_coins+=int(request.data["coins"])
             bank.save(update_fields=['extracted_coins'])
+            
+            admins = Player.objects.filter(user__is_superuser=True)
+            for admin in admins:
+                FCMNOTIFICATION.send_fcm_message(
+                    user = admin.user,
+                    title = "🚨Solicitud de Extracción🚨",
+                    body = f"👤 {player.alias} solicita retirar {request.data['coins']} monedas 💰."
+                    )
             
             return Response({'status': 'success', "transaction_id": transaction_id
                 }, status=status.HTTP_200_OK)
