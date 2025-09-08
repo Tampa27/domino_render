@@ -54,7 +54,7 @@ class PaymentService:
                 FCMNOTIFICATION.send_fcm_message(
                 user = player.parent.user,
                 title = "Nueva Recarga en Domino Club",
-                body = f"{player.parent.name} usted a recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
                 )
                 DiscordConnector.send_event(
                     "Promoción",
@@ -101,7 +101,7 @@ class PaymentService:
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Recarga en Domino Club",
-            body = f"{player.name} usted a recargado su cuenta en Domino Club con {request.data['coins']} monedas."
+            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {request.data['coins']} monedas."
             )
         DiscordConnector.send_event(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
@@ -250,7 +250,7 @@ class PaymentService:
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Extracción en Domino Club",
-            body = f"Felicidades {player.name} 🎉, usted a extraido {request.data['coins']} monedas de su cuenta en Domino Club."
+            body = f"Felicidades {player.name} 🎉, usted ha extraido {request.data['coins']} monedas de su cuenta en Domino Club."
             )
 
         DiscordConnector.send_event(
