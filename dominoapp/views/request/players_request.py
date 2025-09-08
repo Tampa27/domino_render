@@ -131,7 +131,7 @@ class PlayerRequest:
         validators = {
             "token": RequestValidator.validate_string,
             "refer_code": RequestValidator.validate_short_uuid,
-            "fcm_token": RequestValidator.validate_string
+            "fcm_token": RequestValidator.validate_text
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

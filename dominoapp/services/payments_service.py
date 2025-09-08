@@ -200,7 +200,8 @@ class PaymentService:
         
                 
         transaction = Transaction.objects.filter(
-            from_user__alias=request.data["alias"], type='ex'
+            from_user__alias=request.data["alias"], type='ex',
+            amount= int(request.data["coins"])
         ).annotate(
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
@@ -208,7 +209,6 @@ class PaymentService:
         ).filter(latest_status_name='p').order_by('-time').first()
         
         if transaction:
-            transaction.amount = int(request.data["coins"])
             transaction.admin = admin
             transaction.paymentmethod=request.data.get('paymentmethod', None)
             transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
