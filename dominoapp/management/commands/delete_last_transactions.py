@@ -46,26 +46,26 @@ class Command(BaseCommand):
         for transaction in transaction_models.iterator():
             new_status = Status_Transaction.objects.create(status = 'cc')
             transaction.status_list.add(new_status)
-            if transaction.type == 'ex':
-                player = transaction.from_user
-                player.earned_coins += transaction.amount
-                player.save(update_fields=['earned_coins'])
-                create_promotion_transactions(
-                    amount= int(transaction.amount),
-                    to_user= player,
-                    status="cp",
-                    descriptions=f'solicitud de extraccion cancelada por tiempo de espera.'
-                )
-                transaction.descriptions = f'se le repuso {transaction.amount} monedas a {player.alias} por no completarse la extraccion.'
-                transaction.save(update_fields=['descriptions'])
-                DiscordConnector.send_event(
-                    "Cancelled Extraction",
-                    {
-                        "player": player.alias,
-                        "amount": transaction.amount,
-                        "requested_at": transaction.time
-                    }
-                )
+            # if transaction.type == 'ex':
+            #     player = transaction.from_user
+            #     player.earned_coins += transaction.amount
+            #     player.save(update_fields=['earned_coins'])
+            #     create_promotion_transactions(
+            #         amount= int(transaction.amount),
+            #         to_user= player,
+            #         status="cp",
+            #         descriptions=f'solicitud de extraccion cancelada por tiempo de espera.'
+            #     )
+            #     transaction.descriptions = f'se le repuso {transaction.amount} monedas a {player.alias} por no completarse la extraccion.'
+            #     transaction.save(update_fields=['descriptions'])
+            #     DiscordConnector.send_event(
+            #         "Cancelled Extraction",
+            #         {
+            #             "player": player.alias,
+            #             "amount": transaction.amount,
+            #             "requested_at": transaction.time
+            #         }
+            #     )
          
         # Delete transactions with time created greater than 3 month.
         expired_time = now() - timedelta(weeks= 12)

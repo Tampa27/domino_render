@@ -107,7 +107,8 @@ class PaymentService:
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
             {
                 'player': request.data["alias"],
-                "amount": request.data["coins"]
+                "amount": request.data["coins"],
+                'admin': admin.alias
             }
         )
         
@@ -138,7 +139,7 @@ class PaymentService:
             }
         )
         if send_request:
-            admins = Player.objects.filter(user__is_superuser=True)
+            admins = Player.objects.filter(user__is_staff=True)
             for admin in admins:
                 FCMNOTIFICATION.send_fcm_message(
                     user = admin.user,
@@ -205,6 +206,24 @@ class PaymentService:
         except:
             admin = None
         
+        if player.total_coins < int(request.data["coins"]):
+            return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+        
+        player.earned_coins -= int(request.data["coins"])
+        if player.earned_coins<0:
+            player.recharged_coins += player.earned_coins
+            player.earned_coins = 0
+
+        player.save(update_fields=['earned_coins', 'recharged_coins'])
+        
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.extracted_coins+=int(request.data["coins"])
+        bank.save(update_fields=['extracted_coins'])
+        
                 
         transaction = Transaction.objects.filter(
             from_user__alias=request.data["alias"], type='ex',
@@ -222,23 +241,6 @@ class PaymentService:
             new_status = Status_Transaction.objects.create(status = 'cp')
             transaction.status_list.add(new_status)
         else:
-            if player.total_coins < int(request.data["coins"]):
-                return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
-            
-            player.earned_coins -= int(request.data["coins"])
-            if player.earned_coins<0:
-                player.recharged_coins += player.earned_coins
-                player.earned_coins = 0
-
-            player.save(update_fields=['earned_coins', 'recharged_coins'])
-            
-            try:
-                bank = Bank.objects.all().first()
-            except:
-                bank = Bank.objects.create()
-
-            bank.extracted_coins+=int(request.data["coins"])
-            bank.save(update_fields=['extracted_coins'])
 
             create_extracted_transactions(
                 from_user=player, amount=int(request.data["coins"]), status="cp",
@@ -257,7 +259,8 @@ class PaymentService:
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
             {
                 'player': request.data["alias"],
-                "amount": request.data["coins"]
+                "amount": request.data["coins"],
+                'admin': admin.alias
             }
         )
         
@@ -310,21 +313,21 @@ class PaymentService:
         )
         
         if send_request:
-            player.earned_coins -= int(request.data["coins"])
-            if player.earned_coins<0:
-                player.recharged_coins += player.earned_coins
-                player.earned_coins = 0
-            player.save(update_fields=['earned_coins', 'recharged_coins'])
+            # player.earned_coins -= int(request.data["coins"])
+            # if player.earned_coins<0:
+            #     player.recharged_coins += player.earned_coins
+            #     player.earned_coins = 0
+            # player.save(update_fields=['earned_coins', 'recharged_coins'])
             
-            try:
-                bank = Bank.objects.all().first()
-            except:
-                bank = Bank.objects.create()
+            # try:
+            #     bank = Bank.objects.all().first()
+            # except:
+            #     bank = Bank.objects.create()
 
-            bank.extracted_coins+=int(request.data["coins"])
-            bank.save(update_fields=['extracted_coins'])
+            # bank.extracted_coins+=int(request.data["coins"])
+            # bank.save(update_fields=['extracted_coins'])
             
-            admins = Player.objects.filter(user__is_superuser=True)
+            admins = Player.objects.filter(user__is_staff=True)
             for admin in admins:
                 FCMNOTIFICATION.send_fcm_message(
                     user = admin.user,

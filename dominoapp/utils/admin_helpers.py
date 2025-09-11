@@ -27,7 +27,7 @@ class AdminHelpers:
             total_amount_loss_in_game = queryset.filter(type ='gm').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
             total_amount_win_in_game = queryset.filter(type ='gm').exclude(to_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
 
-            admin_list = Player.objects.filter(user__is_superuser = True).only('id', 'alias')
+            admin_list = Player.objects.filter(user__is_staff = True).only('id', 'alias')
             
             admin_resume = []
             for admin in admin_list.iterator():
