@@ -1,11 +1,11 @@
-from dominoapp.models import DataGame, Player, MoveRegister
+from dominoapp.serializers import CreateMoveRegister
+from dominoapp.models import DominoGame, Player, MoveRegister
 import logging
 logger = logging.getLogger('django')
 
-def movement_register(data_game:DataGame, player:Player, tile:str, players:list[Player],automatic:False)-> MoveRegister:
-    from dominoapp.serializers import CreateMoveRegister
+def movement_register(game:DominoGame, player:Player, tile:str, players:list[Player],automatic:False)-> MoveRegister:
     move_register = CreateMoveRegister(data={
-        "data":data_game.id,
+        "game":game.id,
         "player_move": player.id,
         "tile_move": tile,
         "players_in_game": [player_item.id for player_item in players],

@@ -2,8 +2,8 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
-from dominoapp.models import Player, DominoGame,MatchGame, DataGame, AppVersion, BlockPlayer
-from dominoapp.serializers import ListGameSerializer, GameSerializer, GameRetrieveSerializer,PlayerLoginSerializer, PlayerGameSerializer
+from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer
+from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 
@@ -38,32 +38,36 @@ class GameService:
         if app_version_obj and app_version_obj.need_update:
             return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version_obj.need_update}, status=200)
                 
-        inGame = DataGame.objects.filter(
+        inGame = DominoGame.objects.filter(
             Q(player1__id = player.id)|
             Q(player2__id = player.id)|
             Q(player3__id = player.id)|
             Q(player4__id = player.id)
-            ).filter(active=True)
-        if inGame.exists():
-            game=inGame.first().match.domino_game
-            games = DominoGame.objects.filter(id = game.id)
+            ).exists()
+        if inGame:
+            games = DominoGame.objects.filter(
+            Q(player1__id = player.id)|
+            Q(player2__id = player.id)|
+            Q(player3__id = player.id)|
+            Q(player4__id = player.id)
+            )
+            game_id = games.first().id
             serializer =ListGameSerializer(games,many=True)
             return Response({
                         'status': 'success', 
                         "games":serializer.data,
                         "player":playerSerializer.data,
-                        "game_id":game.id,
+                        "game_id":game_id,
                         "update": False
                             }, status=status.HTTP_200_OK)
         alias = request.query_params.get('alias', None)
         
         if alias is not None:
-            game_ids = DataGame.objects.filter(Q(player1__alias = alias)|
+            queryset = queryset.filter(
+                Q(player1__alias = alias)|
                 Q(player2__alias = alias)|
                 Q(player3__alias = alias)|
-                Q(player4__alias = alias)).filter(active=True).values_list('match__domino_game__id')
-            queryset = queryset.filter(
-                id__in = game_ids
+                Q(player4__alias = alias)
                 )
 
         serializer =ListGameSerializer(queryset,many=True)
@@ -83,11 +87,17 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id = game_id)
-        serializer = GameRetrieveSerializer(game)
+        serializer = GameSerializer(game)
         
-        data = DataGame.objects.filter(active=True, match__domino_game__id = game.id).order_by('-id').first()
-
-        players = game_tools.playersCount(data)
+        players = []
+        if game.player1 is not None:
+            players.insert(0,game.player1)
+        if game.player2 is not None:
+            players.insert(1, game.player2)
+        if game.player3 is not None:
+            players.insert(2, game.player3)
+        if game.player4 is not None:
+            players.insert(3, game.player4)
         
         players_data = PlayerGameSerializer(players, many=True).data
 
@@ -97,7 +107,7 @@ class GameService:
     def process_create(request):
         
         player1 = Player.objects.get(user__id= request.user.id)
-        check_others_game = DataGame.objects.filter(active=True).filter(
+        check_others_game = DominoGame.objects.filter(
             Q(player1__id = player1.id)|
             Q(player2__id = player1.id)|
             Q(player3__id = player1.id)|
@@ -106,49 +116,30 @@ class GameService:
 
         if check_others_game:
             return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
-          
+
         player1.tiles = ""
         player1.lastTimeInSystem = timezone.now()
         player1.inactive_player = False
         player1.save()
 
-        data = request.data.copy()        
+        data = request.data.copy()
+        data["lastTime1"] = timezone.now()
+        data["player1"] = player1.id
+        
         game_serializer = GameSerializer(data = data)
         try:
             game_serializer.is_valid(raise_exception=True)
             game: DominoGame =  game_serializer.save()
-            
-            match = MatchGame.objects.create(
-                domino_game = game,
-                active=True,
-                status='wt'
-            )
-            
-            DataGame.objects.create(
-                match = match,
-                active=True,
-                status='wt',
-                player1= player1
-            )
-            
         except serializers.ValidationError as e:
             return Response(
                 {'status': 'error', 'message': 'Invalid data', 'errors': e.detail},
                 status=400
             )
         except Exception as error:
-            return Response({'status': 'error', "message":f"Something is wrong at save game. Error->: {error}"}, status=409)
-        
-        game_serializer = GameRetrieveSerializer(game)
-        PushNotificationConnector.push_notification(
-            channel=f'mesa_{game.id}',
-            event_name='create_game',
-            data_notification={
-                'game_status': 'wt',
-                'player': player1.id,
-                'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-            }
-        )
+            return Response({'status': 'error', "message":"Something is wrong at save game"}, status=409)
+
+        game_tools.updateLastPlayerTime(game,player1.alias)
+                
         return Response({'status': 'success', "game":game_serializer.data}, status=200)
     
     @staticmethod
@@ -160,55 +151,62 @@ class GameService:
         player.inactive_player = False
         player.save()
 
+        check_others_game = DominoGame.objects.filter(
+            Q(player1__id = player.id)|
+            Q(player2__id = player.id)|
+            Q(player3__id = player.id)|
+            Q(player4__id = player.id)
+        ).exclude(id = game_id).exists()
+
+        if check_others_game:
+            return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
+
         check_game = DominoGame.objects.filter(id = game_id).exists()
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
-                
-        check_others_game = DataGame.objects.filter(active=True).filter(
-            Q(player1__id = player.id)|
-            Q(player2__id = player.id)|
-            Q(player3__id = player.id)|
-            Q(player4__id = player.id)
-        ).exists()
-
-        if check_others_game:
-            return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
-          
+        
         if not game_tools.ready_to_play(game, player):
             return Response({"status":'error',"message":"you don't have enough coins"},status=status.HTTP_409_CONFLICT)
         
-        data_game = DataGame.objects.filter(match__domino_game__id = game.id, active=True).order_by('-id').first()
-        
-        joined,players = game_tools.checkPlayerJoined(player,data_game)
+        joined,players = game_tools.checkPlayerJoined(player,game)
         if joined != True:
-            joined, players = game_tools.joinplayer(data_game, player, players)
+            if game.player1 is None:
+                game.player1 = player
+                joined = True
+                players.insert(0,player)
+            elif game.player2 is None:
+                game.player2 = player
+                joined = True
+                players.insert(1,player)
+            elif game.player3 is None :
+                game.player3 = player
+                joined = True
+                players.insert(2,player)
+            elif game.player4 is None:
+                game.player4 = player
+                joined = True
+                players.insert(3,player)
 
         if joined == True:
             if game.inPairs:
                 if len(players) == 4 and game.status != "ru":
-                    data_game.status = "ready"
-                    data_game.match.status = "ready"
+                    game.status = "ready"
                 elif game.status != "ru":
-                    data_game.status = "wt"
-                    data_game.match.status = "wt"
+                    game.status = "wt"
             else:                
                 if len(players) >= 2 and game.status != "ru" and game.status != "fi":
-                    data_game.status = "ready"
-                    data_game.match.status = "ready"
+                    game.status = "ready"
                 elif game.status != "ru" and game.status != "fi":
-                    data_game.status = "wt"
-                    data_game.match.status = "wt"
+                    game.status = "wt"
             if game.status == "wt" or game.status == "ready":
                 for player in players:
                     player.tiles=""
                     player.save()            
-            
-            data_game.match.save()
-            data_game.save()
-            
-            serializerGame = GameRetrieveSerializer(game)
+            # game_tools.updateLastPlayerTime(game,alias)
+            game.save()    
+            serializerGame = GameSerializer(game)
             PushNotificationConnector.push_notification(
                 channel=f'mesa_{game.id}',
                 event_name='join_player',
@@ -231,28 +229,26 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
-        
         if game.status != "wt":
-            data = DataGame.objects.filter(active=True, match__domino_game__id = game.id).order_by('-id').first()
-            players = game_tools.playersCount(data)
+            players = game_tools.playersCount(game)
             for player in players:
                 if not game_tools.ready_to_play(game, player):
-                        game_tools.exitPlayer(data,player,players,len(players))            
+                        game_tools.exitPlayer(game,player,players,len(players))            
             
             ### Actualizo los players por si se saco alguno
-            players = game_tools.playersCount(data)
+            players = game_tools.playersCount(game)
             if (game.inPairs and len(players)<4) or len(players)<2:
                 return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
             game_tools.startGame1(game.id,players)    
-            serializerGame = GameRetrieveSerializer(game)
+            serializerGame = GameSerializer(game)
             playerSerializer = PlayerGameSerializer(players,many=True)
             PushNotificationConnector.push_notification(
                 channel=f'mesa_{game.id}',
                 event_name='start_game',
                 data_notification={
                     'game_status': game.status,
-                    'starter': data.starter,
-                    'next_player': data.next_player,
+                    'starter': game.starter,
+                    'next_player': game.next_player,
                     'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
                 }
             )
@@ -272,7 +268,7 @@ class GameService:
             
             player = Player.objects.get(user__id=request.user.id)
             filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
-            check = DataGame.objects.filter(filteres).filter(match__domino_game__id=game_id, active=True).exists()
+            check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
             if not check:
                 return Response({'status': 'error', 'message': "These Player are not in this game"}, status=400)
             
@@ -285,8 +281,7 @@ class GameService:
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:
                 return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-                    
+        except Exception as e:        
             return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     @staticmethod
@@ -299,17 +294,16 @@ class GameService:
         game = DominoGame.objects.get(id=game_id)
         player = Player.objects.get(user__id=request.user.id)
 
-        data_game = DataGame.objects.filter(active=True, match__domino_game__id = game.id).order_by('-id').first()
         
         if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
-            have_points = game_tools.havepoints(data_game.match)
+            have_points = game_tools.havepoints(game)
             if have_points:
                 return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         elif game.status in ["ru"] and player.isPlaying:
                 return Response({'status': 'error', "message":"The game is not over, wait until it's over."}, status=status.HTTP_409_CONFLICT)
         
-        players = game_tools.playersCount(data_game)
-        exited = game_tools.exitPlayer(data_game,player,players,len(players))
+        players = game_tools.playersCount(game)
+        exited = game_tools.exitPlayer(game,player,players,len(players))
         if exited:
             PushNotificationConnector.push_notification(
                 channel=f'mesa_{game.id}',
@@ -330,11 +324,10 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        # game = DominoGame.objects.get(id=game_id)
-        data_game = DataGame.objects.get(match__domino_game__id = game_id, active=True)
+        game = DominoGame.objects.get(id=game_id)
 
-        game_tools.setWinner1(data_game,request.data["winner"])
-        data_game.save()
+        game_tools.setWinner1(game,request.data["winner"])
+        game.save()
         return Response({'status': 'success'}, status=200)
     
     @staticmethod
@@ -343,10 +336,9 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        # game = DominoGame.objects.get(id=game_id)
-        data_game = DataGame.objects.get(match__domino_game__id = game_id, active=True)
-        data_game.starter = request.data["starter"]
-        data_game.save()
+        game = DominoGame.objects.get(id=game_id)
+        game.starter = request.data["starter"]
+        game.save()
         
         return Response({'status': 'success'}, status=200)
 
@@ -356,11 +348,10 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        # game = DominoGame.objects.get(id=game_id)
-        data_game = DataGame.objects.get(match__domino_game__id = game_id, active=True)
-        data_game.starter = request.data["starter"]
-        data_game.winner = request.data["winner"]
-        data_game.save()
+        game = DominoGame.objects.get(id=game_id)
+        game.starter = request.data["starter"]
+        game.winner = request.data["winner"]
+        game.save()
         return Response({'status': 'success'}, status=200)
     
     @staticmethod
@@ -369,10 +360,9 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        # game = DominoGame.objects.get(id=game_id)
-        data_game = DataGame.objects.get(match__domino_game__id = game_id, active=True)
-        game_tools.setWinnerStarterNext1(data_game,request.data["winner"],request.data["starter"],request.data["next_player"])
-        data_game.save()
+        game = DominoGame.objects.get(id=game_id)
+        game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
+        game.save()
         return Response({'status': 'success'}, status=200)
 
     @staticmethod
@@ -383,12 +373,11 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
-        data_game = DataGame.objects.filter(active=True, match__domino_game__id=game.id).order_by('-id').first()
         
-        if data_game.player1.alias != request.data["alias"] and data_game.player2.alias != request.data["alias"] and data_game.player3.alias != request.data["alias"] and data_game.player4.alias != request.data["alias"]:
+        if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
             return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
         
-        players = game_tools.playersCount(data_game)
+        players = game_tools.playersCount(game)
         # if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
         #     return Response({'status': 'success'}, status=200)  
         # else:    
@@ -396,12 +385,12 @@ class GameService:
             if player.alias == request.data["alias"]:
                 patner = player
                 break
-        aux = data_game.player3
-        if data_game.player2.alias == request.data["alias"]:
-            data_game.player2 = aux
-            data_game.player3 = patner
-        elif data_game.player4.alias == request.data["alias"]:
-            data_game.player4 = aux
-            data_game.player3 = patner
-        data_game.save()    
+        aux = game.player3
+        if game.player2.alias == request.data["alias"]:
+            game.player2 = aux
+            game.player3 = patner
+        elif game.player4.alias == request.data["alias"]:
+            game.player4 = aux
+            game.player3 = patner
+        game.save()    
         return Response({'status': 'success'}, status=200) 

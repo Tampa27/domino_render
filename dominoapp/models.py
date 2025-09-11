@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import uuid
 from shortuuid.django_fields import ShortUUIDField
-from dominoapp.utils.constants import GameStatus, GameVariants, DataStatus, MatchStatus, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus
+from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus
 # Create your models here.
 
 class Player(models.Model):
@@ -14,6 +14,7 @@ class Player(models.Model):
     phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex=r'^\+{1}?\d{9,15}$')])
     earned_coins = models.IntegerField(default=0)
     recharged_coins = models.IntegerField(default=0)
+    points = models.IntegerField(default=0)
     dataWins = models.IntegerField(default=0)
     dataLoss = models.IntegerField(default=0)
     matchWins = models.IntegerField(default=0)
@@ -59,71 +60,41 @@ class BankAccount(models.Model):
         return self.account_number
     
 class DominoGame(models.Model):
+    player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
+    player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
+    player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
+    player4 = models.ForeignKey(Player,related_name="player4",on_delete=models.CASCADE,null=True,blank=True)                  
+    next_player = models.SmallIntegerField(default=-1)
+    board = models.CharField(max_length=500,blank=True,default="")
     variant = models.CharField(max_length=10,choices= GameVariants.variant_choices,default="d6")
+    start_time = models.DateTimeField(default=timezone.now)
+    winner = models.SmallIntegerField(default=-1)
+    scoreTeam1 = models.IntegerField(default=0)
+    scoreTeam2 = models.IntegerField(default=0)
+    status = models.CharField(max_length=32,choices=GameStatus.status_choices,default="wt")
     maxScore = models.IntegerField(default=100)
     inPairs = models.BooleanField(default=False)
     perPoints = models.BooleanField(default=False)
     startWinner = models.BooleanField(default=True)
     lostStartInTie = models.BooleanField(default=False)
+    starter = models.SmallIntegerField(default=-1)
+    leftValue = models.SmallIntegerField(default=-1)
+    rightValue = models.SmallIntegerField(default=-1)
     payPassValue = models.IntegerField(default=0)
     payWinValue = models.IntegerField(default=0)
     payMatchValue = models.IntegerField(default=0)
+    lastTime1 = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    lastTime2 = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    lastTime3 = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    lastTime4 = models.DateTimeField(default=timezone.now,null=True,blank=True)
     startAuto = models.IntegerField(default=2,null=True,blank=True)
     sumAllPoints = models.BooleanField(default=False)
     capicua = models.BooleanField(default=False)
+    rounds = models.SmallIntegerField(default=0)
     moveTime = models.SmallIntegerField(default=10)
     created_time = models.DateTimeField(default=timezone.now,null=True,blank=True)
     password = models.CharField(max_length=20,blank=True,default="")
-    
-    @property
-    def status(self):
-        latest_match = MatchGame.objects.filter(domino_game__id=self.id).order_by('-id').first()
-        latest_data = DataGame.objects.filter(match__domino_game__id=self.id).order_by('-id').first()
-        if latest_match and latest_data:
-            return latest_data.status if latest_match.status != 'fg' else latest_match.status
-        return 'wt'
-
-class MatchGame(models.Model):
-    domino_game = models.ForeignKey(DominoGame, related_name="matches", on_delete=models.SET_NULL, null=True, blank=True)
-    start_time = models.DateTimeField(default=timezone.now)
-    end_time = models.DateTimeField(null=True, blank=True)
-    rounds = models.SmallIntegerField(default=0)
-    status = models.CharField(max_length=32,choices=MatchStatus.status_choices,default="ru")
-    scoreTeam1 = models.IntegerField(default=0)
-    scoreTeam2 = models.IntegerField(default=0)
-    score_player1 = models.IntegerField(default=0)
-    score_player2 = models.IntegerField(default=0)
-    score_player3 = models.IntegerField(default=0)
-    score_player4 = models.IntegerField(default=0)
-    active = models.BooleanField(default=False)
-    
-    
-class DataGame(models.Model):
-    match = models.ForeignKey(MatchGame, related_name="datas", on_delete=models.SET_NULL, null=True, blank=True)
-    player1 = models.ForeignKey(Player, related_name="match_player1", on_delete=models.SET_NULL, null=True, blank=True)
-    player2 = models.ForeignKey(Player, related_name="match_player2", on_delete=models.SET_NULL, null=True, blank=True)
-    player3 = models.ForeignKey(Player, related_name="match_player3", on_delete=models.SET_NULL, null=True, blank=True)
-    player4 = models.ForeignKey(Player, related_name="match_player4", on_delete=models.SET_NULL, null=True, blank=True)
-    board = models.CharField(max_length=500, blank=True, default="")
-    status = models.CharField(max_length=32, choices=DataStatus.status_choices, default="ru")
-    leftValue = models.SmallIntegerField(default=-1)
-    rightValue = models.SmallIntegerField(default=-1)
-    winner = models.SmallIntegerField(default=-1)
-    starter = models.SmallIntegerField(default=-1)
-    next_player = models.SmallIntegerField(default=-1)
-    scoreTeam1 = models.IntegerField(default=0)
-    scoreTeam2 = models.IntegerField(default=0)
-    score_player1 = models.IntegerField(default=0)
-    score_player2 = models.IntegerField(default=0)
-    score_player3 = models.IntegerField(default=0)
-    score_player4 = models.IntegerField(default=0)
-    lastTime1 = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    lastTime2 = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    lastTime3 = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    lastTime4 = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    start_time = models.DateTimeField(default=timezone.now)
-    end_time = models.DateTimeField(null=True, blank=True)
-    active = models.BooleanField(default=False)
+    hours_active = models.IntegerField(default=0,null=True,blank=True)
 
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
@@ -178,6 +149,7 @@ class Payment(models.Model):
     amount = models.DecimalField(default=0, decimal_places=2, max_digits= 9)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_time = models.DateTimeField(blank=True, null=True)
+    
 
 
 class Marketing(models.Model):
@@ -218,8 +190,7 @@ class BlockPlayer(models.Model):
 
 
 class MoveRegister(models.Model):
-    data = models.ForeignKey(DataGame,related_name="data_played",on_delete=models.SET_NULL, null=True, blank=True)
-    data_number = models.BigIntegerField(default=0)
+    game = models.ForeignKey(DominoGame,related_name="game_played",on_delete=models.SET_NULL, null=True, blank=True)
     game_number = models.BigIntegerField()
     board_in_game = models.CharField(max_length=500,blank=True, null=True)
     board_left = models.SmallIntegerField(null=True, blank=True)

@@ -36,6 +36,9 @@ class EmailConnector:
             return True
 
         except Exception as e:
+            print(
+                f"Some Exception occured when sending an email to {to_email}. Details: {e.__str__()}"
+            )
             logger.critical(f"Some Exception occured with django email. Details: {e.__str__()}")
             return False
 

@@ -9,7 +9,8 @@ def get_client_ip(request):
         return ip
     
 def get_device_hash(request):
-    ip_address = get_client_ip(request)
+    ip_address = get_client_ip(request)    
+    print('ip: ', ip_address)
         
     if not ip_address:
         return None

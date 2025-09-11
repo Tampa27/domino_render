@@ -54,39 +54,7 @@ class GameStatus:
         GAME_READY,
         DATA_GAME_FINISHED,
         GAME_FINISHED,
-        GAME_PAUSED
-    ]
-    
-class MatchStatus:
-    
-    WAITING_PLAYERS = ("wt","waiting_players")
-    MATCH_READY = ('ready','ready_to_play')  
-    MATCH_RUNNING = ("ru","running")
-    MATCH_FINISHED = ('fg','game_finished')
-    MATCH_PAUSED = ('pa','paused')
-
-    status_choices = [
-        WAITING_PLAYERS,
-        MATCH_READY,
-        MATCH_RUNNING,
-        MATCH_FINISHED,
-        MATCH_PAUSED
-    ]
-
-class DataStatus:
-    
-    WAITING_PLAYERS = ("wt","waiting_players")
-    DATA_READY = ('ready','ready_to_play')    
-    DATA_RUNNING = ("ru","running")
-    DATA_FINISHED = ('fi','finished')
-    DATA_PAUSED = ('pa','paused')
-
-    status_choices = [
-        WAITING_PLAYERS,
-        DATA_READY,
-        DATA_RUNNING,
-        DATA_FINISHED,
-        DATA_PAUSED
+        GAME_PAUSED,
     ]
 
 class GameVariants:
