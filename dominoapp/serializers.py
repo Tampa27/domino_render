@@ -171,22 +171,22 @@ class GameRetrieveSerializer(serializers.ModelSerializer):
     
     def get_player1(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = data.player1.id if data and data.player1 else None
+        player = PlayerGameSerializer(data.player1).data if data and data.player1.id else None
         return player
     
     def get_player2(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = data.player2.id if data and data.player2 else None
+        player = PlayerGameSerializer(data.player2).data if data and data.player2.id else None
         return player
     
     def get_player3(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = data.player3.id if data and data.player3 else None
+        player = PlayerGameSerializer(data.player3).data if data and data.player3.id else None
         return player
     
     def get_player4(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = data.player4.id if data and data.player4 else None
+        player = PlayerGameSerializer(data.player4).data if data and data.player4.id else None
         return player
     
     def get_board(self, obj: DominoGame) -> str:
