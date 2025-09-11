@@ -126,7 +126,6 @@ class PlayerService:
                             player.save(update_fields=['parent'])
                     else:
                         hash_sha256 = get_device_hash(request)
-                        print(f"SHA-256: {hash_sha256}")
                         
                         try:
                             referral_model = ReferralPlayers.objects.get(referral_code=hash_sha256)
@@ -234,7 +233,6 @@ class PlayerService:
         
         if referrer_player:
             hash_sha256 = get_device_hash(request)
-            print(f"SHA-256: {hash_sha256}")
             
             try:
                 ReferralPlayers.objects.get_or_create(
