@@ -1,4 +1,5 @@
 from enum import Enum
+import os
 
 class EnumBehavior:
     @staticmethod
@@ -124,7 +125,7 @@ class ApiConstants:
     EXIT_TABLE_2 = 10           # Tiempo para sacar al jugado de la mesa si esta inactivo al finalizar una data
     GAME_FINISH_TIME = 10       # 
     DISCOUNT_PERCENT = 10       # Porciento de descuento en cada transaccion dentro de un juego
-    REFER_REWARD = 10           # Monedas ganadas al referido hacer su primera recarga
+    REFER_REWARD = os.environ.get('REFER_REWARD',10) # Monedas ganadas al referido hacer su primera recarga
     INACTIVE_PlAYER_DAYS = 9    
     AUTO_MOVE_WAIT = 3          # Tiempo para que juego el automatico
     AUTO_WAIT_PATNER = 7        # Tiempo que el automatico espera por la entrada de los compañeros antes de comenzar

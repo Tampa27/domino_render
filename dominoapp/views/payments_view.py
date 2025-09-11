@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
 from dominoapp.models import Transaction
 from dominoapp.views.request.payments_request import PaymentRequest
 from dominoapp.services.payments_service import PaymentService
+from dominoapp.utils.request_permitions import IsSuperAdminUser
 from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
 from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField 
 
@@ -14,10 +15,12 @@ class PaymentView(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ["recharge", "promotion", "extract"]:
+        if self.action in ["recharge", "extract"]:
             permission_classes = [IsAdminUser]
         elif self.action in ["resume_game"]:
-            permission_classes = [AllowAny]        
+            permission_classes = [AllowAny]
+        elif self.action in ['promotion']:
+            permission_classes = [IsSuperAdminUser]       
         else:
             permission_classes = [IsAuthenticated]
 
