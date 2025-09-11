@@ -11,7 +11,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     tiles = serializers.CharField(max_length=32)
     earned_coins = serializers.IntegerField()
     recharged_coins = serializers.IntegerField()
-    points = serializers.SerializerMethodField(read_only = True)
+    points = serializers.IntegerField()
     dataWins = serializers.IntegerField()
     dataLoss = serializers.IntegerField()
     matchWins = serializers.IntegerField()
@@ -22,24 +22,6 @@ class PlayerSerializer(serializers.ModelSerializer):
     name = serializers.CharField()
     isPlaying = serializers.BooleanField()
     coins = serializers.SerializerMethodField(read_only = True)
-    
-    def get_points(self, obj: Player) -> int:
-        data = DataGame.objects.filter(active=True).filter(
-            Q(player1__id = obj.id)|
-            Q(player2__id = obj.id)|
-            Q(player3__id = obj.id)|
-            Q(player4__id = obj.id)
-            ).order_by('-id').first()
-        if data.player1 is not None and data.player1.id == obj.id:
-            return data.match.score_player1
-        elif data.player2 is not None and data.player2.id == obj.id:
-            return data.match.score_player2
-        elif data.player3 is not None and data.player3.id == obj.id:
-            return data.match.score_player3
-        elif data.player4 is not None and data.player4.id == obj.id:
-            return data.match.score_player4
-        else:
-            return 0
 
     def get_coins(self, obj: Player) -> int:
         return obj.recharged_coins + obj.earned_coins
@@ -58,7 +40,8 @@ class PlayerSerializer(serializers.ModelSerializer):
         
         """  
         instance.alias = validated_data.get('alias', instance.alias)
-        instance.tiles = validated_data.get('tiles', instance.tiles)
+        instance.tiles = validated_data.get('tiles', instance.tiles)        
+        instance.points = validated_data.get('points', instance.points)
         instance.dataWins = validated_data.get('dataWins', instance.dataWins)
         instance.dataLoss = validated_data.get('dataLoss', instance.dataLoss)
         instance.matchWins = validated_data.get('matchWins', instance.matchWins)
