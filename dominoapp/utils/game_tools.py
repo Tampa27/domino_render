@@ -167,7 +167,7 @@ def startGame1(game_id:int,players:list[Player]):
         shuffle(data_game,players)          
         data_game.status = "ru"
         data_game.match.status = "ru"
-        data_game.match.rounds += 1
+        # data_game.match.rounds += 1 #se debe incrementar aqui no al final
         data_game.start_time = timezone.now()
         data_game.lastTime1 = timezone.now()
         data_game.lastTime2 = timezone.now()
@@ -222,6 +222,7 @@ def movement(game_id:int,player: Player,players:list[Player],tile:str, automatic
             if tiles_count == 0:
                 # game.status = 'fg'
                 data_game.status = 'fi'
+                data_game.match.rounds += 1
                 data_game.end_time = timezone.now()
                 # game.start_time = timezone.now()
                 if game.startWinner:
@@ -244,6 +245,7 @@ def movement(game_id:int,player: Player,players:list[Player],tile:str, automatic
             winner = getWinner(players,game.inPairs,game.variant)
             # game.status = 'fg'
             data_game.status = 'fi'
+            data_game.match.rounds += 1
             data_game.end_time = timezone.now()
             # game.start_time = timezone.now()
             data_game.winner = winner
