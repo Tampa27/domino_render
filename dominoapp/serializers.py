@@ -148,6 +148,7 @@ class GameRetrieveSerializer(serializers.ModelSerializer):
     lastTime3= serializers.SerializerMethodField()
     lastTime4= serializers.SerializerMethodField()
     start_time= serializers.SerializerMethodField()
+    hours_active= serializers.SerializerMethodField()
     
     def get_rounds(self, obj: DominoGame) -> int:
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
@@ -170,23 +171,23 @@ class GameRetrieveSerializer(serializers.ModelSerializer):
     
     def get_player1(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = PlayerGameSerializer(data.player1).data if data and data.player1 else None
-        return player.id
+        player = PlayerGameSerializer(data.player1).data if data and data.player1.id else None
+        return player
     
     def get_player2(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = PlayerGameSerializer(data.player2).data if data and data.player2 else None
-        return player.id
+        player = PlayerGameSerializer(data.player2).data if data and data.player2.id else None
+        return player
     
     def get_player3(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = PlayerGameSerializer(data.player3).data if data and data.player3 else None
-        return player.id
+        player = PlayerGameSerializer(data.player3).data if data and data.player3.id else None
+        return player
     
     def get_player4(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
-        player = PlayerGameSerializer(data.player4).data if data and data.player4 else None
-        return player.id
+        player = PlayerGameSerializer(data.player4).data if data and data.player4.id else None
+        return player
     
     def get_board(self, obj: DominoGame) -> str:
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
@@ -231,6 +232,15 @@ class GameRetrieveSerializer(serializers.ModelSerializer):
     def get_start_time(self, obj: DominoGame):
         data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
         return data.match.start_time if data else obj.created_time
+    
+    def get_hours_active(self, obj: DominoGame) -> float:
+        data = DataGame.objects.filter(active=True, match__domino_game__id=obj.id).order_by('-id').first()
+        if data:
+            from django.utils import timezone
+            delta = timezone.now() - data.match.start_time
+            hours = delta.total_seconds() / 3600
+            return round(hours, 2)
+        return 0.0
     
     class Meta:
         model = DominoGame
