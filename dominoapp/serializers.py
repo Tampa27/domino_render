@@ -30,13 +30,13 @@ class PlayerSerializer(serializers.ModelSerializer):
             Q(player3__id = obj.id)|
             Q(player4__id = obj.id)
             ).order_by('-id').first()
-        if data.player1 is not None and data.player1.id == obj.id:
+        if data and data.player1 is not None and data.player1.id == obj.id:
             return data.match.score_player1
-        elif data.player2 is not None and data.player2.id == obj.id:
+        elif data and data.player2 is not None and data.player2.id == obj.id:
             return data.match.score_player2
-        elif data.player3 is not None and data.player3.id == obj.id:
+        elif data and data.player3 is not None and data.player3.id == obj.id:
             return data.match.score_player3
-        elif data.player4 is not None and data.player4.id == obj.id:
+        elif data and data.player4 is not None and data.player4.id == obj.id:
             return data.match.score_player4
         else:
             return 0
