@@ -1,3 +1,4 @@
+import gc
 from django.http import HttpResponse
 from django.contrib import messages
 from django.db.models import Sum, OuterRef, Subquery
@@ -86,6 +87,10 @@ class AdminHelpers:
                 total_admin_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
                 total_admin_amount_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["balance"] += round(total_admin_amount_rl - total_admin_amount_ext, 2)
+            
+            # Limpiar memoria
+            del queryset_chunk
+            gc.collect()
                 
         transaction_data["balance_amount"] = round(transaction_data["total_amount_rl"] - transaction_data["total_amount_ext"], 2)                
         transaction_data["mean_rl"] = str(round(transaction_data['total_rl']/num_days, 1)) if num_days >0 else '--'
