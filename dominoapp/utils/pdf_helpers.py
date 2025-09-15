@@ -46,7 +46,7 @@ def tfont_size(hoja, size):
 def tfont(hoja, estilo, fuente='Arial'):
     hoja.set_font(fuente, style = estilo)
 
-def create_resume_pdf(transaction_data: dict):
+def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
     #Se definen las caracteristicas del PDF
     pdf = PDF(orientation = 'P', format = 'Letter', unit= 'mm') 
      # Define an alias for total number of pages
@@ -87,24 +87,24 @@ def create_resume_pdf(transaction_data: dict):
     current_x_1 = x_start + 10; current_y = pdf.get_y() + 16
     pdf.set_xy(current_x_1,current_y)
     pdf.cell(45, 8,"Total de ingresos:" , border=border, align='L', fill=0)
-    pdf.cell(20, 8, transaction_data["total_rl"], border=border, align='C', fill=0)
+    pdf.cell(20, 8, str(transaction_data["total_rl"]), border=border, align='C', fill=0)
 
     ## Promedio diario de Ingresos Registrados
     current_x_2 = pdf.get_x() + 20; 
     pdf.set_xy(current_x_2,current_y)
     pdf.cell(65, 8,"Promedio de ingresos diarias:" , border=border, align='L', fill=0)
-    pdf.cell(20, 8, transaction_data["mean_rl"], border=border, align='C', fill=0)
+    pdf.cell(20, 8, str(transaction_data["mean_rl"]), border=border, align='C', fill=0)
     
     ## Total de extraciones Registradas
     current_y = pdf.get_y() + 10
     pdf.set_xy(current_x_1,current_y)
     pdf.cell(45, 8,"Total de extracciones:" , border=border, align='L', fill=0)
-    pdf.cell(20, 8, transaction_data["total_ext"], border=border, align='C', fill=0)
+    pdf.cell(20, 8, str(transaction_data["total_ext"]), border=border, align='C', fill=0)
 
     ## Promedio diario de Extraciones Registradas
     pdf.set_xy(current_x_2,current_y)
     pdf.cell(65, 8,"Promedio de extracciones diarias:" , border=border, align='L', fill=0)
-    pdf.cell(20, 8, transaction_data["mean_ext"], border=border, align='C', fill=0)
+    pdf.cell(20, 8, str(transaction_data["mean_ext"]), border=border, align='C', fill=0)
 
     ## Monto total en ingreso
     current_y = pdf.get_y() + 20
@@ -160,7 +160,7 @@ def create_resume_pdf(transaction_data: dict):
     pdf.set_xy(x_start, current_y)
     tfont(pdf, '')
     color = 'gray2'
-    for row in transaction_data['admin_resume']:
+    for row in admin_list:
         if color == 'gray2':            
             color = 'gray1'
         else:
@@ -168,14 +168,11 @@ def create_resume_pdf(transaction_data: dict):
         set_fillcol(pdf,color)
         current_y = pdf.get_y() + 8
         pdf.set_xy(x_start, current_y)
-        pdf.cell(55, 8,row['alias'] , border=border, align='C', fill=1)
-        pdf.cell(33, 8,row['trans_amount_rl'] , border=border, align='C', fill=1)
-        pdf.cell(33, 8,row['saldo_amount_rl'] , border=border, align='C', fill=1)
-        pdf.cell(33, 8,row['total_admin_amount_ext'] , border=border, align='C', fill=1)
-        pdf.cell(40, 8,row['balance'] , border=border, align='C', fill=1)
-
-
-    
+        pdf.cell(55, 8,row , border=border, align='C', fill=1)
+        pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['trans_amount_rl']) , border=border, align='C', fill=1)
+        pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['saldo_amount_rl']) , border=border, align='C', fill=1)
+        pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['total_admin_amount_ext']) , border=border, align='C', fill=1)
+        pdf.cell(40, 8,str(transaction_data["admin_resume"][row]['balance']) , border=border, align='C', fill=1)
 
     return pdf.output(dest='S').encode('latin-1')
 
