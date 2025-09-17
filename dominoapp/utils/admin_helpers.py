@@ -16,7 +16,7 @@ class AdminHelpers:
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
         ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='cp')
+        ).filter(latest_status_name='cp').exclude(type ='gm')
         queryset_total = queryset.count()
         queryset_ids = queryset.values_list('id', flat=True)
         
