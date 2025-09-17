@@ -109,7 +109,7 @@ class ListGameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DominoGame
-        fields = ["id", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player"]
+        fields = ["id","table_no", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player"]
 
 
 class MyPlayerSerializer(serializers.ModelSerializer):

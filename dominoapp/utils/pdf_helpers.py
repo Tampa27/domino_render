@@ -174,6 +174,7 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
         pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['total_admin_amount_ext']) , border=border, align='C', fill=1)
         pdf.cell(40, 8,str(transaction_data["admin_resume"][row]['balance']) , border=border, align='C', fill=1)
 
+    print("se termino el pdf")
     return pdf.output(dest='S').encode('latin-1')
 
 def create_resume_game_pdf(transaction_data: dict):
