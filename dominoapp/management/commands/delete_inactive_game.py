@@ -16,9 +16,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         expired_time = now() - timedelta(hours = 10)
         
+        fix_game_ids = os.environ.get('FIX_GAME_IDS', '2,3,4,5,18,21,497,475')
+        game_ids = fix_game_ids.split(',')
+        
         games_models = DominoGame.objects.filter(
             start_time__lt=expired_time
-            ).exclude(id__in=[2,3,4,5,18,21,497,475,639,652])
+            ).exclude(id__in=game_ids)
 
         for game in games_models:
             if len(playersCount(game)) == 0:

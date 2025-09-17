@@ -11,6 +11,7 @@ admin.site.index_title = "Site administration"
 class DominoAdmin(admin.ModelAdmin):
     list_display = [
         "id",
+        "table_no",
         "variant",
         "status",
         "player1",

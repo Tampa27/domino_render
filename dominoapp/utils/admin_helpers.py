@@ -20,7 +20,7 @@ class AdminHelpers:
         queryset_total = queryset.count()
         queryset_ids = queryset.values_list('id', flat=True)
         
-        chunk_size = 10000  # Procesar de 10000 en 10000
+        chunk_size = 40000  # Procesar de 40000 en 40000
         
         queryset = queryset.order_by("time")        
         
@@ -59,46 +59,62 @@ class AdminHelpers:
         
             total_amount_rl = queryset_chunk.filter(type ='rl').aggregate(total=Sum('amount'))['total'] or 0
             transaction_data["total_amount_rl"] += total_amount_rl
+            del total_amount_rl
             
             total_amount_ext = queryset_chunk.filter(type ='ex').aggregate(total=Sum('amount'))['total'] or 0
             transaction_data["total_amount_ext"] += total_amount_ext
+            del total_amount_ext
             
             total_rl = queryset_chunk.filter(type ='rl').count()
             transaction_data["total_rl"] += total_rl
+            del total_rl
             
             total_ext = queryset_chunk.filter(type = 'ex').count()
             transaction_data["total_ext"] += total_ext
+            del total_ext
             
             num_days += (queryset_chunk.last().time - queryset_chunk.first().time).days
             total_amount_loss_in_game = queryset_chunk.filter(type ='gm').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
             total_amount_win_in_game = queryset_chunk.filter(type ='gm').exclude(to_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
             transaction_data["game_amount"] += round(total_amount_loss_in_game - total_amount_win_in_game, 2)
-
+            del total_amount_loss_in_game
+            del total_amount_win_in_game
+            
             for admin in admin_list.iterator():
                 trans_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id, paymentmethod='transferencia').aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["trans_amount_rl"] += round(trans_amount_rl, 2)
+                del trans_amount_rl
                 
                 saldo_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id, paymentmethod='saldo').aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["saldo_amount_rl"] += round(saldo_amount_rl, 2)
+                del saldo_amount_rl
                 
                 total_admin_amount_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["total_admin_amount_ext"] += round(total_admin_amount_ext, 2)
                 
                 total_admin_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
-                total_admin_amount_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["balance"] += round(total_admin_amount_rl - total_admin_amount_ext, 2)
+                del total_admin_amount_ext
+                del total_admin_amount_rl
+                gc.collect()
             
             # Limpiar memoria
             del queryset_chunk
             gc.collect()
+            print(f"limpio el queryset_chunk, paso: {i}, de {queryset_total}")
                 
         transaction_data["balance_amount"] = round(transaction_data["total_amount_rl"] - transaction_data["total_amount_ext"], 2)                
         transaction_data["mean_rl"] = str(round(transaction_data['total_rl']/num_days, 1)) if num_days >0 else '--'
         transaction_data["mean_ext"] = str(round(transaction_data['total_ext']/num_days, 1)) if num_days >0 else '--'
         transaction_data["mean_amount_rl"] = str(round(transaction_data['total_amount_rl']/num_days, 2)) if num_days >0 else '--'
         transaction_data["mean_amount_ext"] = str(round(transaction_data['total_amount_ext']/num_days, 2)) if num_days >0 else '--'
-
-        if queryset_total > 0:        
+        del num_days
+        
+        if queryset_total > 0:
+            # Limpiar memoria
+            del queryset
+            gc.collect()
+            print("limpio el queryset")  
             pdf_out = create_resume_pdf(transaction_data, admin_tuples)
 
             response = HttpResponse(pdf_out, content_type='application/pdf')

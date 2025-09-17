@@ -95,7 +95,23 @@ class DominoGame(models.Model):
     created_time = models.DateTimeField(default=timezone.now,null=True,blank=True)
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
+    table_no = models.IntegerField(null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        if not self.table_no:            
+            numbers = DominoGame.objects.all().order_by('table_no').values_list('table_no',flat=True)
+            print(numbers)
+            no = 1
+            for number in numbers:
+                if no != int(number):
+                    self.table_no = no
+                    break
+                elif no == len(numbers):
+                    self.table_no = no + 1
+                    break
+                no += 1
+        return super().save(*args, **kwargs)
+    
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
