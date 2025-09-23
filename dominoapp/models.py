@@ -182,7 +182,7 @@ class Marketing(models.Model):
 class AppVersion(models.Model):
     version = models.CharField(max_length=100, unique=True, db_index=True)
     store_link = models.CharField(max_length=100,null=True, blank=True)
-    description = models.TextField(max_length=100)
+    description = models.TextField()
     need_update = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
