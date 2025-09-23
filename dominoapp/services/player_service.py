@@ -149,8 +149,12 @@ class PlayerService:
                 else:
                     player = Player.objects.get(email=google_user['email'])
 
+                photo_profile = google_user.get('picture', None)
+                if not photo_profile:
+                    photo_profile = os.getenv('URL_PROFILE_PHOTO')
+                
                 player.name = google_user['name']
-                player.photo_url = google_user.get('picture', None)
+                player.photo_url = photo_profile
                 player.lastTimeInSystem = timezone.now()
                 player.inactive_player = False
                 player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player'])
