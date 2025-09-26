@@ -50,7 +50,7 @@ class DiscordConnector:
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key:
                 content = f"🚨 Nueva Extracción, Alerta! 🚨 \n Se ha realizado una extracción de {params.get('player')} con un monto de {params.get('amount')} pesos! Administrador: {params.get('admin')}"
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_EMAIL_DELETE_PLAYER.key:
-                content = f"🚨 Email de Eliminacion Enviado, Alerta! 🚨 \n Se ha enviado un email a la cuenta {params.get('email')} por inactividad, la cuenta sera eliminada dentro de 7 dias!"
+                content = f"🚨 Email de Eliminacion Enviado, Alerta! 🚨 \n Se ha enviado un email a la cuenta {params.get('email')} por inactividad, la cuenta sera eliminada dentro de {params.get('days')} dias!"
             else:
                 content = f"🚨 New Event! 🚨 Type: {event_type} - Details: {params}"
 

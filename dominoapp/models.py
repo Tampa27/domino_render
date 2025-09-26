@@ -24,6 +24,7 @@ class Player(models.Model):
     photo_url = models.URLField(max_length=250, null=True, blank=True)
     name = models.CharField(max_length=50,null=True, blank=True)
     isPlaying = models.BooleanField(default=False)
+    send_delete_email = models.BooleanField(default=False)
     inactive_player = models.BooleanField(default=False)
     
     referral_code = ShortUUIDField(
