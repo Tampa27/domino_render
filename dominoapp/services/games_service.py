@@ -24,6 +24,7 @@ class GameService:
         player = Player.objects.get(user__id=user.id)
         player.lastTimeInSystem = timezone.now()
         player.inactive_player = False
+        player.send_delete_email = False
         player.save()
         playerSerializer = PlayerLoginSerializer(player)
         
@@ -149,6 +150,7 @@ class GameService:
                 
         player.lastTimeInSystem = timezone.now()
         player.inactive_player = False
+        player.send_delete_email = False
         player.save()
 
         check_others_game = DominoGame.objects.filter(
