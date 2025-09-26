@@ -157,7 +157,8 @@ class PlayerService:
                 player.photo_url = photo_profile
                 player.lastTimeInSystem = timezone.now()
                 player.inactive_player = False
-                player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player'])
+                player.send_delete_email = False
+                player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player', 'send_delete_email'])
 
                 # Para registrar un dispositivo
                 fcm_token = request.data.get("fcm_token")
