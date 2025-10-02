@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
+from django_admin_listfilter_dropdown.filters import SimpleListFilter
+from datetime import datetime, timedelta
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
 from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment, ReferralPlayers
 from dominoapp.utils.admin_helpers import AdminHelpers
 
@@ -68,6 +72,102 @@ class StatusTransactionInline(admin.TabularInline):
     def created_at(self, instance):
         return instance.status_transaction.created_at
 
+class AdminFilter(SimpleListFilter):
+    title = "admin"
+    parameter_name = "admin"
+
+    def lookups(self, request, model_admin):
+        return list(Player.objects.filter(user__is_staff=True).values_list("id", "alias"))
+
+    def queryset(self, request, queryset):
+        admin = self.value()
+        if admin:
+            return queryset.filter(admin__id=admin)
+        return queryset
+
+class FromTimeFilter(SimpleListFilter):
+    title = "from_date"
+    parameter_name = "from_date"
+
+    def lookups(self, request, model_admin):
+        now = timezone.now()
+        today = now.date().strftime("%d/%m/%Y")
+        past_seven = (now - timedelta(days=7)).date().strftime("%d/%m/%Y")
+        this_month = (now.replace(day=1)).date().strftime("%d/%m/%Y")
+        past_month = (now + relativedelta(months=-1)).replace(day=1).date().strftime("%d/%m/%Y")
+        this_year = (now.replace(day=1, month=1)).date().strftime("%d/%m/%Y")
+        
+        lookups_list = [
+            (f'{today}', 'Today'),
+            (f'{past_seven}', 'Past 7 days'),
+            (f'{this_month}', 'This month'),
+            (f'{past_month}', 'Past month'),
+            (f'{this_year}', 'This year')
+        ]
+        
+        # Agregar los últimos 15 días
+        lookups_list[2:2] = [  # Insertar después del segundo elemento
+            (f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}', 
+            f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}') 
+            for i in range(8,16)
+        ]
+        
+        # Agregar los últimos 6 días
+        lookups_list[1:1] = [  # Insertar después del primer elemento
+            (f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}', 
+            f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}') 
+            for i in range(1, 7)
+        ]
+        
+        return lookups_list
+
+    def queryset(self, request, queryset):
+        value = self.value()        
+        if not value:
+            return queryset
+        date = datetime.strptime(value, "%d/%m/%Y")
+        result = queryset.filter(time__date__gte=date)
+        return result
+ 
+class ToTimeFilter(SimpleListFilter):
+    title = "to_date"
+    parameter_name = "to_date"
+
+    def lookups(self, request, model_admin):
+        now = timezone.now()
+        today = now.date().strftime("%d/%m/%Y")
+        past_seven = (now - timedelta(days=7)).date().strftime("%d/%m/%Y")
+        this_month = (now.replace(day=1)).date().strftime("%d/%m/%Y")
+        
+        lookups_list = [
+            (f'{today}', 'Today'),
+            (f'{past_seven}', 'Past 7 days'),
+            (f'{this_month}', 'This month')
+        ]
+        
+        # Agregar los últimos 15 días
+        lookups_list[2:2] = [  # Insertar después del segundo elemento
+            (f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}', 
+            f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}') 
+            for i in range(8,16)
+        ]
+        
+        # Agregar los últimos 6 días
+        lookups_list[1:1] = [  # Insertar después del primer elemento
+            (f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}', 
+            f'{(now - timedelta(days=i)).date().strftime("%d/%m/%Y")}') 
+            for i in range(1, 7)
+        ]
+        
+        return lookups_list
+
+    def queryset(self, request, queryset):
+        value = self.value()        
+        if not value:
+            return queryset
+        date = datetime.strptime(value, "%d/%m/%Y")
+        return queryset.filter(time__date__lt=date)
+
 class TransactionAdmin(admin.ModelAdmin):
     list_display = [
         "id",
@@ -84,7 +184,9 @@ class TransactionAdmin(admin.ModelAdmin):
     list_filter = [
         "game",
         "type",
-        "time"
+        AdminFilter,
+        FromTimeFilter,
+        ToTimeFilter
     ]
     ordering = ["-time"]
     search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
