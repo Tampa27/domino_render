@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount
+from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount, CurrencyRate
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -23,8 +23,13 @@ class PaymentService:
         if not check_player:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        recharged_coins = int(request.data["coins"])
+        currency_rate = CurrencyRate.objects.filter(code=request.data.get('paymentmethod', 'transferencia'))
+        if currency_rate:
+            recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
+        
         player = Player.objects.get(alias=request.data["alias"])
-        player.recharged_coins+= int(request.data["coins"])
+        player.recharged_coins+= recharged_coins
         player.save(update_fields=["recharged_coins"])
 
         try:
@@ -101,13 +106,15 @@ class PaymentService:
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Recarga en Domino Club",
-            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {request.data['coins']} monedas."
+            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {recharged_coins} monedas."
             )
         DiscordConnector.send_event(
             ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
             {
                 'player': request.data["alias"],
-                "amount": request.data["coins"],
+                "amount": recharged_coins,
+                "pay": request.data["coins"],
+                "paymentmethod": request.data.get('paymentmethod', None),
                 'admin': admin.alias
             }
         )

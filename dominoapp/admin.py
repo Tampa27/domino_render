@@ -5,7 +5,7 @@ from django_admin_listfilter_dropdown.filters import SimpleListFilter
 from datetime import datetime, timedelta
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment, ReferralPlayers
+from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -392,6 +392,14 @@ class ReferralPlayersAdmin(admin.ModelAdmin):
         "referral_code"
     ]
 
+
+class CurrencyRateAdmin(admin.ModelAdmin):
+    list_display = [
+        "code",
+        "rate_exchange",
+        "inverce_rate_exchange"
+    ]  
+
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(DominoGame, DominoAdmin)
@@ -403,3 +411,4 @@ admin.site.register(BlockPlayer, PlayerBlockAdmin)
 admin.site.register(MoveRegister, MoveRegisterAdmin)
 admin.site.register(AppVersion, AppVersionAdmin)
 admin.site.register(ReferralPlayers, ReferralPlayersAdmin)
+admin.site.register(CurrencyRate, CurrencyRateAdmin)

@@ -46,7 +46,7 @@ class DiscordConnector:
             if event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key:
                 content = f"🎉 Nuevo Usuario, Alerta! 🎉 \n Tenemos un usuario nuevo: {params.get('name')} ({params.get('email')})!"
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key:
-                content = f"🎉 Nueva Recarga, Alerta! 🎉 \n Hemos recibido una recarga de {params.get('player')} con un monto de {params.get('amount')} pesos! Administrador: {params.get('admin')}"
+                content = f"🎉 Nueva Recarga, Alerta! 🎉 \n Hemos recibido una recarga de {params.get('player')} con un monto de {params.get('pay')} pesos!\n Data: \n  Monedas: {params.get('amount')},\n  Metodo: {params.get('paymentmethod')},\n  Administrador: {params.get('admin')}"
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key:
                 content = f"🚨 Nueva Extracción, Alerta! 🚨 \n Se ha realizado una extracción de {params.get('player')} con un monto de {params.get('amount')} pesos! Administrador: {params.get('admin')}"
             elif event_type == ApiConstants.AdminNotifyEvents.ADMIN_EVENT_EMAIL_DELETE_PLAYER.key:

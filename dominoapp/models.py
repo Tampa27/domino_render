@@ -150,6 +150,11 @@ class Transaction(models.Model):
     descriptions = models.CharField(max_length=100, null=True, blank=True)
     bank_account = models.ForeignKey(BankAccount, related_name="bank_account_transaction", on_delete=models.SET_NULL, null=True, blank=True)
 
+
+class CurrencyRate(models.Model):
+    code = models.CharField(max_length=15)
+    rate_exchange = models.DecimalField(default=0.00, decimal_places=6, max_digits=11)
+    inverce_rate_exchange = models.DecimalField(default=0.00, decimal_places=6, max_digits=11, null=True, blank=True)
     
 
 class Status_Payment(models.Model):
