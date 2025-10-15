@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from django.urls import reverse
 from django.utils.html import format_html
 from django_admin_listfilter_dropdown.filters import SimpleListFilter
@@ -169,6 +170,12 @@ class ToTimeFilter(SimpleListFilter):
         return queryset.filter(time__date__lt=date)
 
 class TransactionAdmin(admin.ModelAdmin):
+    class TransactionForm(forms.ModelForm):
+
+        class Meta:
+            model = Transaction
+            fields = ['from_user', 'to_user', 'amount', 'type', 'game', 'admin', 'paymentmethod', 'descriptions', 'external_id', 'bank_account']
+
     list_display = [
         "id",
         "status",
@@ -188,6 +195,7 @@ class TransactionAdmin(admin.ModelAdmin):
         FromTimeFilter,
         ToTimeFilter
     ]
+    form = TransactionForm
     ordering = ["-time"]
     search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
     actions = [AdminHelpers.get_pdf_resume_transaction]
