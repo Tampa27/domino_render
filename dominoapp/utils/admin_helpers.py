@@ -2,6 +2,7 @@ import gc
 from django.http import HttpResponse
 from django.contrib import messages
 from django.db.models import Sum, OuterRef, Subquery
+from datetime import timedelta
 from dominoapp.utils.pdf_helpers import create_resume_pdf
 from dominoapp.models import Player, Status_Transaction
 
@@ -38,6 +39,15 @@ class AdminHelpers:
             "balance": 0
         } for alias in admin_tuples}
         
+        graph = {
+            "days" : 0,
+            "reload": [],
+            "extraction": [],
+            "balance": [],
+        }
+        
+        diference_day = (queryset.last().time - queryset.first().time).days
+        
         transaction_data = {
                 "from_day": queryset.first().time.strftime('%d/%m/%Y'),
                 "to_day": queryset.last().time.strftime('%d/%m/%Y'),
@@ -51,7 +61,8 @@ class AdminHelpers:
                 "mean_ext": "--",
                 "mean_amount_rl": "--",
                 "mean_amount_ext": "--",
-                "admin_resume": admin_resume
+                "admin_resume": admin_resume,
+                "graph": graph
         }
         
         for i in range(0, queryset_total, chunk_size):
@@ -108,8 +119,24 @@ class AdminHelpers:
         transaction_data["mean_ext"] = str(round(transaction_data['total_ext']/num_days, 1)) if num_days >0 else '--'
         transaction_data["mean_amount_rl"] = str(round(transaction_data['total_amount_rl']/num_days, 2)) if num_days >0 else '--'
         transaction_data["mean_amount_ext"] = str(round(transaction_data['total_amount_ext']/num_days, 2)) if num_days >0 else '--'
-        del num_days
         
+        transaction_data["graph"]["days"] = (list(range(1, diference_day+2)) if diference_day>0 else [1])
+               
+        del num_days
+        del diference_day
+        first_day = queryset.first().time.date()
+        from_day = first_day
+        for day in transaction_data["graph"]["days"]:
+            to_day = first_day + timedelta(days=day)
+            reload = queryset.filter(type="rl").filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum('amount'))['total'] or 0
+            extraction = queryset.filter(type ='ex').filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum('amount'))['total'] or 0
+            transaction_data["graph"]["reload"].append(reload)
+            transaction_data["graph"]["extraction"].append(extraction)
+            transaction_data["graph"]["balance"].append(reload - extraction)
+            from_day = first_day + timedelta(days=day)
+        
+        del reload, extraction, first_day, from_day, to_day
+                
         if queryset_total > 0:
             # Limpiar memoria
             del queryset

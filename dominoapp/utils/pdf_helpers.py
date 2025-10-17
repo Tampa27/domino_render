@@ -1,6 +1,8 @@
 from fpdf import FPDF
 from django.utils.timezone import now
 from datetime import datetime, timedelta
+import math
+import numpy as np
 
 class PDF(FPDF):
     def footer(self):
@@ -174,6 +176,80 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
         pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['total_admin_amount_ext']) , border=border, align='C', fill=1)
         pdf.cell(40, 8,str(transaction_data["admin_resume"][row]['balance']) , border=border, align='C', fill=1)
 
+    ###########################################################
+    ## Se crea el grafico de recargas y extracciones diarias
+    pdf.add_page()
+    x_start = 10; y_start = 7.5
+
+    pdf.rect(x_start, y_start, width_table, height_table, style='D')
+        
+    height_graph = height_table/2
+    width_graph = width_table-20
+    start_x_graph = x_start + 10
+    start_y_graph = y_start + 10
+    pdf.rect(x_start+10, y_start+10, width_graph, height_graph, style='D')
+        
+    paso = math.ceil(len(transaction_data["graph"]["days"]) / 30)
+    i = 0
+    j = 0
+    count = 0
+    vector_reload = np.array(transaction_data["graph"]["reload"])
+    vector_extraction = np.array(transaction_data["graph"]["extraction"])
+    vector_balance = np.array(transaction_data["graph"]["balance"])
+    max_value1 = max(vector_reload)
+    max_value2 = max(vector_extraction)
+    max_value3 = max(vector_balance)
+    max_value = max(max_value1, max_value2, max_value3)
+    
+    vector_reload = vector_reload / max_value
+    vector_extraction = vector_extraction / max_value
+    vector_balance = vector_balance / max_value
+    
+    value_reload = 0
+    value_extraction= 0
+    value_balance= 0
+    width_graph_cell = width_graph* paso / len(transaction_data["graph"]["days"])
+    height_graph_cell = height_graph
+    
+    for day in transaction_data["graph"]["days"]:
+        value_reload = vector_reload[count] if count< len(vector_reload) else 0
+        value_extraction = vector_extraction[count] if count< len(vector_reload) else 0
+        value_balance = vector_balance[count] if count< len(vector_reload) else 0
+        if count == i:
+            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph - float(value_reload)*(height_graph_cell))
+            set_fillcol(pdf,'blue')
+            pdf.cell(width_graph_cell, float(value_reload)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
+            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph - float(value_balance)*(height_graph_cell))
+            set_fillcol(pdf,'green')
+            pdf.cell(width_graph_cell, float(value_balance)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
+            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph - float(value_extraction)*(height_graph_cell))
+            set_fillcol(pdf,'red')
+            pdf.cell(width_graph_cell, float(value_extraction)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
+            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph + 1)
+            set_fillcol(pdf,'gray1')
+            pdf.cell(width_graph_cell, 8, f"{transaction_data["graph"]["days"][count]}", border=border, align='C', fill=1)
+            i+=paso
+            j+=1
+            value_reload = 0
+            value_extraction= 0
+            value_balance= 0
+        count += 1 
+    j = 0
+    height_graph_cell = height_graph/20
+    for i in range (0, int(max_value)+int(max_value/20), int(max_value/20)):
+        pdf.set_xy(start_x_graph - 10 , start_y_graph - j*(height_graph_cell) + height_graph )
+        j += 1
+        pdf.cell(9, height_graph_cell, f"{i}", border=border, align='C', fill=1)
+    
+    pdf.set_xy(start_x_graph , start_y_graph + height_graph + 20 )
+    set_fillcol(pdf,'blue')
+    pdf.cell(30, 10, f"{'Reload'}", border=border, align='C', fill=1)
+    set_fillcol(pdf,'green')
+    pdf.cell(30, 10, f"{'Balance'}", border=border, align='C', fill=1)
+    set_fillcol(pdf,'red')
+    pdf.cell(30, 10, f"{'Extraction'}", border=border, align='C', fill=1)
+    ################################################################################      
+    
     print("se termino el pdf")
     return pdf.output(dest='S').encode('latin-1')
 
