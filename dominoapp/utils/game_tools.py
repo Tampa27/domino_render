@@ -15,12 +15,12 @@ from dominoapp.utils.move_register_utils import movement_register
 logger = logging.getLogger(__name__)
 
 
-def setWinner1(game,winner):
+def setWinner1(game: DominoGame, winner: int):
     game.winner = winner
     game.start_time = timezone.now()
 
 
-def setWinnerStarterNext1(game,winner,starter,next_player):
+def setWinnerStarterNext1(game: DominoGame, winner: int, starter: int, next_player: int):
     game.starter = starter
     game.winner = winner
     game.next_player = next_player
@@ -69,11 +69,11 @@ def startGame1(game_id,players):
             # if players[game.starter].alias != players_ru[game.starter].alias:
             #     game.starter = getPlayerIndex(players_ru,players[game.starter])
             game.next_player = game.starter
-        if game.inPairs and game.winner != 4:
+        if game.inPairs and game.winner != DominoGame.Tie_Game:
             if game.starter == 0 or game.starter == 2:
-                game.winner = 5
+                game.winner = DominoGame.Winner_Cople_1
             else:
-                game.winner = 6    
+                game.winner = DominoGame.Winner_Cople_2    
         #game.winner=-1
 
         try:
@@ -177,16 +177,16 @@ def movement(game_id,player,players,tile, automatic=False):
             game.winner = winner
             if game.perPoints:
                 game.rounds+=1
-            if winner < 4:
+            if winner < DominoGame.Tie_Game:
                 if game.startWinner:
                     game.starter = winner
                     game.next_player = winner
                 else:
                     game.starter = (game.starter+1)%n
                     game.next_player = game.starter        
-            if game.perPoints and winner < 4:
+            if game.perPoints and winner < DominoGame.Tie_Game:
                 updateAllPoints(game,players,winner,move_register)
-            elif game.perPoints and winner == 4:
+            elif game.perPoints and winner == DominoGame.Tie_Game:
                 game.status = "fi"
                 if game.startWinner and (game.lostStartInTie != True or game.inPairs == False):
                     game.next_player = game.starter
@@ -611,7 +611,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 elif not isStarter:
                     if game.starter > pos:
                         game.starter-=1
-                if game.winner < 4 and game.winner > pos:
+                if game.winner < DominoGame.Tie_Game and game.winner > pos:
                     game.winner-=1
             player.isPlaying = False
         else:
@@ -646,9 +646,9 @@ def reorderPlayers(game:DominoGame, player:Player, players:list, starter:int):
             
             k+=1
 
-def updateTeamScore(game, winner, players, sum_points, move_register:MoveRegister):
+def updateTeamScore(game: DominoGame, winner: int, players, sum_points, move_register:MoveRegister):
     n = len(players)
-    if winner == 0 or winner == 2:
+    if winner == DominoGame.Winner_Player_1 or winner == DominoGame.Winner_Player_3:
         game.scoreTeam1 += sum_points
         players[0].points+=sum_points
         players[2].points+=sum_points
@@ -664,12 +664,12 @@ def updateTeamScore(game, winner, players, sum_points, move_register:MoveRegiste
         game.status="fg"
         updatePlayersData(game,players,winner,"fg",move_register)
         game.start_time = timezone.now()
-        game.winner = 5 #Gano el equipo 1
+        game.winner = DominoGame.Winner_Cople_1 #Gano el equipo 1
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
         updatePlayersData(game,players,winner,"fg", move_register)
         game.start_time = timezone.now()
-        game.winner = 6 #Gano el equipo 2
+        game.winner = DominoGame.Winner_Cople_2 #Gano el equipo 2
     else:
         updatePlayersData(game,players,winner,"fi",move_register)
         game.status="fi"    
@@ -770,21 +770,21 @@ def getWinner(players,inPairs,variant):
         sum2 = points[1]+points[3]
         if sum1 < sum2:
             if points[0] < points[2]:
-                return 0
+                return DominoGame.Winner_Player_1
             else:
-                return 2
+                return DominoGame.Winner_Player_3
         elif sum1 > sum2:
             if points[1] < points[3]:
-                return 1
+                return DominoGame.Winner_Player_2
             else:
-                return 3
+                return DominoGame.Winner_Player_4
         else:
-            return 4        
-    elif res == 4 and inPairs:
+            return DominoGame.Tie_Game        
+    elif res == DominoGame.Tie_Game and inPairs:
         if points[0] == points[2] and points[2] == min and points[1] != min and points[3] != min:
-            res = 0
+            res = DominoGame.Winner_Player_1
         elif points[1] == points[3] and points[1] == min and points[0] != min and points[2] != min:
-            res = 1         
+            res = DominoGame.Winner_Player_2         
     return res
 
 def totalPoints(tiles):

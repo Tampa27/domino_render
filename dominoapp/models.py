@@ -61,6 +61,14 @@ class BankAccount(models.Model):
         return self.account_number
     
 class DominoGame(models.Model):
+    Winner_Player_1 = 0
+    Winner_Player_2 = 1
+    Winner_Player_3 = 2
+    Winner_Player_4 = 3
+    Tie_Game  = 4
+    Winner_Cople_1 = 5
+    Winner_Cople_2 = 6    
+    
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
     player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
