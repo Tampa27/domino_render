@@ -242,7 +242,7 @@ class PlayerService:
             print(f"SHA-256: {hash_sha256}")
             
             try:
-                ReferralPlayers.objects.get_or_create(
+                ReferralPlayers.objects.update_or_create(
                     referrer_player=referrer_player,
                     referral_code=hash_sha256
                 )
