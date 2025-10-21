@@ -27,7 +27,7 @@ def automatic_move_in_game():
             players = game_tools.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
-                possibleStarter = (game.inPairs and game.startWinner and game.winner >= 4)
+                possibleStarter = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
                 if possibleStarter:
                     logger_api.info('Esperando al salidor')
                     try:
@@ -74,7 +74,7 @@ def automatic_move_in_game():
         gc.collect()  # Fuerza liberación de memoria.
 
         
-def automaticCoupleStarter(game):
+def automaticCoupleStarter(game: DominoGame):
     next = game.next_player
     patner = (next+2)%4
     starter = game.starter
