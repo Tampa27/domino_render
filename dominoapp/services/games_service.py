@@ -151,6 +151,7 @@ class GameService:
         player.lastTimeInSystem = timezone.now()
         player.inactive_player = False
         player.send_delete_email = False
+        player.isPlaying = False
         player.save()
 
         check_others_game = DominoGame.objects.filter(
