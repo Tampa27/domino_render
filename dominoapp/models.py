@@ -66,8 +66,8 @@ class DominoGame(models.Model):
     Winner_Player_3 = 2
     Winner_Player_4 = 3
     Tie_Game  = 4
-    Winner_Cople_1 = 5
-    Winner_Cople_2 = 6    
+    Winner_Couple_1 = 5
+    Winner_Couple_2 = 6    
     
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
     player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
