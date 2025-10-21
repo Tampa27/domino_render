@@ -71,9 +71,9 @@ def startGame1(game_id,players):
             game.next_player = game.starter
         if game.inPairs and game.winner != DominoGame.Tie_Game:
             if game.starter == 0 or game.starter == 2:
-                game.winner = DominoGame.Winner_Cople_1
+                game.winner = DominoGame.Winner_Couple_1
             else:
-                game.winner = DominoGame.Winner_Cople_2    
+                game.winner = DominoGame.Winner_Couple_2    
         #game.winner=-1
 
         try:
@@ -166,7 +166,12 @@ def movement(game_id,player,players,tile, automatic=False):
                     game.rounds+=1
                     updateAllPoints(game,players,w,move_register,isCapicua)
                 else:
-                    updatePlayersData(game,players,w,"fg",move_register)                                        
+                    updatePlayersData(game,players,w,"fg",move_register)
+                    if game.inPairs:
+                        if w == DominoGame.Winner_Player_1 or w == DominoGame.Winner_Player_3:
+                            game.winner = DominoGame.Winner_Couple_1
+                        elif w == DominoGame.Winner_Player_2 or w == DominoGame.Winner_Player_4:
+                            game.winner = DominoGame.Winner_Couple_2
             else:
                 game.next_player = (w+1) % n 
         elif checkClosedGame1(game,n):
@@ -194,7 +199,12 @@ def movement(game_id,player,players,tile, automatic=False):
                     game.starter = (game.starter+1)%n
                     game.next_player = game.starter
             else:
-                updatePlayersData(game,players,winner,"fg",move_register)                
+                updatePlayersData(game,players,winner,"fg",move_register)
+                if game.inPairs and winner < DominoGame.Tie_Game:
+                    if winner == DominoGame.Winner_Player_1 or winner == DominoGame.Winner_Player_3:
+                        game.winner = DominoGame.Winner_Couple_1
+                    elif winner == DominoGame.Winner_Player_2 or winner == DominoGame.Winner_Player_4:
+                        game.winner = DominoGame.Winner_Couple_2                
         else:
             move_register = movement_register(game, player, tile, players, automatic) 
             if game.payPassValue > 0:
@@ -664,12 +674,12 @@ def updateTeamScore(game: DominoGame, winner: int, players, sum_points, move_reg
         game.status="fg"
         updatePlayersData(game,players,winner,"fg",move_register)
         game.start_time = timezone.now()
-        game.winner = DominoGame.Winner_Cople_1 #Gano el equipo 1
+        game.winner = DominoGame.Winner_Couple_1 #Gano el equipo 1
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
         updatePlayersData(game,players,winner,"fg", move_register)
         game.start_time = timezone.now()
-        game.winner = DominoGame.Winner_Cople_2 #Gano el equipo 2
+        game.winner = DominoGame.Winner_Couple_2 #Gano el equipo 2
     else:
         updatePlayersData(game,players,winner,"fi",move_register)
         game.status="fi"    
