@@ -301,6 +301,13 @@ class PlayersInline(admin.TabularInline):
         return instance.player.email
 
 class MoveRegisterAdmin(admin.ModelAdmin):
+    class MoveRegisterForm(forms.ModelForm):
+
+        class Meta:
+            model = MoveRegister
+            fields = "__all__"
+            exclude = ["players_in_game", "transactions_list"]
+
     list_display = [
         "game_number",
         "player_alias",
@@ -324,6 +331,7 @@ class MoveRegisterAdmin(admin.ModelAdmin):
         "game__id"
         ]
     inlines = [TransactionInline, PlayersInline]
+    form = MoveRegisterForm
 
 class ReferralAdmin(admin.ModelAdmin):
     list_display = [
