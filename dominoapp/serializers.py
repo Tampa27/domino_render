@@ -1,7 +1,7 @@
 import os
 from rest_framework import serializers
 from .models import Player
-from .models import DominoGame
+from .models import DominoGame, Tournament
 from .models import Bank, Marketing, MoveRegister
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -111,6 +111,17 @@ class ListGameSerializer(serializers.ModelSerializer):
         model = DominoGame
         fields = ["id","table_no", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player"]
 
+class TournamentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Tournament
+        fields = ('__all__')
+
+class TournamentCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Tournament
+        fields = ["variant", "maxScore", "inPairs", "startWinner",  "moveTime", "min_player", "active", "deadline", "start_at", "winner_payout", "second_payout", "third_payout"]
 
 class MyPlayerSerializer(serializers.ModelSerializer):
 

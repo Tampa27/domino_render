@@ -6,7 +6,8 @@ from django_admin_listfilter_dropdown.filters import SimpleListFilter
 from datetime import datetime, timedelta
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-from .models import Player, Bank, DominoGame, Transaction, Marketing, BlockPlayer, MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate
+from .models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
+    MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -25,6 +26,198 @@ class DominoAdmin(admin.ModelAdmin):
         "player4",
         "start_time"
     ]
+
+class TournamentPlayers(admin.TabularInline):
+    model = Tournament.player_list.through
+    inline_actions = []
+    fields=['alias', 'name', 'email']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+      
+    def alias(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.player.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.player.alias}</a>')
+    
+    def name(self, instance):
+        return instance.player.name
+    
+    def email(self, instance):
+        return instance.player.email
+
+class TournamentAdmin(admin.ModelAdmin):
+    class TournamentForm(forms.ModelForm):
+        class Meta:
+            model = Tournament
+            exclude = ["player_list"]
+
+    list_display = [
+        "tournament_no",
+        "variant",
+        "status",
+        "deadline",
+        "start_at",
+        "active",
+        "count_players"
+    ]
+    form = TournamentForm
+    inlines = [TournamentPlayers]
+    readonly_fields = ["place_content_type", "first_place_object_id", "second_place_object_id", "third_place_object_id", "end_at", "tournament_no", "created_time"]
+    
+    def count_players(self, obj:Tournament):
+        return obj.player_list.all().count()
+
+class PairAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "player1",
+        "player2"
+    ]
+
+class MatchPlayers(admin.TabularInline):
+    model = Match_Game.player_list.through
+    inline_actions = []
+    fields=['alias', 'name', 'email']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+      
+    def alias(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.player.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.player.alias}</a>')
+    
+    def name(self, instance):
+        return instance.player.name
+    
+    def email(self, instance):
+        return instance.player.email
+
+class MatchPairs(admin.TabularInline):
+    model = Match_Game.pair_list.through
+    inline_actions = []
+    fields=['player1', 'player2']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+      
+    def player1(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.player1.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.player1.alias}</a>')
+    
+    def player2(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.player2.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.player2.alias}</a>')
+
+class Match_GameAdmin(admin.ModelAdmin):
+    class MatchForm(forms.ModelForm):
+        class Meta:
+            model = Match_Game
+            exclude = ["player_list", "pair_list"]
+    
+    list_display=[
+        "id",
+        "game",
+        "count_players",
+        "count_pairs",
+        "count_game",
+        "games_win_team_1",
+        "games_win_team_2",
+        "start_at",
+        "end_at"
+    ]
+    
+    form = MatchForm
+    inlines = [MatchPlayers, MatchPairs]
+    
+    def count_players(self, obj:Match_Game):
+        return obj.player_list.all().count()
+    
+    def count_pairs(self, obj:Match_Game):
+        return obj.pair_list.all().count()
+
+class RoundPlayers(admin.TabularInline):
+    model = Round.player_list.through
+    inline_actions = []
+    fields=['alias', 'name', 'email']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+      
+    def alias(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.player.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.player.alias}</a>')
+    
+    def name(self, instance):
+        return instance.player.name
+    
+    def email(self, instance):
+        return instance.player.email
+
+class RoundPairs(admin.TabularInline):
+    model = Round.pair_list.through
+    inline_actions = []
+    fields=['player1', 'player2']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+      
+    def player1(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.pair.player1.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.pair.player1.alias}</a>')
+    
+    def player2(self, instance):
+        url = reverse("admin:dominoapp_player_change", args=[instance.pair.player2.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.pair.player2.alias}</a>')
+
+class RoundGames(admin.TabularInline):
+    model = Round.game_list.through
+    inline_actions = []
+    fields=['ID', 'table_no']
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+    max_num = 0
+
+    def ID(self, instance):
+        url = reverse("admin:dominoapp_dominogame_change", args=[instance.dominogame.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.dominogame.id}</a>')
+    
+    def table_no(self, instance):
+        return instance.dominogame.table_no
+
+class RoundAdmin(admin.ModelAdmin):
+    class RoundForm(forms.ModelForm):
+        class Meta:
+            model = Round
+            exclude = ["player_list", "pair_list", "game_list"]
+    
+    list_display = [
+        "id",
+        "count_players",
+        "count_pairs",
+        "round_no",
+        "start_at",
+        "end_at"
+    ]
+    
+    form = RoundForm
+    inlines = [RoundPlayers, RoundPairs, RoundGames]
+    
+    def count_players(self, obj:Round):
+        return obj.player_list.all().count()
+    
+    def count_pairs(self, obj:Round):
+        return obj.pair_list.all().count()
 
 class PlayerAdmin(admin.ModelAdmin):
     list_display = [
@@ -418,7 +611,11 @@ class CurrencyRateAdmin(admin.ModelAdmin):
 
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
+admin.site.register(Pair, PairAdmin)
 admin.site.register(DominoGame, DominoAdmin)
+admin.site.register(Tournament, TournamentAdmin)
+admin.site.register(Match_Game, Match_GameAdmin)
+admin.site.register(Round, RoundAdmin)
 admin.site.register(Bank, BankAdmin)
 admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(Payment, PaymentAdmin)
