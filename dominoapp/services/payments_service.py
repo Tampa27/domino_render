@@ -1,5 +1,6 @@
 import shortuuid
 import os
+import logging
 from rest_framework import status
 from rest_framework.response import Response
 from django.db.models import Q, Sum, OuterRef, Subquery
@@ -12,6 +13,7 @@ from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.connectors.paypal_connector import PayPalConnector
+logger = logging.getLogger('django')
 
 
 class PaymentService:
@@ -37,7 +39,7 @@ class PaymentService:
         except:
             bank = Bank.objects.create()
         
-        if player.parent and not player.reward_granted:
+        if player.parent is not None and not player.reward_granted:
             try:
                 player.parent.earned_coins += ApiConstants.REFER_REWARD
                 player.parent.save(update_fields=["earned_coins"])
@@ -46,7 +48,7 @@ class PaymentService:
                 player.save(update_fields=["reward_granted"])
 
                 create_promotion_transactions(
-                    amount= ApiConstants.REFER_REWARD,
+                    amount= int(ApiConstants.REFER_REWARD),
                     from_user=player,
                     to_user= player.parent,
                     status="cp",
@@ -69,8 +71,8 @@ class PaymentService:
                         "referred_user": str(player.alias)
                     }
                 )   
-            except:
-                pass
+            except Exception as error:
+                logger.error(f"Error at pay promotion by referred user, exception={error}")
 
         bank.buy_coins+=int(request.data["coins"])
         bank.save(update_fields=['buy_coins'])
