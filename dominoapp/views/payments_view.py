@@ -254,8 +254,7 @@ class PaymentView(viewsets.GenericViewSet):
             }, status = status_response)
         
         return PaymentService.process_request_extraction(request)
-    
-    
+        
     @action(detail=False, methods=["get"])
     def resume_game(self, request, pk = None):
 

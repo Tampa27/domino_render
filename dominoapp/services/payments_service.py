@@ -127,25 +127,43 @@ class PaymentService:
             player = Player.objects.get(user__id=request.user.id)
         except:
             return Response(data={'status': 'error', "message":"User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
-               
         
-        create_reload_transactions(
-            to_user=player, amount=int(request.data["coins"]), status="p",
+        min_20 = datetime.now() - timedelta(minutes=20)
+        
+        transactions = Transaction.objects.filter(
+            to_user__id=player.id, type='rl'
+        ).annotate(
+            latest_status_name=Subquery(
+                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='p').filter(time__gte = min_20).order_by("-time")
+        
+        transactions_exist = transactions.exists()
+        
+        send_request = False 
+        if not transactions_exist or player.phone != request.data["phone"]:
+              
+            player.phone = request.data["phone"]
+            player.save(update_fields=["phone"])
+            
+            transaction_id= shortuuid.random(length=6)
+            
+            create_reload_transactions(
+                to_user=player, amount=int(request.data["coins"]), status="p", external_id=transaction_id
+                )
+            
+            send_request = DiscordConnector.send_transaction_request(
+                ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+                {   
+                    'player_name': player.name,
+                    'player_alias': player.alias,
+                    'amount': request.data["coins"],
+                    'player_phone': request.data["phone"],
+                    'transaction_id': transaction_id
+                }
             )
         
-        transaction_id= shortuuid.random(length=6)
-        
-        send_request = DiscordConnector.send_transaction_request(
-            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
-            {   
-                'player_name': player.name,
-                'player_alias': player.alias,
-                'amount': request.data["coins"],
-                'player_phone': request.data["phone"],
-                'transaction_id': transaction_id
-            }
-        )
-        if send_request:
+        if send_request or transactions_exist:
             admins = Player.objects.filter(user__is_staff=True)
             for admin in admins:
                 FCMNOTIFICATION.send_fcm_message(
@@ -153,7 +171,8 @@ class PaymentService:
                     title = "🚨Solicitud de Recarga🚨",
                     body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰."
                     )
-            return Response({'status': 'success', "transaction_id": transaction_id
+            
+            return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
             }, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -288,38 +307,56 @@ class PaymentService:
         if player.total_coins < int(request.data["coins"]):
             return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
         
+        new_bank = True
         try:
+            new_bank = False
             bankaccount = BankAccount.objects.get(player__id = player.id, account_number=request.data["card_number"])
             if bankaccount and str(bankaccount.phone) != (request.data["phone"]):
                 bankaccount.phone = request.data["phone"]
                 bankaccount.save(update_fields=['phone'])
+                new_bank = True
         except:
             bankaccount = BankAccount.objects.create(
                 player = player, 
                 account_number=request.data["card_number"],
                 phone = request.data["phone"]
                 )
-               
-        create_extracted_transactions(
-            from_user=player, amount=int(request.data["coins"]), status="p",
-            bankaccount=bankaccount
-            )
-
-        transaction_id= shortuuid.random(length=6)
-        send_request = DiscordConnector.send_transaction_request(
-            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
-            {   
-                'player_name': player.name,
-                'player_alias': player.alias,
-                'amount': request.data["coins"],
-                'coins':request.data["coins"],
-                'card_number': request.data["card_number"],
-                'player_phone': request.data["phone"],
-                'transaction_id': transaction_id
-            }
-        )
+            new_bank = True
         
-        if send_request:
+        min_20 = datetime.now() - timedelta(minutes=20)
+        transactions = Transaction.objects.filter(
+            from_user__id=player.id, type='ex',
+            amount= int(request.data["coins"])
+        ).annotate(
+            latest_status_name=Subquery(
+                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='p').filter(time__gte = min_20).order_by('-time')
+        
+        transactions_exist = transactions.exists()
+        send_request = False
+        
+        if not transactions_exist or new_bank:
+            transaction_id= shortuuid.random(length=6)               
+            create_extracted_transactions(
+                from_user=player, amount=int(request.data["coins"]), status="p",
+                bankaccount=bankaccount, external_id=transaction_id
+                )
+            
+            send_request = DiscordConnector.send_transaction_request(
+                ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+                {   
+                    'player_name': player.name,
+                    'player_alias': player.alias,
+                    'amount': request.data["coins"],
+                    'coins':request.data["coins"],
+                    'card_number': request.data["card_number"],
+                    'player_phone': request.data["phone"],
+                    'transaction_id': transaction_id
+                }
+            )
+        
+        if send_request or transactions_exist:
             # player.earned_coins -= int(request.data["coins"])
             # if player.earned_coins<0:
             #     player.recharged_coins += player.earned_coins
@@ -342,7 +379,7 @@ class PaymentService:
                     body = f"👤 {player.alias} solicita retirar {request.data['coins']} monedas 💰."
                     )
             
-            return Response({'status': 'success', "transaction_id": transaction_id
+            return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
                 }, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
