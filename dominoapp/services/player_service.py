@@ -243,8 +243,10 @@ class PlayerService:
             
             try:
                 ReferralPlayers.objects.update_or_create(
-                    referrer_player=referrer_player,
-                    referral_code=hash_sha256
+                    referral_code=hash_sha256,
+                    defaults={
+                        "referrer_player": referrer_player
+                    }
                 )
             except Exception as error:
                 logger.error(f"Error creating referral player: {str(error)}")
