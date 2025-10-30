@@ -41,7 +41,7 @@ class PaymentService:
         
         if player.parent is not None and not player.reward_granted:
             try:
-                player.parent.earned_coins += ApiConstants.REFER_REWARD
+                player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
                 player.parent.save(update_fields=["earned_coins"])
 
                 player.reward_granted = True
