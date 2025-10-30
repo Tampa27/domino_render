@@ -22,7 +22,8 @@ class Command(BaseCommand):
         
         players_models = Player.objects.filter(
             lastTimeInSystem__lt=expired_time,
-            send_delete_email = False
+            send_delete_email = False,
+            inactive_player = False
             ).only('email', 'send_delete_email')
 
         for player in players_models[:100].iterator():
@@ -42,7 +43,8 @@ class Command(BaseCommand):
         expired_time = now() - timedelta(days= 83)        
         players_models = Player.objects.filter(
             lastTimeInSystem__lt=expired_time,
-            send_delete_email = True
+            send_delete_email = True,
+            inactive_player = False
             ).only('email', 'inactive_player')
 
         for player in players_models[:100].iterator():
@@ -62,6 +64,7 @@ class Command(BaseCommand):
         expired_time = now() - timedelta(days= 90)
         players_models_delete = Player.objects.filter(
             lastTimeInSystem__lt=expired_time,
+            send_delete_email = True,
             inactive_player = True
             ).only('email')
 
