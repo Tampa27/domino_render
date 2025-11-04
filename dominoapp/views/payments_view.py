@@ -254,7 +254,56 @@ class PaymentView(viewsets.GenericViewSet):
             }, status = status_response)
         
         return PaymentService.process_request_extraction(request)
+    
+    @extend_schema(
+            operation_id="payments_transfer",
+            request = {
+                200: inline_serializer(
+                    name="Payments Transfer Request",
+                    fields={
+                        "amount" : IntegerField(required=True),
+                        "to_user": IntegerField(required=True),
+                    }
+                )
+            },
+            responses={
+            200: inline_serializer(
+                name="Payments Recharge Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Payments Transfer Response 404",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Payments Transfer Response 409",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def transfer(self, request, pk = None):
+
+        is_valid, message, status_response = PaymentRequest.validate_transfer(request)
         
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PaymentService.process_transfer(request)
+    
     @action(detail=False, methods=["get"])
     def resume_game(self, request, pk = None):
 

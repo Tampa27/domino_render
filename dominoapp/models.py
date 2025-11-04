@@ -124,6 +124,7 @@ class DominoGame(models.Model):
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
+    transfer_coins = models.PositiveIntegerField(default=0)
     promotion_coins = models.PositiveIntegerField(default=0)
     game_coins = models.PositiveIntegerField(default=0)
     game_played = models.PositiveIntegerField(default=0)
