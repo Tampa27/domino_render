@@ -108,12 +108,14 @@ class TransactionTypes:
     TRANSACTION_EXTRACTION = ("ex", "extraction")
     TRANSATIONS_IN_GAMES = ("gm", "game")
     TRANSACTION_PROMOTION = ("pro", "promotion")
+    TRANSACTION_TRANSFER = ("tr", "transfer")
 
     transaction_type = [
         TRANSACTION_RELOAD, 
         TRANSACTION_EXTRACTION,
         TRANSATIONS_IN_GAMES,
-        TRANSACTION_PROMOTION
+        TRANSACTION_PROMOTION,
+        TRANSACTION_TRANSFER
     ]
 
 class ApiConstants:

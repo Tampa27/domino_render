@@ -7,10 +7,11 @@ from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from datetime import datetime, timedelta
 from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount, CurrencyRate
-from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions
+from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
+from dominoapp.utils.payment_utils import validate_tranfer
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.connectors.paypal_connector import PayPalConnector
 logger = logging.getLogger('django')
@@ -385,7 +386,75 @@ class PaymentService:
                 }, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-      
+    
+    @staticmethod
+    def process_transfer(request):
+
+        try:
+            from_user = Player.objects.get(user__id = request.user.id)
+        except:
+            return Response(data={'status': 'error', "message":'You are not authorized.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        transfer_coins = int(request.data["amount"])
+        try:
+            to_user = Player.objects.get(id=request.data["to_user"])
+        except:
+            return Response(data={'status': 'error', "message":'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        check, message = validate_tranfer(from_user, to_user, transfer_coins)
+        if not check:
+            return Response(data={'status': 'error', "message":message}, status=status.HTTP_409_CONFLICT)
+        
+        TRANSFER_PERCENT = os.getenv("TRANSFER_PERCENT")
+        bank_amount = int(transfer_coins*int(TRANSFER_PERCENT)/100)
+        transfer_amount = transfer_coins + bank_amount
+        if from_user.total_coins< transfer_amount:
+            return Response(data={'status': 'error', "message":"You don't have enough amount."}, status=status.HTTP_409_CONFLICT)
+        
+        to_user.recharged_coins+= transfer_coins
+        to_user.save(update_fields=["recharged_coins"])
+        
+        from_user.earned_coins -= transfer_amount
+        if from_user.earned_coins<0:
+            from_user.recharged_coins += from_user.earned_coins
+            from_user.earned_coins = 0
+
+        from_user.save(update_fields=['earned_coins', 'recharged_coins'])
+
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.transfer_coins += bank_amount
+        bank.save(update_fields=["transfer_coins"]) 
+        
+        create_transfer_transactions(
+            amount= transfer_coins,
+            to_user=to_user, status="cp",
+            descriptions= f"El player {from_user.alias} le ha realizado una transferencia de {transfer_coins} monedas."
+            )
+           
+        FCMNOTIFICATION.send_fcm_message(
+            user = to_user.user,
+            title = "Transferencia realizada en Domino Club",
+            body = f"{to_user.name} usted ha recibido en su cuenta de Domino Club una transferencia de {transfer_coins} monedas."
+            )
+
+        create_transfer_transactions(
+            amount= transfer_amount,
+            from_user=from_user, status="cp",
+            descriptions= f"Le ha realizado una transferencia de {transfer_coins} monedas al player {to_user.alias}."
+            )
+    
+        FCMNOTIFICATION.send_fcm_message(
+            user = from_user.user,
+            title = "Transferencia realizada en Domino Club",
+            body = f"{from_user.name} usted ha realizado de su cuenta de Domino Club una transferencia de {transfer_coins} monedas al player {to_user.name}. Se le descontó de su saldo {transfer_amount} monedas."
+            )
+                
+        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+    
+    
     @staticmethod
     def process_resume_game(request):
         alias = request.query_params.get('alias', None)
