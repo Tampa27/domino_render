@@ -139,7 +139,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",
     "https://domino-club-fdc25b05dc8f.herokuapp.com",
     "https://dominoclubinfo-ar.github.io",
-    "https://play.dominoclub.online"
+    "https://play.dominoclub.online",
+    "https://domino-club-web.pages.dev"
     # Add more allowed origins as needed
 ]
 
