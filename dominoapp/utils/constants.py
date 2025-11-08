@@ -69,11 +69,13 @@ class GameVariants:
 
 class TransactionStatus:
     TRANSACTION_PENDING = ("p", "pending")
+    TRANSACTION_IN_PROCESS = ("ip", "in_process")
     TRANSACTION_COMPLETED = ("cp", "completed")
     TRANSACTION_CANCELED = ("cc", "canceled")
 
     transaction_choices = [
         TRANSACTION_PENDING,
+        TRANSACTION_IN_PROCESS,
         TRANSACTION_COMPLETED,
         TRANSACTION_CANCELED
     ]
