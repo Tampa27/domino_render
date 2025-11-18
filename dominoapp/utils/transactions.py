@@ -38,7 +38,7 @@ def create_game_transactions(amount,game:DominoGame,from_user:Player=None, to_us
         return False
     
 
-def create_reload_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None):
+def create_reload_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None, descriptions=None, whatsapp_url=None):
     
     try:
         if not from_user and not to_user:
@@ -59,7 +59,9 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
             type="rl", 
             admin = admin if admin else None,
             external_id = external_id if external_id else None,
-            paymentmethod = paymentmethod if paymentmethod else None
+            paymentmethod = paymentmethod if paymentmethod else None,
+            descriptions = descriptions if descriptions else None,
+            whatsapp_url = whatsapp_url if whatsapp_url else None
         )
         
         new_transaction.status_list.add(new_status)
@@ -72,7 +74,7 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         return False
     
 
-def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None, bankaccount=None):
+def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None, bankaccount=None, descriptions=None, whatsapp_url=None):
     
     try:
         if not from_user and not to_user:
@@ -94,7 +96,9 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
             admin = admin if admin else None,
             external_id = external_id if external_id else None,
             paymentmethod = paymentmethod if paymentmethod else None,
-            bank_account = bankaccount if bankaccount else None
+            bank_account = bankaccount if bankaccount else None,
+            descriptions = descriptions if descriptions else None,
+            whatsapp_url = whatsapp_url if whatsapp_url else None
         )
         
         new_transaction.status_list.add(new_status)

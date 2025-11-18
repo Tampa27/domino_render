@@ -1,8 +1,6 @@
 import os
 from rest_framework import serializers
-from .models import Player
-from .models import DominoGame
-from .models import Bank, Marketing, MoveRegister
+from dominoapp.models import Player, DominoGame, Bank, Marketing, MoveRegister, Transaction
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -163,4 +161,15 @@ class CreateMoveRegister(serializers.ModelSerializer):
 
         return super().create(validated_data)
 
-        
+class ListTransactionsSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    from_user = PlayerLoginSerializer()
+    to_user = PlayerLoginSerializer()
+    admin = PlayerLoginSerializer()
+    
+    def get_status(self, obj: Transaction) -> str:
+        return obj.get_status
+    
+    class Meta:
+        model = Transaction
+        fields = ['id', 'from_user', 'to_user', 'amount', 'type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'whatsapp_url']

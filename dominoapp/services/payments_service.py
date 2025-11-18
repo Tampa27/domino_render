@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from datetime import datetime, timedelta
 from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount, CurrencyRate
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions
@@ -12,6 +13,7 @@ from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.utils.payment_utils import validate_tranfer
+from dominoapp.utils.whatsapp_help import get_whatsapp_extraction_text, get_whatsapp_reload_text
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.connectors.paypal_connector import PayPalConnector
 logger = logging.getLogger('django')
@@ -151,8 +153,16 @@ class PaymentService:
             
             transaction_id= shortuuid.random(length=6)
             
+            whatsapp_url = get_whatsapp_reload_text(
+                player= player,
+                amount= int(request.data["coins"]),
+                transaction_id= transaction_id,
+                player_phone= player.phone
+            )
+            
             create_reload_transactions(
-                to_user=player, amount=int(request.data["coins"]), status="p", external_id=transaction_id
+                to_user=player, amount=int(request.data["coins"]), status="p", external_id=transaction_id,
+                whatsapp_url=whatsapp_url
                 )
             
             send_request = DiscordConnector.send_transaction_request(
@@ -162,7 +172,8 @@ class PaymentService:
                     'player_alias': player.alias,
                     'amount': request.data["coins"],
                     'player_phone': request.data["phone"],
-                    'transaction_id': transaction_id
+                    'transaction_id': transaction_id,
+                    'whatsapp_url': whatsapp_url
                 }
             )
         
@@ -341,9 +352,18 @@ class PaymentService:
         
         if not transactions_exist or new_bank:
             transaction_id= shortuuid.random(length=6)               
+            
+            whatsapp_url = get_whatsapp_extraction_text(
+                player= player,
+                amount= int(request.data["coins"]),
+                transaction_id= transaction_id,
+                player_phone= request.data["phone"]
+            )
+            
             create_extracted_transactions(
                 from_user=player, amount=int(request.data["coins"]), status="p",
-                bankaccount=bankaccount, external_id=transaction_id
+                bankaccount=bankaccount, external_id=transaction_id,
+                whatsapp_url=whatsapp_url
                 )
             
             send_request = DiscordConnector.send_transaction_request(
@@ -355,7 +375,8 @@ class PaymentService:
                     'coins':request.data["coins"],
                     'card_number': request.data["card_number"],
                     'player_phone': request.data["phone"],
-                    'transaction_id': transaction_id
+                    'transaction_id': transaction_id,
+                    'whatsapp_url': whatsapp_url
                 }
             )
         
@@ -454,7 +475,186 @@ class PaymentService:
                 
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
+    @staticmethod
+    def process_select(request, transactions_id):
+        try:
+            transaction = Transaction.objects.get(id = transactions_id)
+        except:
+            return Response({'status': 'error', 'message': "Transaction not found"}, status=status.HTTP_404_NOT_FOUND) 
     
+        if transaction.get_status != "p" or transaction.type in ["gm","pro","tr"]:
+            return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+        
+        try:
+            admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
+        except:
+            return Response({'status': 'error', 'message': "Admin not found"}, status=status.HTTP_401_UNAUTHORIZED) 
+        
+        transaction.admin = admin
+        transaction.save(update_fields=['admin'])
+        
+        new_status = Status_Transaction.objects.create(status = 'ip')
+        transaction.status_list.add(new_status)
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @staticmethod
+    def reload_coins(transaction: Transaction):
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+        
+        player = transaction.to_user
+        recharged_coins = int(transaction.amount)
+        currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
+        if currency_rate:
+            recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
+        
+        player.recharged_coins+= recharged_coins
+        player.save(update_fields=["recharged_coins"])
+                
+        if player.parent is not None and not player.reward_granted:
+            try:
+                player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
+                player.parent.save(update_fields=["earned_coins"])
+
+                player.reward_granted = True
+                player.save(update_fields=["reward_granted"])
+
+                create_promotion_transactions(
+                    amount= int(ApiConstants.REFER_REWARD),
+                    from_user=player,
+                    to_user= player.parent,
+                    status="cp",
+                    descriptions=f"El player {player.parent.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
+                )
+                
+                bank.promotion_coins+=int(ApiConstants.REFER_REWARD)
+                bank.save(update_fields=['promotion_coins'])
+                
+                FCMNOTIFICATION.send_fcm_message(
+                user = player.parent.user,
+                title = "Nueva Recarga en Domino Club",
+                body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                )
+                DiscordConnector.send_event(
+                    "Promoción",
+                    {
+                        'player': str(player.parent.alias),
+                        "amount": ApiConstants.REFER_REWARD,
+                        "referred_user": str(player.alias)
+                    }
+                )   
+            except Exception as error:
+                logger.error(f"Error at pay promotion by referred user, exception={error}")
+                
+        bank.buy_coins+=transaction.amount
+        bank.save(update_fields=['buy_coins'])
+        
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Recarga en Domino Club",
+            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {recharged_coins} monedas."
+            )
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+            {
+                'player': player.alias,
+                "amount": recharged_coins,
+                "pay": transaction.amount,
+                "paymentmethod": transaction.paymentmethod,
+                'admin': transaction.admin.alias if transaction.admin else None
+            }
+        )
+        return True
+    
+    @staticmethod
+    def extractions_coins(transaction: Transaction):
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.extracted_coins+=transaction.amount
+        bank.save(update_fields=['extracted_coins'])
+        
+        player = transaction.from_user
+        
+        player.earned_coins -= transaction.amount
+        if player.earned_coins<0:
+            player.recharged_coins += player.earned_coins
+            player.earned_coins = 0
+
+        player.save(update_fields=['earned_coins', 'recharged_coins'])
+        
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Extracción en Domino Club",
+            body = f"Felicidades {player.name} 🎉, usted ha extraido {transaction.amount} monedas de su cuenta en Domino Club."
+            )
+
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+            {
+                'player': player.alias,
+                "amount": transaction.amount,
+                'admin': transaction.admin.alias if transaction.admin else None
+            }
+        )
+    
+    @staticmethod
+    def process_confirm(request, transactions_id):
+        try:
+            transaction = Transaction.objects.get(id = transactions_id)
+        except:
+            return Response({'status': 'error', 'message': "Transaction not found"}, status=status.HTTP_404_NOT_FOUND) 
+    
+        if transaction.get_status != "ip" or transaction.type in ["gm","pro","tr"]:
+            return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+        
+        try:
+            admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
+        except:
+            return Response({'status': 'error', 'message': "Admin not found"}, status=status.HTTP_401_UNAUTHORIZED) 
+        
+        transaction.admin = admin
+        transaction.save(update_fields=['admin'])
+        
+        new_status = Status_Transaction.objects.create(status = 'cp')
+        transaction.status_list.add(new_status)
+        if transaction.type == 'rl':
+            PaymentService.reload_coins(transaction)
+            return Response({'status': 'success', "message":'Reload confirm'}, status=status.HTTP_200_OK)
+        elif transaction.type == 'ex':
+            PaymentService.extractions_coins(transaction)
+            return Response({'status': 'success', "message":'Extraction confirm'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'status': 'error', "message":'Not Allowed'}, status=status.HTTP_409_CONFLICT)
+        
+    @staticmethod
+    def process_cancel(request, transactions_id):
+        try:
+            transaction = Transaction.objects.get(id = transactions_id)
+        except:
+            return Response({'status': 'error', 'message': "Transaction not found"}, status=status.HTTP_404_NOT_FOUND) 
+    
+        if transaction.get_status in ["cc", "cp"] or transaction.type in ["gm","pro","tr"] or (not request.user.is_staff and transaction.get_status == "ip"):
+            return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+        
+        try:
+            cancel_by = Player.objects.get(user__id = request.user.id)
+        except:
+            return Response({'status': 'error', 'message': "User not found"}, status=status.HTTP_401_UNAUTHORIZED) 
+        
+        transaction.admin = cancel_by
+        transaction.save(update_fields=['admin'])
+        
+        new_status = Status_Transaction.objects.create(status = 'cc')
+        transaction.status_list.add(new_status)
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
+        
     @staticmethod
     def process_resume_game(request):
         alias = request.query_params.get('alias', None)

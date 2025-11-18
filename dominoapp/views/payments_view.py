@@ -1,21 +1,29 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
 from dominoapp.models import Transaction
 from dominoapp.views.request.payments_request import PaymentRequest
 from dominoapp.services.payments_service import PaymentService
+from dominoapp.serializers import ListTransactionsSerializer
 from dominoapp.utils.request_permitions import IsSuperAdminUser
 from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
 from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField 
 
+class PaymentListPagination(PageNumberPagination):
+    page_size = 3
+    page_size_query_param = "page_size"
 
-class PaymentView(viewsets.GenericViewSet):
+class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     queryset = Transaction.objects.all()
     permission_classes = [IsAuthenticated]
+    pagination_class = PaymentListPagination
+    serializer_class = ListTransactionsSerializer
 
     def get_permissions(self):
-        if self.action in ["recharge", "extract"]:
+        if self.action in ["recharge", "extract", "select", "confirm"]:
             permission_classes = [IsAdminUser]
         elif self.action in ["resume_game"]:
             permission_classes = [AllowAny]
@@ -26,10 +34,20 @@ class PaymentView(viewsets.GenericViewSet):
 
         return [permission() for permission in permission_classes]
 
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_superuser and not user.is_staff:
+            queryset = Transaction.objects.filter(Q(from_user__user__id = user.id) | Q(to_user__user__id = user.id)).order_by("-time")
+        else:
+            queryset = Transaction.objects.all().order_by("-time")
+        if self.action in ["select", "confirm", "cancel"]:
+            queryset.exclude(type__in = ["gm","pro","tr"] )
+        return queryset 
+    
     @extend_schema(
             operation_id="payments_recharge",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Recharge Request",
                     fields={
                         "coins" : IntegerField(required=True),
@@ -73,7 +91,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="payments_request_recharge",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Request Recharge",
                     fields={
                         "coins" : IntegerField(required=True),
@@ -115,7 +133,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="payments_promotion",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Promotion Request",
                     fields={
                         "coins" : IntegerField(required=True),
@@ -157,7 +175,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="payments_extract",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Extract Request",
                     fields={
                         "coins" : IntegerField(required=True),
@@ -208,7 +226,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="payments_request_extraction",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Request Extraction",
                     fields={
                         "coins" : IntegerField(required=True),
@@ -258,7 +276,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="payments_transfer",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Transfer Request",
                     fields={
                         "amount" : IntegerField(required=True),
@@ -304,6 +322,115 @@ class PaymentView(viewsets.GenericViewSet):
         
         return PaymentService.process_transfer(request)
     
+    @extend_schema(
+            operation_id="payments_list",
+            request = None,
+            responses={
+            200: ListTransactionsSerializer(many=True),            
+        }
+    )
+    def list(self, request, pk = None):
+        return mixins.ListModelMixin.list(self, request)
+    
+    @extend_schema(
+            operation_id="payments_select",
+            request = None,
+            responses={
+            204: None,
+            404: inline_serializer(
+                name="Payments Select Response 404",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Payments Select Response 409",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def select(self, request, pk = None):
+        is_valid, message, status_response = PaymentRequest.validate_uuid(request, pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        return PaymentService.process_select(request, pk)
+    
+    @extend_schema(
+            operation_id="payments_confirm",
+            request = None,
+            responses={
+            204: None,
+            404: inline_serializer(
+                name="Payments Confirm Response 404",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Payments Confirm Response 409",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk = None):
+        is_valid, message, status_response = PaymentRequest.validate_uuid(request, pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        return PaymentService.process_confirm(request, pk)
+    
+    @extend_schema(
+            operation_id="payments_cancel",
+            request = None,
+            responses={
+            204: None,
+            404: inline_serializer(
+                name="Payments Cancel Response 404",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Payments Cancel Response 409",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk = None):
+        is_valid, message, status_response = PaymentRequest.validate_uuid(request, pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        return PaymentService.process_cancel(request, pk)
+    
     @action(detail=False, methods=["get"])
     def resume_game(self, request, pk = None):
 
@@ -320,7 +447,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="payments_create",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Payments Create Request",
                     fields={
                         "amount" : IntegerField(required=True)
@@ -360,7 +487,7 @@ class PaymentView(viewsets.GenericViewSet):
     @extend_schema(
             operation_id="paypal_capture",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Paypal Capture Request",
                     fields={
                         "external_id": CharField(required=True)
