@@ -38,6 +38,11 @@ class Player(models.Model):
     )
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_profiles')
     reward_granted = models.BooleanField(default=False,verbose_name="Reward Granted") ## recompesa Otorgada
+    ## Valor ELO de un player (valor que dice el nivel segun partidos ganados y perdidos)
+    elo = models.DecimalField(decimal_places=2, max_digits=10, default=1500)
+    ## Localizacion del player
+    lat = models.DecimalField(max_digits=9, decimal_places=7, null=True, blank=True)
+    lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     
     @property
     def total_coins(self):

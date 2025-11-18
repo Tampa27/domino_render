@@ -56,7 +56,7 @@ class PlayerGameSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo"]
 
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
@@ -71,7 +71,7 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng"]
 
 class GameCreateSerializer(serializers.ModelSerializer):
 
