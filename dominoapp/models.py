@@ -157,7 +157,13 @@ class Transaction(models.Model):
     external_id = models.CharField(max_length=50, null=True, blank=True)
     paymentmethod = models.CharField(max_length=32,choices=TransactionPaymentMethod.payment_choices, null=True, blank=True)
     descriptions = models.CharField(max_length=100, null=True, blank=True)
+    whatsapp_url = models.URLField(null=True, blank=True, max_length=1500)
     bank_account = models.ForeignKey(BankAccount, related_name="bank_account_transaction", on_delete=models.SET_NULL, null=True, blank=True)
+    
+    @property
+    def get_status(self):
+        last_status = self.status_list.all().order_by('-created_at').first()
+        return last_status.status if last_status else 'p'
 
 
 class CurrencyRate(models.Model):
