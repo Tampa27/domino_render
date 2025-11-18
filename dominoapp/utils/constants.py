@@ -66,6 +66,22 @@ class GameVariants:
         DOUBLE_6,
         DOUBLE_9
     ]
+    
+class TournamentStatus:
+    
+    WAITING_PLAYERS = ("wt","waiting_players")
+    GAME_READY = ('ready','ready_to_play')
+    GAME_RUNNING = ("ru","running")
+    GAME_FINISHED = ('tf','finished')
+    GAME_PAUSED = ('pa','paused')
+
+    status_choices = [
+        WAITING_PLAYERS,
+        GAME_READY,
+        GAME_RUNNING,        
+        GAME_FINISHED,
+        GAME_PAUSED,
+    ]
 
 class TransactionStatus:
     TRANSACTION_PENDING = ("p", "pending")

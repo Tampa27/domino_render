@@ -1,6 +1,6 @@
 import os
 from rest_framework import serializers
-from dominoapp.models import Player, DominoGame, Bank, Marketing, MoveRegister, Transaction
+from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -109,6 +109,17 @@ class ListGameSerializer(serializers.ModelSerializer):
         model = DominoGame
         fields = ["id","table_no", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player"]
 
+class TournamentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Tournament
+        fields = ('__all__')
+
+class TournamentCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Tournament
+        fields = ["variant", "maxScore", "inPairs", "startWinner",  "moveTime", "min_player", "active", "registration_fee", "deadline", "start_at", "winner_payout", "second_payout", "third_payout"]
 
 class MyPlayerSerializer(serializers.ModelSerializer):
 

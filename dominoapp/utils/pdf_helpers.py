@@ -227,7 +227,7 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
             pdf.cell(width_graph_cell, float(value_extraction)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
             pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph + 1)
             set_fillcol(pdf,'gray1')
-            pdf.cell(width_graph_cell, 8, f"{transaction_data["graph"]["days"][count]}", border=border, align='C', fill=1)
+            pdf.cell(width_graph_cell, 8, f"{transaction_data['graph']['days'][count]}", border=border, align='C', fill=1)
             i+=paso
             j+=1
             value_reload = 0
