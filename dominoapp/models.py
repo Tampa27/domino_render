@@ -1,10 +1,13 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 import uuid
 from shortuuid.django_fields import ShortUUIDField
-from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus
+from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus, TournamentStatus
 # Create your models here.
 
 class Player(models.Model):
@@ -46,6 +49,18 @@ class Player(models.Model):
     class Meta:
         ordering = ['alias']
 
+class Pair(models.Model):
+    player1 = models.ForeignKey(Player,related_name="pair_1",on_delete=models.CASCADE)
+    player2 = models.ForeignKey(Player,related_name="pair_2",on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        """Forzar la validación al guardar"""
+        if self.player1 and self.player2 and self.player1.id == self.player2.id:
+            raise ValidationError({
+                'El mismo jugador no puede estar en ambas posiciones.'
+            })
+        super().save(*args, **kwargs)
+
 class BankAccount(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='bank_accounts')
     account_number = models.CharField(max_length=50)
@@ -59,6 +74,74 @@ class BankAccount(models.Model):
     
     def __str__(self):
         return self.account_number
+
+class Tournament(models.Model):
+    
+    # Limit the models that can have a GenericRelation to this table
+    MODEL_CHOICES = models.Q(app_label="dominoapp", model="player") | models.Q(
+        app_label="dominoapp", model="pair"
+    )
+        
+    player_list = models.ManyToManyField(Player, related_name="player_list")
+    
+    place_content_type = models.ForeignKey(ContentType,on_delete=models.CASCADE,null=True,blank=True, limit_choices_to=MODEL_CHOICES)
+    
+    first_place_object_id = models.PositiveIntegerField(null=True, blank=True)
+    first_place = GenericForeignKey('place_content_type', 'first_place_object_id')
+    
+    second_place_object_id = models.PositiveIntegerField(null=True, blank=True)
+    second_place = GenericForeignKey('place_content_type', 'second_place_object_id')
+    
+    third_place_object_id = models.PositiveIntegerField(null=True, blank=True)
+    third_place = GenericForeignKey('place_content_type', 'third_place_object_id')
+    
+    winner_payout = models.IntegerField(default=0)
+    second_payout = models.IntegerField(default=0)
+    third_payout = models.IntegerField(default=0)
+    
+    registration_fee = models.IntegerField(default=0)
+      
+    deadline = models.DateTimeField(default=timezone.now, help_text="%d-%m-%Y %H:%M:%S")   # Fecha tope de inscripción 
+    start_at = models.DateTimeField(default=timezone.now, help_text="%d-%m-%Y %H:%M:%S")   # Fecha en que comienza el torneo.
+    end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el torneo
+    
+    status = models.CharField(max_length=32,choices=TournamentStatus.status_choices,default="wt")
+    active = models.BooleanField(default=True)
+        
+    created_time = models.DateTimeField(default=timezone.now)
+    tournament_no = models.IntegerField(null=True, blank=True)
+    
+    ## Reglas del Torneo ###
+    variant = models.CharField(max_length=10,choices= GameVariants.variant_choices,default="d6")    
+    maxScore = models.IntegerField(default=100)
+    inPairs = models.BooleanField(default=True)
+    startWinner = models.BooleanField(default=False)
+    moveTime = models.SmallIntegerField(default=10)
+    min_player = models.IntegerField(default=8)
+
+    def save(self, *args, **kwargs):
+        if not self.tournament_no:
+            self.tournament_no = 1
+            numbers = Tournament.objects.all().order_by('tournament_no').values_list('tournament_no',flat=True)
+            no = 1            
+            for number in numbers:
+                if no != int(number):
+                    self.tournament_no = no
+                    break
+                elif no == len(numbers):
+                    self.tournament_no = no + 1
+                    break
+                no += 1
+        if self.inPairs:
+            pair_content_type = ContentType.objects.get_for_model(Pair)
+            self.place_content_type = pair_content_type
+        else:
+            player_content_type = ContentType.objects.get_for_model(Player)
+            self.place_content_type = player_content_type
+        return super().save(*args, **kwargs)
+    
+    class Meta:
+        ordering = ["-deadline"]    
     
 class DominoGame(models.Model):
     Winner_Player_1 = 0
@@ -105,7 +188,8 @@ class DominoGame(models.Model):
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
     table_no = models.IntegerField(null=True, blank=True)
-
+    tournament = models.ForeignKey(Tournament, related_name="game_in_tournament", on_delete=models.SET_NULL, null=True, blank=True)    
+    
     def save(self, *args, **kwargs):
         if not self.table_no:            
             numbers = DominoGame.objects.all().order_by('table_no').values_list('table_no',flat=True)
@@ -120,6 +204,25 @@ class DominoGame(models.Model):
                     break
                 no += 1
         return super().save(*args, **kwargs)
+
+class Match_Game(models.Model):
+    game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
+    count_game = models.IntegerField(default=1)
+    player_list = models.ManyToManyField(Player, related_name="players_in_game") # Lista de player en la ronda
+    pair_list = models.ManyToManyField(Player, related_name="pairs_in_game") # Lista de parejas en la ronda
+    games_win_team_1 = models.IntegerField(default=0)
+    games_win_team_2 = models.IntegerField(default=0)
+    start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza el partido.
+    end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el partido
+    
+class Round(models.Model):
+    tournament = models.ForeignKey(Tournament, related_name="round_in_tournament", on_delete=models.CASCADE)
+    player_list = models.ManyToManyField(Player, related_name="players_in_round") # Lista de player en la ronda
+    pair_list = models.ManyToManyField(Pair, related_name="pairs_in_round") # Lista de parejas en la ronda
+    round_no = models.IntegerField(default=1)
+    game_list = models.ManyToManyField(DominoGame, related_name="games_in_round") # lista de mesas que se van a usar en la ronda
+    start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza la ronda.
+    end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo la ronda
     
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
