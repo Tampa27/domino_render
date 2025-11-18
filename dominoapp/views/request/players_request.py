@@ -50,6 +50,8 @@ class PlayerRequest:
             "photo_url": RequestValidator.validate_url,
             "name": RequestValidator.validate_string,
             "isPlaying": RequestValidator.validate_boolean,
+            "lat": RequestValidator.validate_decimal,
+            "lng": RequestValidator.validate_decimal
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
@@ -101,6 +103,8 @@ class PlayerRequest:
             "photo_url": RequestValidator.validate_url,
             "name": RequestValidator.validate_string,
             "isPlaying": RequestValidator.validate_boolean,
+            "lat": RequestValidator.validate_decimal,
+            "lng": RequestValidator.validate_decimal
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

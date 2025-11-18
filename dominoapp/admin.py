@@ -227,7 +227,7 @@ class PlayerAdmin(admin.ModelAdmin):
         "name",
         "earned_coins",
         "recharged_coins",
-        "points",
+        "elo",
         "isPlaying",
         "lastTimeInSystem"
     ]
