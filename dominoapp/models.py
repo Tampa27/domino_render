@@ -48,11 +48,21 @@ class Player(models.Model):
     def total_coins(self):
         return self.earned_coins + self.recharged_coins
     
+    @property
+    def elo_factor(self):
+        if (self.dataLoss + self.dataWins) < 100:
+            return 40
+        elif (self.dataLoss + self.dataWins) >= 100 and self.elo < 2400:
+            return 20
+        else:
+            return 10
+
     def __str__(self):
         return self.alias
     
     class Meta:
         ordering = ['alias']
+    
 
 class Pair(models.Model):
     player1 = models.ForeignKey(Player,related_name="pair_1",on_delete=models.CASCADE)
