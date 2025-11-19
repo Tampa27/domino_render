@@ -11,6 +11,7 @@ from dominoapp.utils.transactions import create_game_transactions
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.move_register_utils import movement_register
+from dominoapp.utils.players_tools import update_elo_pair, update_elo
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,9 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             descriptions=f"perdi en el juego {game.id}",
                             move_register=move_register)
                 players[i].save()
+        if game.status == "fg":
+            update_elo_pair([players[w],players[((w+2)%4)]],[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]])
+                
     else:
         for i in range(n):
             if i == w:
@@ -379,6 +383,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             descriptions=f"perdi en el juego {game.id}",
                             move_register=move_register)
                 players[i].save()                                    
+        if game.status == "fg":
+            update_elo(players,players[w])
     bank.save(update_fields=['game_coins'])
 
 def updatePassCoins(pos,game,players,move_register:MoveRegister):
