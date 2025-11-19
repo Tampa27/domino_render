@@ -31,7 +31,7 @@ def automatic_move_in_game():
                 if possibleStarter:
                     logger_api.info('Esperando al salidor')
                     try:
-                        automaticCoupleStarter(game)
+                        automaticCoupleStarter(game.id)
                     except Exception as e:
                         logger.critical(f'Ocurrio una excepcion escogiendo el salidor en el juego {str(game.id)}, error: {str(e)}')        
                 else:
@@ -74,7 +74,8 @@ def automatic_move_in_game():
         gc.collect()  # Fuerza liberación de memoria.
 
         
-def automaticCoupleStarter(game: DominoGame):
+def automaticCoupleStarter(game_id):
+    game = DominoGame.objects.select_for_update().get(id=game_id)
     next = game.next_player
     patner = (next+2)%4
     starter = game.starter
@@ -83,7 +84,7 @@ def automaticCoupleStarter(game: DominoGame):
     logger_api.info("Entro a automaticCouple")
     logger_api.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
     if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
-        game_tools.setWinner1(game,next)
+        game_tools.setWinnerStarterNext1(game,next,next,next)
     elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
         game_tools.setWinnerStarterNext1(game,patner,patner,patner)
     game.save()         

@@ -326,7 +326,7 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.get(id=game_id)
+        game = DominoGame.objects.select_for_update().get(id=game_id)
 
         game_tools.setWinner1(game,request.data["winner"])
         game.save()
@@ -338,7 +338,7 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.get(id=game_id)
+        game = DominoGame.objects.select_for_update().get(id=game_id)
         game.starter = request.data["starter"]
         game.save()
         
@@ -350,7 +350,7 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.get(id=game_id)
+        game = DominoGame.objects.select_for_update().get(id=game_id)
         game.starter = request.data["starter"]
         game.winner = request.data["winner"]
         game.save()
@@ -362,7 +362,7 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.get(id=game_id)
+        game = DominoGame.objects.select_for_update().get(id=game_id)
         game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
         game.save()
         return Response({'status': 'success'}, status=200)
@@ -374,7 +374,7 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.get(id=game_id)
+        game = DominoGame.objects.select_for_update().get(id=game_id)
         
         if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
             return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
