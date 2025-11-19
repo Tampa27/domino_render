@@ -257,5 +257,5 @@ class PlayerService:
         if app and app.store_link:
             return redirect(app.store_link)
         
-        return redirect('https://play.google.com/store/games')
+        return redirect('https://dominoclub.online/')
         
