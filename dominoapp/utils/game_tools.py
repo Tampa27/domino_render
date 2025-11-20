@@ -334,7 +334,6 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].save()
         if game.status == "fg":
             update_elo_pair([players[w],players[((w+2)%4)]],[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]])
-                
     else:
         for i in range(n):
             if i == w:
@@ -383,8 +382,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             descriptions=f"perdi en el juego {game.id}",
                             move_register=move_register)
                 players[i].save()                                    
-        # if game.status == "fg":
-        #     update_elo(players,players[w])
+        if game.status == "fg":
+            update_elo(players,players[w])
     bank.save(update_fields=['game_coins'])
 
 def updatePassCoins(pos,game,players,move_register:MoveRegister):

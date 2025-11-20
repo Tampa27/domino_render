@@ -37,13 +37,13 @@ def update_elo(players: list[Player], winner: Player)->None:
     """Actualiza las calificaciones Elo de los jugadores después de un juego."""
 
     for player in players:
-        copi_players = players.copy()
-        copi_players.remove(player)
-        for opponent in copi_players:            
-            E_player1_vs_player2 = win_expectation_player1_vs_player2(player.elo, opponent.elo)
-            delta_R_player1 = rate_change(E_player1_vs_player2, 1 if player.id == winner.id else 0, player.elo_factor)
-            player.elo += delta_R_player1
-            player.save(update_fields=['elo'])
+        for opponent in players:
+            if player.id != opponent.id:
+                E_player1_vs_player2 = win_expectation_player1_vs_player2(player.elo, opponent.elo)
+                delta_R_player1 = rate_change(E_player1_vs_player2, 1 if player.id == winner.id else 0, player.elo_factor)
+                player.elo += delta_R_player1
+                player.save(update_fields=['elo'])
+    
 
 def update_elo_pair(pair1: list[Player], pair2: list[Player])->None:
     """
