@@ -382,8 +382,15 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             descriptions=f"perdi en el juego {game.id}",
                             move_register=move_register)
                 players[i].save()                                    
-        # if game.status == "fg":
-        #     update_elo(players,players[w])
+        if game.status == "fg":
+            try:
+                update_elo(players,players[w])
+            except Exception as error:
+                try:
+                    player_alias_list = (f'{player.alias}, ' for player in players)
+                    logger.error(f"Error actualizando los ELOS individuales, players: [{player_alias_list}], winner:{players[w].alias if w < len(players) else "INVALID_INDEX"}, Detalles del Error: {error}")
+                except:
+                    logger.critical(f"Error en actualizar los ElOS individuales y al capturar el error, players: {players}, winner: {w}")
     bank.save(update_fields=['game_coins'])
 
 def updatePassCoins(pos,game,players,move_register:MoveRegister):
