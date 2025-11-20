@@ -14,6 +14,7 @@ from dominoapp.utils.move_register_utils import movement_register
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 
 logger = logging.getLogger(__name__)
+logger_discord = logging.getLogger('django')
 
 
 def setWinner1(game: DominoGame, winner: int):
@@ -333,7 +334,13 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             move_register=move_register)
                 players[i].save()
         if game.status == "fg":
-            update_elo_pair([players[w],players[((w+2)%4)]],[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]])
+            try:
+                update_elo_pair([players[w],players[((w+2)%4)]],[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]])
+            except Exception as error:
+                try:
+                    logger_discord.error(f"Error actualizando los ELOS por pareja, pair1: [{[players[w],players[((w+2)%4)]]}], pair2:{[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]]}, Detalles del Error: {error}")
+                except:
+                    logger_discord.critical(f"Error en actualizar los ElOS por pareja y al capturar el error, players: {players}, winner: {w}")
     else:
         for i in range(n):
             if i == w:
@@ -388,9 +395,9 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
             except Exception as error:
                 try:
                     player_alias_list = (f'{player.alias}, ' for player in players)
-                    logger.error(f"Error actualizando los ELOS individuales, players: [{player_alias_list}], winner:{players[w].alias if w < len(players) else "INVALID_INDEX"}, Detalles del Error: {error}")
+                    logger_discord.error(f"Error actualizando los ELOS individuales, players: [{player_alias_list}], winner:{players[w].alias if w < len(players) else "INVALID_INDEX"}, Detalles del Error: {error}")
                 except:
-                    logger.critical(f"Error en actualizar los ElOS individuales y al capturar el error, players: {players}, winner: {w}")
+                    logger_discord.critical(f"Error en actualizar los ElOS individuales y al capturar el error, players: {players}, winner: {w}")
     bank.save(update_fields=['game_coins'])
 
 def updatePassCoins(pos,game,players,move_register:MoveRegister):
