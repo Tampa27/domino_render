@@ -35,8 +35,10 @@ def rate_change(E_player: Decimal, S_player: Decimal, K_player: int)->Decimal:
 
 def update_elo(players: list[Player], winner: Player= None)->None:
     """Actualiza las calificaciones Elo de los jugadores después de un juego."""
-
+    # Calcular todos los cambios primero
+    elo_changes = {}
     for player in players:
+        total_change = Decimal(0)
         for opponent in players:
             if player.id != opponent.id:
                 E_player1_vs_player2 = win_expectation_player1_vs_player2(player.elo, opponent.elo)
@@ -47,8 +49,12 @@ def update_elo(players: list[Player], winner: Player= None)->None:
                 else:
                     S_player = Decimal(0)
                 delta_R_player1 = rate_change(E_player1_vs_player2, S_player, player.elo_factor)
-                player.elo += delta_R_player1
-                player.save(update_fields=['elo'])
+                total_change += delta_R_player1
+        elo_changes[player.id] = total_change
+    
+    for player in players:            
+        player.elo += elo_changes[player.id]
+        player.save(update_fields=['elo'])
     
 
 def update_elo_pair(pair1: list[Player], pair2: list[Player], tie:bool=False)->None:
