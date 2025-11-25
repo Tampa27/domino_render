@@ -28,24 +28,30 @@ def win_expectation_player1_vs_player2(R_player_1: Decimal, R_player_2: Decimal)
      E_p1_vs_p2 =1/(1 + 10**((R_player_1 - R_player_2)/400))
      return E_p1_vs_p2
 
-def rate_change(E_player: Decimal, S_player: int, K_player: int)->Decimal:
+def rate_change(E_player: Decimal, S_player: Decimal, K_player: int)->Decimal:
     """Calcula el cambio en la calificación Elo de un jugador."""
     Delta_R = K_player * (S_player - E_player)
     return Delta_R     
 
-def update_elo(players: list[Player], winner: Player)->None:
+def update_elo(players: list[Player], winner: Player= None)->None:
     """Actualiza las calificaciones Elo de los jugadores después de un juego."""
 
     for player in players:
         for opponent in players:
             if player.id != opponent.id:
                 E_player1_vs_player2 = win_expectation_player1_vs_player2(player.elo, opponent.elo)
-                delta_R_player1 = rate_change(E_player1_vs_player2, 1 if player.id == winner.id else 0, player.elo_factor)
+                if winner is None:
+                    S_player = Decimal(0.5)
+                elif player.id == winner.id:
+                    S_player = Decimal(1)
+                else:
+                    S_player = Decimal(0)
+                delta_R_player1 = rate_change(E_player1_vs_player2, S_player, player.elo_factor)
                 player.elo += delta_R_player1
                 player.save(update_fields=['elo'])
     
 
-def update_elo_pair(pair1: list[Player], pair2: list[Player])->None:
+def update_elo_pair(pair1: list[Player], pair2: list[Player], tie:bool=False)->None:
     """
     Actualiza las calificaciones Elo de los jugadores después de un juego entre dos parejas. 
     Se asume que el pair1 siempre es el ganador.
@@ -59,8 +65,12 @@ def update_elo_pair(pair1: list[Player], pair2: list[Player])->None:
     E_pair1_vs_pair2 = win_expectation_player1_vs_player2(Decimal(average_elo_pair1), Decimal(average_elo_pair2))
     E_pair2_vs_pair1 = win_expectation_player1_vs_player2(Decimal(average_elo_pair2), Decimal(average_elo_pair1))
 
-    total_delta_R_pair1 = rate_change(E_pair1_vs_pair2, 1, int(k_factor_pair1))
-    total_delta_R_pair2 = rate_change(E_pair2_vs_pair1, 0, int(k_factor_pair2))
+    if tie:
+        total_delta_R_pair1 = rate_change(E_pair1_vs_pair2, Decimal(0.5), int(k_factor_pair1))
+        total_delta_R_pair2 = rate_change(E_pair2_vs_pair1, Decimal(0.5), int(k_factor_pair2))
+    else:
+        total_delta_R_pair1 = rate_change(E_pair1_vs_pair2, Decimal(1), int(k_factor_pair1))
+        total_delta_R_pair2 = rate_change(E_pair2_vs_pair1, Decimal(0), int(k_factor_pair2))
     
     for player in pair1:
         delta_R_player = total_delta_R_pair1 / 2
