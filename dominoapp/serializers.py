@@ -1,5 +1,6 @@
 import os
 from rest_framework import serializers
+from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -48,6 +49,34 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.name = validated_data.get('name', instance.name)
         instance.save()
         return instance     
+
+class PlayerRankinSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField()
+    data_win_percent = serializers.SerializerMethodField()
+    match_win_percent = serializers.SerializerMethodField()
+    
+    def get_coins(self, obj: Player) -> int:
+        return obj.earned_coins + obj.recharged_coins
+    
+    def get_data_win_percent(self, obj: Player) -> str:
+        total_game = obj.dataWins + obj.dataLoss
+        if total_game == 0:
+            return "0.00"
+        else:
+           win_percent = Decimal((obj.dataWins * 100)/total_game)
+           return str(round(win_percent, 2))
+    
+    def get_match_win_percent(self, obj: Player) -> str:
+        total_game = obj.matchWins + obj.matchLoss
+        if total_game == 0:
+            return "0.00"
+        else:
+           win_percent = Decimal((obj.matchWins * 100)/total_game)
+           return str(round(win_percent, 2))
+    
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent"]
 
 class PlayerGameSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()

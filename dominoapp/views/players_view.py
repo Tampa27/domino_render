@@ -5,7 +5,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.decorators import action
 from dominoapp.models import Player
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
-from dominoapp.services.player_service import PlayerService
+from dominoapp.services.player_service import PlayerService, PlayerRankinSerializer
 from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from rest_framework.serializers import IntegerField, CharField, URLField
@@ -69,7 +69,7 @@ class PlayerView(viewsets.ModelViewSet):
                     "count": IntegerField(),
                     "next": URLField(),
                     "previous": URLField(),
-                    "results": PlayerSerializer(many=True)
+                    "results": PlayerRankinSerializer(many=True)
                 }
             )
         }
