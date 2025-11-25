@@ -289,7 +289,7 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
         for i in range(n):
             if i == w or i == ((w+2)%4):
                 players[i].dataWins+=1
-                if game.payWinValue > 0:
+                if game.payWinValue > 0 and w != 4:
                     bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)
                     player_coins = (game.payWinValue-bank_coins)
                     bank.game_coins+=(bank_coins)
@@ -335,7 +335,10 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].save()
         if game.status == "fg":
             try:
-                update_elo_pair([players[w],players[((w+2)%4)]],[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]])
+                if w<4:
+                    update_elo_pair([players[w],players[((w+2)%4)]],[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]])
+                else:
+                    update_elo_pair([players[0],players[2]],[players[1],players[3]],True)
             except Exception as error:
                 try:
                     logger_discord.error(f"Error actualizando los ELOS por pareja, pair1: [{[players[w],players[((w+2)%4)]]}], pair2:{[players[(((w+1)+2)%4)],players[(((w+3)+2)%4)]]}, Detalles del Error: {error}")
@@ -391,7 +394,7 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].save()                                    
         if game.status == "fg":
             try:
-                update_elo(players,players[w])
+                update_elo(players,(players[w] if w != 4 else None))
             except Exception as error:
                 try:
                     player_alias_list = [f'{player.alias}, ' for player in players]
