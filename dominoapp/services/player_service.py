@@ -2,8 +2,9 @@ import os
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.shortcuts import redirect
@@ -258,4 +259,45 @@ class PlayerService:
             return redirect(app.store_link)
         
         return redirect('https://dominoclub.online/')
+    
+    @staticmethod
+    def process_rankin(request):
+        paginator = PageNumberPagination()
         
+        page_size = request.query_params.get("page_size", 100)
+        order_by = request.query_params.get("ordering", None)
+        
+        paginator.page_size = page_size  # Items por página
+        
+        queryset = Player.objects.all()
+        if order_by in ['elo', '-elo']:
+            queryset.order_by(order_by)
+        elif order_by in ['data_percent', '-data_percent']:
+            queryset = queryset.annotate(
+                total_games=F('dataWins') + F('dataLoss'),
+                data_percent=Case(
+                    When(total_games=0, then=Value(0.0)),
+                    default=ExpressionWrapper(
+                        F('dataWins') * 100.0 / F('total_games'),
+                        output_field=FloatField()
+                    ),
+                    output_field=FloatField()
+                )
+            ).order_by(order_by)
+        elif order_by in ['match_percent', '-match_percent']:
+            queryset = queryset.annotate(
+                total_games=F('matchWins') + F('matchLoss'),
+                match_percent=Case(
+                    When(total_games=0, then=Value(0.0)),
+                    default=ExpressionWrapper(
+                        F('matchWins') * 100.0 / F('total_games'),
+                        output_field=FloatField()
+                    ),
+                    output_field=FloatField()
+                )
+            ).order_by(order_by)
+            
+        result_page = paginator.paginate_queryset(queryset, request)
+        serializer = PlayerSerializer(result_page, many=True)
+        
+        return paginator.get_paginated_response(serializer.data)

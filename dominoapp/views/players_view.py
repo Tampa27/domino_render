@@ -8,7 +8,7 @@ from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
 from dominoapp.services.player_service import PlayerService
 from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
-from rest_framework.serializers import IntegerField, CharField
+from rest_framework.serializers import IntegerField, CharField, URLField
 
 
 class PlayerView(viewsets.ModelViewSet):
@@ -48,6 +48,38 @@ class PlayerView(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         response = super().list(request,*args, **kwargs)
         return Response({"status":'success',"player":response.data},status=status.HTTP_200_OK)
+    
+    @extend_schema(
+            operation_id="players_rankin",
+            parameters=[
+                OpenApiParameter(name="page", type=int),
+                OpenApiParameter(name="page_size", type=int,),
+                OpenApiParameter(name="ordering", type=str, enum=['elo', '-elo', 'data_percent', '-data_percent', 'match_percent', '-match_percent'])
+                ],
+            request=None,
+            responses={
+            status.HTTP_200_OK:inline_serializer(
+                name="player_ranking",
+                fields={
+                    "count": IntegerField(),
+                    "next": URLField(),
+                    "previous": URLField(),
+                    "results": PlayerSerializer(many=True)
+                }
+            )
+        }
+    )
+    @action(detail=False, methods=["get"])
+    def rankin(self, request, *args, **kwargs):
+        is_valid, message, status_response = PlayerRequest.validate_rankin(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+
+        return PlayerService.process_rankin(request)
     
     @extend_schema(
             responses={
