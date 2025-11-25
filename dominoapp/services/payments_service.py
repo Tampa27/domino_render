@@ -185,7 +185,7 @@ class PaymentService:
                     'status': 'p',
                     'amount': new_transaction.amount,
                     'type': 'rl',
-                    'time': new_transaction.time,
+                    'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'admin': None
                 }
             )
@@ -400,7 +400,7 @@ class PaymentService:
                     'status': 'p',
                     'amount': new_transaction.amount,
                     'type': 'ex',
-                    'time': new_transaction.time,
+                    'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'admin': None
                 }
             )
@@ -528,7 +528,7 @@ class PaymentService:
                     'status': 'ip',
                     'amount': transaction.amount,
                     'type': transaction.type,
-                    'time': transaction.time,
+                    'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'admin': admin.alias
                 }
             )
@@ -667,7 +667,7 @@ class PaymentService:
                     'status': 'cp',
                     'amount': transaction.amount,
                     'type': transaction.type,
-                    'time': transaction.time,
+                    'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'admin': admin.alias
                 }
             )
@@ -708,7 +708,7 @@ class PaymentService:
                     'status': 'cc',
                     'amount': transaction.amount,
                     'type': transaction.type,
-                    'time': transaction.time,
+                    'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'cancel_by': cancel_by.alias
                 }
             )
