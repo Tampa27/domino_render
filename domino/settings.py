@@ -91,8 +91,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
 ALLOWED_HOSTS = ["*",
-                 "ahmedlp9.pythonanywhere.com", 
-                 "dominoclubtest.pythonanywhere.com",
                  "https://dominoclubinfo-ar.github.io", 
                  "http://localhost:8081"]
 

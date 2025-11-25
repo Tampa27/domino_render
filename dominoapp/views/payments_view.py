@@ -25,7 +25,7 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     def get_permissions(self):
         if self.action in ["recharge", "extract", "select", "confirm"]:
             permission_classes = [IsAdminUser]
-        elif self.action in ["resume_game"]:
+        elif self.action in ["resume_game", "send_test_message"]:
             permission_classes = [AllowAny]
         elif self.action in ['promotion']:
             permission_classes = [IsSuperAdminUser]       
@@ -525,3 +525,30 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
         
         return PaymentService.process_payment(request)
     
+    @action(detail=False, methods=["post"])
+    def send_test_message(self, request):
+        """Endpoint para enviar mensajes de prueba"""
+        from rest_framework.response import Response
+        from dominoapp.connectors.pusher_connector import PushNotificationConnector
+        try:
+            print("enviando mensaje de prueba")
+            data = request.data
+            message = data.get('message', 'Hola Mundo!')
+            channel = data.get('channel', 'test-channel')
+            event = data.get('event', 'hello-event')
+            
+            pusher_client = PushNotificationConnector.push_notification(
+                channel, 
+                event, 
+                {
+                    'message': message,
+                    'timestamp': 'Enviado desde Django',
+                    'from': 'backend'
+                })
+            print("mensaje enviado")
+            
+            
+            return Response(data={'status': 'Mensaje enviado', 'channel': channel}, status=200)
+        
+        except Exception as e:
+            return Response(data={'error': str(e)}, status=400)

@@ -43,13 +43,13 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
     try:
         if not from_user and not to_user:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: At least one of the from_user or to_user fields should not be empty")
-            return False    
+            return None    
         if not  amount>0:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must greater than 0")
-            return False
+            return None
         if not status in ["p", "cp", "cc"]:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: status is not correct")
-            return False
+            return None
         
         new_status = Status_Transaction.objects.create(status = 'p' if status==None else status)
         new_transaction = Transaction.objects.create(
@@ -67,11 +67,11 @@ def create_reload_transactions(amount, from_user:Player=None, to_user:Player=Non
         new_transaction.status_list.add(new_status)
     
         logger_api.info(f"Transaction of {amount} pesos satisfactory of {from_user} for {to_user}")
-        return True
+        return new_transaction
     except Exception as e:
         print(f"error: {e}")
         logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
-        return False
+        return None
     
 
 def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, external_id=None, paymentmethod=None, bankaccount=None, descriptions=None, whatsapp_url=None):
@@ -79,13 +79,13 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
     try:
         if not from_user and not to_user:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: At least one of the from_user or to_user fields should not be empty")
-            return False    
+            return None    
         if not  amount>0:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: The amount must greater than 0")
-            return False
+            return None
         if not status in ["p", "cp", "cc"]:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: status is not correct")
-            return False
+            return None
         
         new_status = Status_Transaction.objects.create(status = 'p' if status==None else status)
         new_transaction = Transaction.objects.create(
@@ -104,11 +104,11 @@ def create_extracted_transactions(amount, from_user:Player=None, to_user:Player=
         new_transaction.status_list.add(new_status)
     
         logger_api.info(f"Transaction of {amount} pesos satisfactory of {from_user} for {to_user}")
-        return True
+        return new_transaction
     except Exception as e:
         print(f"error: {e}")
         logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
-        return False
+        return None
     
     
 def create_promotion_transactions(amount, from_user:Player=None, to_user:Player=None, status=None, admin:Player=None, descriptions=None):
