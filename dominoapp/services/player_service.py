@@ -296,6 +296,10 @@ class PlayerService:
                     output_field=FloatField()
                 )
             ).order_by(order_by)
+        elif order_by in ['total_coins', '-total_coins']:
+            queryset = queryset.annotate(
+                total_coins=F('earned_coins') + F('recharged_coins')
+            ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
         serializer = PlayerSerializer(result_page, many=True)

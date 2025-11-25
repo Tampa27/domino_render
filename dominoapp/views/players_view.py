@@ -54,7 +54,12 @@ class PlayerView(viewsets.ModelViewSet):
             parameters=[
                 OpenApiParameter(name="page", type=int),
                 OpenApiParameter(name="page_size", type=int,),
-                OpenApiParameter(name="ordering", type=str, enum=['elo', '-elo', 'data_percent', '-data_percent', 'match_percent', '-match_percent'])
+                OpenApiParameter(name="ordering", type=str, enum=[
+                    'elo', '-elo', 
+                    'data_percent', '-data_percent', 
+                    'match_percent', '-match_percent',
+                    'total_coins', '-total_coins'
+                    ])
                 ],
             request=None,
             responses={
