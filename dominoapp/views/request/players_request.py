@@ -175,3 +175,25 @@ class PlayerRequest:
             return is_valid, message, status_response       
 
         return True, message, status_response
+    
+    
+    @staticmethod
+    def validate_rankin(request):
+        is_valid = False
+        message = None
+        status_response = None
+        
+        validators = {
+            "ordering": RequestValidator.validate_string,
+            "page": RequestValidator.validate_numeric,
+            "page_size": RequestValidator.validate_numeric
+        }
+        
+        is_valid, message = RequestValidator.validate_query_params(request, validators)
+
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response       
+
+        return True, message, status_response
