@@ -394,8 +394,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 update_elo(players,players[w])
             except Exception as error:
                 try:
-                    player_alias_list = (f'{player.alias}, ' for player in players)
-                    logger_discord.error(f"Error actualizando los ELOS individuales, players: [{player_alias_list}], winner:{players[w].alias if w < len(players) else "INVALID_INDEX"}, Detalles del Error: {error}")
+                    player_alias_list = [f'{player.alias}, ' for player in players]
+                    logger_discord.error(f"Error actualizando los ELOS individuales en el game: {game.id}, players: [{player_alias_list}], winner:{players[w].alias if w < len(players) else f'INVALID_INDEX: {w}'}, Detalles del Error: {error}")
                 except:
                     logger_discord.critical(f"Error en actualizar los ElOS individuales y al capturar el error, players: {players}, winner: {w}")
     bank.save(update_fields=['game_coins'])
