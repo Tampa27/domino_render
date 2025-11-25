@@ -16,6 +16,7 @@ from dominoapp.utils.payment_utils import validate_tranfer
 from dominoapp.utils.whatsapp_help import get_whatsapp_extraction_text, get_whatsapp_reload_text
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.connectors.paypal_connector import PayPalConnector
+from dominoapp.connectors.pusher_connector import PushNotificationConnector
 logger = logging.getLogger('django')
 
 
@@ -145,7 +146,7 @@ class PaymentService:
         
         transactions_exist = transactions.exists()
         
-        send_request = False 
+        send_request = False
         if not transactions_exist or player.phone != request.data["phone"]:
               
             player.phone = request.data["phone"]
@@ -160,7 +161,7 @@ class PaymentService:
                 player_phone= player.phone
             )
             
-            create_reload_transactions(
+            new_transaction = create_reload_transactions(
                 to_user=player, amount=int(request.data["coins"]), status="p", external_id=transaction_id,
                 whatsapp_url=whatsapp_url
                 )
@@ -174,6 +175,18 @@ class PaymentService:
                     'player_phone': request.data["phone"],
                     'transaction_id': transaction_id,
                     'whatsapp_url': whatsapp_url
+                }
+            )
+                      
+            PushNotificationConnector.push_notification(
+                channel= f"transaction_{new_transaction.id}",
+                event_name="new_transaction",
+                data_notification={
+                    'status': 'p',
+                    'amount': new_transaction.amount,
+                    'type': 'rl',
+                    'time': new_transaction.time,
+                    'admin': None
                 }
             )
         
@@ -360,7 +373,7 @@ class PaymentService:
                 player_phone= request.data["phone"]
             )
             
-            create_extracted_transactions(
+            new_transaction = create_extracted_transactions(
                 from_user=player, amount=int(request.data["coins"]), status="p",
                 bankaccount=bankaccount, external_id=transaction_id,
                 whatsapp_url=whatsapp_url
@@ -377,6 +390,18 @@ class PaymentService:
                     'player_phone': request.data["phone"],
                     'transaction_id': transaction_id,
                     'whatsapp_url': whatsapp_url
+                }
+            )
+            
+            PushNotificationConnector.push_notification(
+                channel= f"transaction_{new_transaction.id}",
+                event_name="new_transaction",
+                data_notification={
+                    'status': 'p',
+                    'amount': new_transaction.amount,
+                    'type': 'ex',
+                    'time': new_transaction.time,
+                    'admin': None
                 }
             )
         
@@ -495,6 +520,18 @@ class PaymentService:
         
         new_status = Status_Transaction.objects.create(status = 'ip')
         transaction.status_list.add(new_status)
+        
+        PushNotificationConnector.push_notification(
+                channel= f"transaction_{transaction.id}",
+                event_name="update_transaction",
+                data_notification={
+                    'status': 'ip',
+                    'amount': transaction.amount,
+                    'type': transaction.type,
+                    'time': transaction.time,
+                    'admin': admin.alias
+                }
+            )
         
         return Response(status=status.HTTP_204_NO_CONTENT)
     
@@ -623,6 +660,17 @@ class PaymentService:
         
         new_status = Status_Transaction.objects.create(status = 'cp')
         transaction.status_list.add(new_status)
+        PushNotificationConnector.push_notification(
+                channel= f"transaction_{transaction.id}",
+                event_name="update_transaction",
+                data_notification={
+                    'status': 'cp',
+                    'amount': transaction.amount,
+                    'type': transaction.type,
+                    'time': transaction.time,
+                    'admin': admin.alias
+                }
+            )
         if transaction.type == 'rl':
             PaymentService.reload_coins(transaction)
             return Response({'status': 'success', "message":'Reload confirm'}, status=status.HTTP_200_OK)
@@ -653,6 +701,18 @@ class PaymentService:
         new_status = Status_Transaction.objects.create(status = 'cc')
         transaction.status_list.add(new_status)
         
+        PushNotificationConnector.push_notification(
+                channel= f"transaction_{transaction.id}",
+                event_name="update_transaction",
+                data_notification={
+                    'status': 'cc',
+                    'amount': transaction.amount,
+                    'type': transaction.type,
+                    'time': transaction.time,
+                    'cancel_by': cancel_by.alias
+                }
+            )
+         
         return Response(status=status.HTTP_204_NO_CONTENT)
         
     @staticmethod
@@ -788,8 +848,4 @@ class PaymentService:
                 "status": "error",
                 "message": "Failed to capture payment"
             }, status=status.HTTP_400_BAD_REQUEST)
-    
 
-      
-
-        
