@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.shortcuts import redirect
 from fcm_django.models import FCMDevice
 from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers
-from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
+from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
@@ -302,6 +302,6 @@ class PlayerService:
             ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
-        serializer = PlayerSerializer(result_page, many=True)
+        serializer = PlayerRankinSerializer(result_page, many=True)
         
         return paginator.get_paginated_response(serializer.data)
