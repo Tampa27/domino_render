@@ -25,7 +25,7 @@ def get_device_hash(request):
 
 def win_expectation_player1_vs_player2(R_player_1: Decimal, R_player_2: Decimal)->Decimal:
      """Calcula la expectativa de victoria del jugador 1 contra el jugador 2 usando la fórmula Elo."""
-     E_p1_vs_p2 =1/(1 + 10**((R_player_1 - R_player_2)/400))
+     E_p1_vs_p2 =1/(1 + 10**((R_player_2 - R_player_1)/400))
      return E_p1_vs_p2
 
 def rate_change(E_player: Decimal, S_player: Decimal, K_player: int)->Decimal:
