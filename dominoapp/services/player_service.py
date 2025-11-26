@@ -283,7 +283,7 @@ class PlayerService:
                     ),
                     output_field=FloatField()
                 )
-            ).order_by(order_by)
+            ).filter(total_games__gte = 100).order_by(order_by)
         elif order_by in ['match_percent', '-match_percent']:
             queryset = queryset.annotate(
                 total_games=F('matchWins') + F('matchLoss'),
@@ -295,7 +295,7 @@ class PlayerService:
                     ),
                     output_field=FloatField()
                 )
-            ).order_by(order_by)
+            ).filter(total_games__gte = 20).order_by(order_by)
         elif order_by in ['total_coins', '-total_coins']:
             queryset = queryset.annotate(
                 total_coins=F('earned_coins') + F('recharged_coins')
