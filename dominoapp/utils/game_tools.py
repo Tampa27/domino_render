@@ -287,9 +287,9 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
             n_p+=1
     if game.inPairs:
         for i in range(n):
-            if i == w or i == ((w+2)%4):
+            if (i == w or i == ((w+2)%4)) and w < 4:
                 players[i].dataWins+=1
-                if game.payWinValue > 0 and w != 4:
+                if game.payWinValue > 0:
                     bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)
                     player_coins = (game.payWinValue-bank_coins)
                     bank.game_coins+=(bank_coins)
@@ -369,9 +369,9 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             descriptions=f"gane en el juego {game.id}",
                             move_register=move_register)
                 players[i].save()
-            elif players[i].isPlaying == True:
+            elif players[i].isPlaying == True and w < 4:
                 players[i].dataLoss+=1
-                if game.payWinValue > 0 and w != 4:
+                if game.payWinValue > 0:
                     players[i].earned_coins-=game.payWinValue
                     if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
@@ -394,7 +394,7 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                 players[i].save()                                    
         if game.status == "fg":
             try:
-                update_elo(players,(players[w] if w != 4 else None))
+                update_elo(players,(players[w] if w < 4 else None))
             except Exception as error:
                 try:
                     player_alias_list = [f'{player.alias}, ' for player in players]
