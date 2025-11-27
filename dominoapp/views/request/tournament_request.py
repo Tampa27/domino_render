@@ -48,3 +48,20 @@ class TournamentRequest:
             return is_valid, message, status_response     
 
         return True, message, status_response
+
+    @staticmethod
+    @staticmethod
+    def validate_tournament_id(tournament_id):
+        is_valid = False
+        message = None
+        status_response = None
+
+        is_valid = RequestValidator.validate_numeric(tournament_id)
+
+        if not is_valid:
+            message = "Tournament ID have wrong value"
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response       
+
+        return True, message, status_response
+    

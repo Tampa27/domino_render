@@ -62,4 +62,51 @@ class TournamentsView(viewsets.ModelViewSet):
                 "message": message
             }, status = status_response)
         return TournamentService.process_create(request)
-    ###################################
+    
+
+    @extend_schema(
+            operation_id="tournament_join",
+            request= None,
+            responses={
+            200: inline_serializer(
+                name="Join Game",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            400: inline_serializer(
+                name="Join Game Error",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Join Game Not Found",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Join Game Conflict",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            )            
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def join(self, request, pk):
+
+        is_valid, message, status_response = TournamentRequest.validate_tournament_id(pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return TournamentService.process_join(request, pk)

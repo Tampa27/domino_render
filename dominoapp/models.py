@@ -43,7 +43,8 @@ class Player(models.Model):
     ## Localizacion del player
     lat = models.DecimalField(max_digits=9, decimal_places=7, null=True, blank=True)
     lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-    
+    timezone = models.CharField(max_length=50, default="America/Havana")
+
     @property
     def total_coins(self):
         return self.earned_coins + self.recharged_coins
@@ -238,7 +239,20 @@ class Round(models.Model):
     game_list = models.ManyToManyField(DominoGame, related_name="games_in_round") # lista de mesas que se van a usar en la ronda
     start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza la ronda.
     end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo la ronda
-    
+
+    def save(self, *arg, **kwargs):
+        existing_rounds = Round.objects.filter(tournament__id=self.tournament.id).order_by('round_no').values_list('round_no', flat=True)
+        no = 1
+        for number in existing_rounds:
+            if no != int(number):
+                self.round_no = no
+                break
+            elif no == len(existing_rounds):
+                self.round_no = no + 1
+                break
+            no += 1
+        return super().save(*arg, **kwargs)
+
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
