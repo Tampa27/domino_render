@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -43,7 +44,8 @@ class Player(models.Model):
     ## Localizacion del player
     lat = models.DecimalField(max_digits=9, decimal_places=7, null=True, blank=True)
     lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
-    
+    timezone = models.CharField(max_length=50, default="America/Havana")
+
     @property
     def total_coins(self):
         return self.earned_coins + self.recharged_coins
@@ -57,6 +59,24 @@ class Player(models.Model):
         else:
             return 10
 
+    @property
+    def play_tournament(self):
+        tournaments_list = Tournament.objects.filter(Q(status='ready')|Q(status='ru'), player_list=self)
+        if tournaments_list.exists():
+            for tournament in tournaments_list:
+                round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
+                
+                if round.winner_pair_list.filter(Q(player1__id = self.id)| Q(player2__id=self.id)).exists():
+                    return True
+                elif round.game_list.filter(
+                        Q(player1__id=self.id)|
+                        Q(player2__id=self.id)|
+                        Q(player3__id=self.id)|
+                        Q(player4__id=self.id)
+                    ).exists():
+                        return True
+        return False
+        
     def __str__(self):
         return self.alias
     
@@ -138,6 +158,11 @@ class Tournament(models.Model):
     startWinner = models.BooleanField(default=False)
     moveTime = models.SmallIntegerField(default=10)
     min_player = models.IntegerField(default=8)
+    max_player = models.IntegerField(default=64)
+    
+    notification_1 = models.BooleanField(default=False)
+    notification_30 = models.BooleanField(default=False)
+    notification_5 = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.tournament_no:
@@ -225,29 +250,89 @@ class DominoGame(models.Model):
                 no += 1
         return super().save(*args, **kwargs)
 
+    @property
+    def in_tournament(self, ):
+        if self.tournament is not None:
+            return True
+        return False
+    
 class Match_Game(models.Model):
     game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
     count_game = models.IntegerField(default=1)
     player_list = models.ManyToManyField(Player, related_name="players_in_game") # Lista de player en la ronda
-    pair_list = models.ManyToManyField(Player, related_name="pairs_in_game") # Lista de parejas en la ronda
+    pair_list = models.ManyToManyField(Pair, related_name="pairs_in_game") # Lista de parejas en la ronda
     games_win_team_1 = models.IntegerField(default=0)
     games_win_team_2 = models.IntegerField(default=0)
     start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza el partido.
     end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el partido
     
+    @property
+    def is_final_match(self):
+        if self.games_win_team_1 == 2 or self.games_win_team_2==2:
+            return True
+        return False
+    
+    @property
+    def winner_pair_1(self):
+        if self.games_win_team_1 == 2:
+            return True
+        return False
+    
+    @property
+    def winner_pair_2(self):
+        if self.games_win_team_2 == 2:
+            return True
+        return False
+    
 class Round(models.Model):
     tournament = models.ForeignKey(Tournament, related_name="round_in_tournament", on_delete=models.CASCADE)
     player_list = models.ManyToManyField(Player, related_name="players_in_round") # Lista de player en la ronda
     pair_list = models.ManyToManyField(Pair, related_name="pairs_in_round") # Lista de parejas en la ronda
-    round_no = models.IntegerField(default=1)
+    round_no = models.IntegerField(null=True, blank=True)
     game_list = models.ManyToManyField(DominoGame, related_name="games_in_round") # lista de mesas que se van a usar en la ronda
     start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza la ronda.
     end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo la ronda
+    winner_pair_list = models.ManyToManyField(Pair, related_name="winner_pairs_in_round", null=True, blank=True) # Lista de parejas ganadoras en esta ronda
+    
+    def save(self, *arg, **kwargs):
+        if self.round_no is None:
+            existing_rounds = Round.objects.filter(tournament__id=self.tournament.id).order_by('round_no').values_list('round_no', flat=True)
+            if existing_rounds.exists():
+                no = 1            
+                for number in existing_rounds:
+                    if no != int(number):
+                        self.round_no = no
+                        break
+                    elif no == len(existing_rounds):
+                        self.round_no = no + 1
+                        break
+                    no += 1
+            else:
+                self.round_no = 1
+        return super().save(*arg, **kwargs)
+
+    @property
+    def end_round(self):
+        total_wins_pair = self.winner_pair_list.all().count()
+        total_pair = self.pair_list.all().count()
+        if total_pair // 2 == total_wins_pair:
+            return True
+        return False
+    
+    @property
+    def final_round(self):
+        total_wins_pair = self.winner_pair_list.all().count()
+        total_pair = self.pair_list.all().count()
+        if total_pair // 2 == 1 and total_wins_pair == 1:
+            return True
+        return False
+    
     
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
     transfer_coins = models.PositiveIntegerField(default=0)
+    tournament_coins = models.PositiveIntegerField(default=0)
     promotion_coins = models.PositiveIntegerField(default=0)
     game_coins = models.PositiveIntegerField(default=0)
     game_played = models.PositiveIntegerField(default=0)

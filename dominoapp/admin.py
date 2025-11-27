@@ -51,9 +51,10 @@ class TournamentAdmin(admin.ModelAdmin):
     class TournamentForm(forms.ModelForm):
         class Meta:
             model = Tournament
-            exclude = ["player_list"]
+            exclude = []
 
     list_display = [
+        "id",
         "tournament_no",
         "variant",
         "status",
@@ -99,20 +100,22 @@ class MatchPlayers(admin.TabularInline):
 class MatchPairs(admin.TabularInline):
     model = Match_Game.pair_list.through
     inline_actions = []
-    fields=['player1', 'player2']
+    fields=['ids','player1', 'player2']
     readonly_fields = fields
     can_delete = False
     extra = 0
     max_num = 0
 
+    def ids(self, instance):
+        return instance.pair.id
       
     def player1(self, instance):
-        url = reverse("admin:dominoapp_player_change", args=[instance.player1.id])
-        return format_html(f'<a href="{url}" target="_blank">{instance.player1.alias}</a>')
+        url = reverse("admin:dominoapp_player_change", args=[instance.pair.player1.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.pair.player1.alias}</a>')
     
     def player2(self, instance):
-        url = reverse("admin:dominoapp_player_change", args=[instance.player2.id])
-        return format_html(f'<a href="{url}" target="_blank">{instance.player2.alias}</a>')
+        url = reverse("admin:dominoapp_player_change", args=[instance.pair.player2.id])
+        return format_html(f'<a href="{url}" target="_blank">{instance.pair.player2.alias}</a>')
 
 class Match_GameAdmin(admin.ModelAdmin):
     class MatchForm(forms.ModelForm):
@@ -203,6 +206,7 @@ class RoundAdmin(admin.ModelAdmin):
     
     list_display = [
         "id",
+        "tournament",
         "count_players",
         "count_pairs",
         "round_no",

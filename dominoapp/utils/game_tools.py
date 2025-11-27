@@ -1,7 +1,5 @@
 from rest_framework.response import Response
-from ..models import Player
-from ..models import DominoGame, MoveRegister
-from ..models import Bank
+from dominoapp.models import Player, DominoGame, MoveRegister,Bank, Match_Game
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 import random
@@ -166,6 +164,10 @@ def movement(game_id,player,players,tile, automatic=False):
                 game.winner = w
                 if game.perPoints:
                     game.rounds+=1
+                    if game.in_tournament:
+                        match = Match_Game.objects.get(game__id = game.id)
+                        match.count_game += 1
+                        match.save(update_fields=["count_game"])
                     updateAllPoints(game,players,w,move_register,isCapicua)
                 else:
                     updatePlayersData(game,players,w,"fg",move_register)
@@ -184,6 +186,10 @@ def movement(game_id,player,players,tile, automatic=False):
             game.winner = winner
             if game.perPoints:
                 game.rounds+=1
+                if game.in_tournament:
+                    match = Match_Game.objects.get(game__id = game.id)
+                    match.count_game += 1
+                    match.save(update_fields=["count_game"])
             if winner < DominoGame.Tie_Game:
                 if game.startWinner:
                     game.starter = winner
@@ -221,6 +227,7 @@ def movement(game_id,player,players,tile, automatic=False):
         if game.status == "fg":
             bank.data_completed+=1
             bank.game_completed+=1
+            
         elif game.status == "fi":
             bank.data_completed+=1
         
@@ -697,11 +704,19 @@ def updateTeamScore(game: DominoGame, winner: int, players, sum_points, move_reg
         updatePlayersData(game,players,winner,"fg",move_register)
         game.start_time = timezone.now()
         game.winner = DominoGame.Winner_Couple_1 #Gano el equipo 1
+        if game.in_tournament:
+            match = Match_Game.objects.get(game__id = game.id)
+            match.games_win_team_1 += 1
+            match.save(update_fields=["games_win_team_1"])
     elif game.scoreTeam2 >= game.maxScore:
         game.status="fg"
         updatePlayersData(game,players,winner,"fg", move_register)
         game.start_time = timezone.now()
         game.winner = DominoGame.Winner_Couple_2 #Gano el equipo 2
+        if game.in_tournament:
+            match = Match_Game.objects.get(game__id = game.id)
+            match.games_win_team_2 += 1
+            match.save(update_fields=["games_win_team_2"])
     else:
         updatePlayersData(game,players,winner,"fi",move_register)
         game.status="fi"    
