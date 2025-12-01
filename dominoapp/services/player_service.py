@@ -296,9 +296,9 @@ class PlayerService:
                     output_field=FloatField()
                 )
             ).filter(total_games__gte = 20).order_by(order_by)
-        elif order_by in ['total_coins', '-total_coins']:
+        elif order_by in ['coins', '-coins']:
             queryset = queryset.annotate(
-                total_coins=F('earned_coins') + F('recharged_coins')
+                coins=F('earned_coins') + F('recharged_coins')
             ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
