@@ -58,7 +58,7 @@ class PlayerView(viewsets.ModelViewSet):
                     'elo', '-elo', 
                     'data_percent', '-data_percent', 
                     'match_percent', '-match_percent',
-                    'total_coins', '-total_coins'
+                    'coins', '-coins'
                     ])
                 ],
             request=None,
