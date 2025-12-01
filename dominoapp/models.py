@@ -63,6 +63,11 @@ class Player(models.Model):
     class Meta:
         ordering = ['alias']
     
+    def save(self, *args, **kwargs):
+        if self.elo<0:
+            self.elo=0
+        return super().save(*args, **kwargs)
+    
 
 class Pair(models.Model):
     player1 = models.ForeignKey(Player,related_name="pair_1",on_delete=models.CASCADE)

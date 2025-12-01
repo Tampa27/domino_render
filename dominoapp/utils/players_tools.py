@@ -37,23 +37,43 @@ def update_elo(players: list[Player], winner: Player= None)->None:
     """Actualiza las calificaciones Elo de los jugadores después de un juego."""
     # Calcular todos los cambios primero
     elo_changes = {}
+    total_net_change = Decimal(0)
     for player in players:
         total_change = Decimal(0)
+        
+        if winner is None:
+            S_player = Decimal(0.5)
+        elif player.id == winner.id:
+            S_player = Decimal(1)
+        else:
+            S_player = Decimal(0)
+        
         for opponent in players:
             if player.id != opponent.id:
-                E_player1_vs_player2 = win_expectation_player1_vs_player2(player.elo, opponent.elo)
-                if winner is None:
-                    S_player = Decimal(0.5)
-                elif player.id == winner.id:
-                    S_player = Decimal(1)
-                else:
-                    S_player = Decimal(0)
-                delta_R_player1 = rate_change(E_player1_vs_player2, S_player, player.elo_factor)
-                total_change += delta_R_player1
+                E_player_vs_opponent = win_expectation_player1_vs_player2(player.elo, opponent.elo)         
+                delta_R_player = rate_change(E_player_vs_opponent, S_player, player.elo_factor)
+                total_change += delta_R_player
+        
         elo_changes[player.id] = total_change
+        total_net_change += total_change # Suma de todos los Delta_R
+    
+    # 2. Normalizar: Aplicar corrección para forzar Suma Cero
+    
+    # La corrección es el valor negativo de la pérdida, distribuida entre los jugadores.
+    # Ejemplo: Si se perdieron 20 puntos (total_net_change = -20), la corrección debe ser +20 / 3 jugadores.
+    
+    num_players = len(players)
+    if num_players > 0:
+        # Corrección individual = - (Cambio Total Neto) / (Número de Jugadores)
+        correction_factor = -total_net_change / num_players
+    else:
+        return # No hay jugadores, salir
     
     for player in players:            
-        player.elo += elo_changes[player.id]
+        # El cambio final es el cambio original + el factor de corrección.
+        final_delta_R = elo_changes[player.id] + correction_factor
+        
+        player.elo += final_delta_R
         player.save(update_fields=['elo'])
     
 
