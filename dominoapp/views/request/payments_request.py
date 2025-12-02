@@ -57,7 +57,8 @@ class PaymentRequest:
 
         validators = {
             "coins": RequestValidator.validate_numeric,
-            "phone": RequestValidator.validate_phone_number
+            "phone": RequestValidator.validate_phone_number,
+            "paymentmethod": (RequestValidator.validate_in_array_0, TransactionPaymentMethod.payment_choices)
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

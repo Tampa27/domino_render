@@ -163,7 +163,8 @@ class PaymentService:
             
             new_transaction = create_reload_transactions(
                 to_user=player, amount=int(request.data["coins"]), status="p", external_id=transaction_id,
-                whatsapp_url=whatsapp_url
+                whatsapp_url=whatsapp_url,
+                paymentmethod=request.data.get('paymentmethod', None)
                 )
             
             send_request = DiscordConnector.send_transaction_request(
