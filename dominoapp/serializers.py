@@ -1,7 +1,7 @@
 import os
 from rest_framework import serializers
 from decimal import Decimal
-from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction
+from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -203,13 +203,30 @@ class CreateMoveRegister(serializers.ModelSerializer):
 
 class ListTransactionsSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
-    from_user = PlayerLoginSerializer()
-    to_user = PlayerLoginSerializer()
+    user = serializers.SerializerMethodField()
+    coins = serializers.SerializerMethodField()
     admin = PlayerLoginSerializer()
     
     def get_status(self, obj: Transaction) -> str:
         return obj.get_status
     
+    def get_user(self, obj: Transaction) -> dict:
+        if obj.from_user is not None:
+            serializers = PlayerLoginSerializer(obj.from_user)
+            return serializers.data
+        elif obj.to_user is not None:
+            serializers = PlayerLoginSerializer(obj.to_user)
+            return serializers.data
+        return None
+    
+    def get_coins(self, obj: Transaction) -> int:
+        recharged_coins = int(obj.amount)
+        paymentmethod = obj.paymentmethod if obj.paymentmethod is not None else 'transferencia' 
+        currency_rate = CurrencyRate.objects.filter(code=paymentmethod)
+        if currency_rate:
+            recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
+        return recharged_coins
+    
     class Meta:
         model = Transaction
-        fields = ['id', 'from_user', 'to_user', 'amount', 'type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'whatsapp_url']
+        fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'whatsapp_url']
