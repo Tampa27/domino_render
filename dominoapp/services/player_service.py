@@ -271,9 +271,7 @@ class PlayerService:
         
         queryset = Player.objects.all()
         if order_by in ['elo', '-elo']:
-            queryset = queryset.annotate(
-                total_data=F('dataWins') + F('dataLoss')
-                ).exclude(total_data=0, elo=1500).order_by(order_by)
+            queryset = queryset.exclude(elo=1500).order_by(order_by)
         elif order_by in ['data_percent', '-data_percent']:
             queryset = queryset.annotate(
                 total_games=F('dataWins') + F('dataLoss'),
