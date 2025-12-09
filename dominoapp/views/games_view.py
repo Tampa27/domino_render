@@ -12,7 +12,7 @@ from rest_framework.serializers import BooleanField, IntegerField, CharField
 
 
 class GameView(viewsets.ModelViewSet):
-    queryset = DominoGame.objects.all()
+    queryset = DominoGame.objects.filter(tournament__isnull=True)
     serializer_class = GameSerializer
     permission_classes = [IsAuthenticated]    
 

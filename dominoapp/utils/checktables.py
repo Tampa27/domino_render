@@ -4,11 +4,15 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
 
 from dominoapp.utils import game_tools
-from dominoapp.models import DominoGame
+from dominoapp.models import DominoGame, Tournament, User, Match_Game, Round
+from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from django.utils import timezone
+from django.utils.timezone import timedelta
 from django.db import connection
 from dominoapp.utils.constants import ApiConstants
+from dominoapp.services.tournament_service import TournamentService
 import logging
+import pytz
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
@@ -39,22 +43,99 @@ def automatic_move_in_game():
                         automaticMove(game,players_running)
                     except Exception as e:
                         logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)},\n Data:(player_index: {game.next_player}, playes_in: {len(players_running)} ),\n error: {str(e)}')    
-            elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi':
+            elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
                 try:
                     restargame = True
                     if game.status == 'fg':
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInSystem
-                            if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player)) and player.isPlaying:
+                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament) and player.isPlaying:
                                 game_tools.exitPlayer(game,player,players,len(players))
                         players = game_tools.playersCount(game)
                         if len(players)<2:
                             restargame = False
+                        if game.in_tournament:
+                            match = Match_Game.objects.get(game__id = game.id)
+                            if match.is_final_match:
+                                restargame = False
+                                round = Round.objects.get(tournament__id=game.tournament.id, game_list = game)
+                                if match.winner_pair_1:                                    
+                                    round.winner_pair_list.add(match.pair_list.first())
+                                    if not round.end_round:
+                                        FCMNOTIFICATION.send_fcm_message(
+                                            user= match.pair_list.first().player1.user,
+                                            title= "✅ Partido Completado",
+                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                        )
+                                        FCMNOTIFICATION.send_fcm_message(
+                                            user= match.pair_list.first().player2.user,
+                                            title= "✅ Partido Completado",
+                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                        )
+                                
+                                if match.winner_pair_2:
+                                    round.winner_pair_list.add(match.pair_list.last())
+                                    if not round.final_round:
+                                        FCMNOTIFICATION.send_fcm_message(
+                                            user= match.pair_list.last().player1.user,
+                                            title= "✅ Partido Completado",
+                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                        )
+                                        FCMNOTIFICATION.send_fcm_message(
+                                            user= match.pair_list.last().player2.user,
+                                            title= "✅ Partido Completado",
+                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                        )
+                                    
+                                for player in players:
+                                    game_tools.exitPlayer(game,player,players,len(players))
+                                    players = game_tools.playersCount(game)
+                                
+                                match.end_at = timezone.now()
+                                match.save(update_fields=["end_at"])
+                                
+                                if round.end_round:
+                                    
+                                    round.end_at = timezone.now()
+                                    round.save(update_fields=["end_at"])
+                                    
+                                    if round.final_round:
+                                        game.tournament.active = False
+                                        game.tournament.end_at = timezone.now()
+                                        game.tournament.status = 'tf'
+                                        game.tournament.save(update_fields=['active','end_at', 'status'])
+                                        
+                                        winner_pair = round.winner_pair_list.first()
+                                        ###### Notificar a los jugadores del torneo
+                                        for player in game.tournament.player_list.all():
+                                            FCMNOTIFICATION.send_fcm_message(
+                                                user= player.user,
+                                                title= "🏆 Torneo Finalizado",
+                                                body=f"El torneo ha finalizado. ¡Felicidades a {winner_pair.player1.name} y {winner_pair.player2.name} ganadores de este torneo!"
+                                            )
+                                                                                
+                                        ##### asignar premios a los ganadores ############
+                                        second_pair = round.pair_list.exclude(id=winner_pair.id).first()
+                                        TournamentService.process_pay_winners(game.tournament,winner_pair, second_pair)
+                                        ##################################################
+                                    else:
+                                        for pair in round.winner_pair_list.all():
+                                            FCMNOTIFICATION.send_fcm_message(
+                                                user= pair.player1.user,
+                                                title= "⏰ Recordatorio de inicio",
+                                                body=f"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
+                                            )
+                                            FCMNOTIFICATION.send_fcm_message(
+                                                user= pair.player2.user,
+                                                title= "⏰ Recordatorio de inicio",
+                                                body=f"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
+                                            )
+                                        
                     if restargame:
                         automaticStart(game,players)
                 except Exception as e:
                     logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
-            elif game.status == 'fg' or game.status == 'wt' or game.status == 'ready':
+            elif (game.status == 'fg' or game.status == 'wt' or game.status == 'ready') and not game.in_tournament:
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
                     if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player)) and player.isPlaying:
@@ -67,7 +148,92 @@ def automatic_move_in_game():
                     game.starter=-1
                     game.board = ""
                     game.save()
+    except Exception as error:
+        logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
+    
+    try:
+        tournaments = Tournament.objects.filter(active=True).iterator()
+        for tournament in tournaments:
+            # analizar si el numero de player es par
+            now = timezone.now()
+            if (
+                (tournament.deadline < now < tournament.start_at and 
+                tournament.player_list.count()%2 != 0 and 
+                int(tournament.player_list.count()) < int(tournament.max_player)) or
+                (tournament.deadline < now < tournament.start_at and 
+                int(tournament.player_list.count()) < int(tournament.min_player))
+                ):
+                tournament.deadline += timedelta(days=1)
+                tournament.start_at += timedelta(days=1)
+                tournament.save(update_fields=['deadline', 'start_at'])
+                for player in tournament.player_list.all():
+                    FCMNOTIFICATION.send_fcm_message(
+                        user= player.user,
+                        title= "⏰ Fechas del Torneo Corridas",
+                        body=f"El torneo se pospuso para el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {tournament.deadline.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')}."
+                    )
+                
+                FCMNOTIFICATION.send_fcm_global_message(
+                    title="⏰ Últimas horas para inscribirte al torneo",
+                    body= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
+                )
+            
+            diff_start = tournament.start_at - timedelta(hours=2)
+            if  diff_start < now and not tournament.notification_1:
+                for player in tournament.player_list.all():
+                    FCMNOTIFICATION.send_fcm_message(
+                        user= player.user,
+                        title= "⏰ Recordatorio de inicio",
+                        body=f"Recordatorio: El torneo comienza el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d de %B')} a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. Te esperamos puntual."
+                    )
+                tournament.notification_1 = True
+                tournament.save(update_fields=['notification_1'])
+            
+            diff_start = tournament.start_at - timedelta(minutes=30)
+            if  diff_start < now and not tournament.notification_30:
+                for player in tournament.player_list.all():
+                    FCMNOTIFICATION.send_fcm_message(
+                        user= player.user,
+                        title= "⏰ Recordatorio de inicio",
+                        body=f"Recordatorio: El torneo comienza en 30 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Prepárate para jugar!"
+                    )
+                tournament.notification_30 = True
+                tournament.save(update_fields=['notification_30'])
+            
+            diff_start = tournament.start_at - timedelta(minutes=5)
+            if  diff_start < now and not tournament.notification_5:
+                for player in tournament.player_list.all():
+                    FCMNOTIFICATION.send_fcm_message(
+                        user= player.user,
+                        title= "⏰ Recordatorio de inicio",
+                        body=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
+                    )
+                tournament.notification_5 = True
+                tournament.save(update_fields=['notification_5'])
+                
+                TournamentService.process_order_players_rounds(tournament)
 
+            if tournament.start_at < now and tournament.status == 'ready':
+                for game in DominoGame.objects.filter(tournament__id=tournament.id):
+                    players = game_tools.playersCount(game)
+                    automaticStart(game,players)
+                
+                tournament.status = "ru"
+                tournament.save(update_fields=["status"])
+
+            if tournament.status == 'ru':
+                for game in DominoGame.objects.filter(tournament__id=tournament.id):
+                    if game.status == 'ready':
+                        players = game_tools.playersCount(game)
+                        automaticStart(game,players)
+                
+                last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
+                if last_round.end_at is not None and last_round.end_at + timedelta(minutes=5) < now:
+                    TournamentService.process_order_players_rounds(tournament, last_round)
+            
+    except Exception as error:
+        logger.critical(f'Ocurrio una excepcion dentro del automatico de los torneos, error: {str(error)}')         
+            
     finally:
         connection.close()  # Cierra conexiones a la DB.
         import gc

@@ -153,6 +153,9 @@ class GameService:
         player.send_delete_email = False
         player.save()
 
+        if player.play_tournament:
+            return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+        
         check_others_game = DominoGame.objects.filter(
             Q(player1__id = player.id)|
             Q(player2__id = player.id)|
