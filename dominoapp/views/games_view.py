@@ -12,7 +12,7 @@ from rest_framework.serializers import BooleanField, IntegerField, CharField
 
 
 class GameView(viewsets.ModelViewSet):
-    queryset = DominoGame.objects.filter(tournament__isnull=True)
+    queryset = DominoGame.objects.all()
     serializer_class = GameSerializer
     permission_classes = [IsAuthenticated]    
 
@@ -25,6 +25,13 @@ class GameView(viewsets.ModelViewSet):
         SearchFilter,
         OrderingFilter
     ]
+    
+    def get_queryset(self):
+        if self.action in ["list", "join", "start", "exitGame"]:
+            queryset = DominoGame.objects.filter(tournament__isnull=True)
+        else:
+            queryset = DominoGame.objects.all()
+        return queryset
 
     @extend_schema(
             request= {
