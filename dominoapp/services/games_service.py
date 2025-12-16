@@ -2,7 +2,7 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
-from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer
+from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
@@ -153,9 +153,6 @@ class GameService:
         player.send_delete_email = False
         player.save()
 
-        if player.play_tournament:
-            return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
-        
         check_others_game = DominoGame.objects.filter(
             Q(player1__id = player.id)|
             Q(player2__id = player.id)|
@@ -172,6 +169,11 @@ class GameService:
         
         game = DominoGame.objects.get(id=game_id)
         
+        game_in_round = Round.objects.filter(game_list__id = game.id).exists()
+        
+        if player.play_tournament and not game_in_round:
+            return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+                
         if not game_tools.ready_to_play(game, player):
             return Response({"status":'error',"message":"you don't have enough coins"},status=status.HTTP_409_CONFLICT)
         
