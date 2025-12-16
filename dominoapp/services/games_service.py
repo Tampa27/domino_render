@@ -301,6 +301,9 @@ class GameService:
         game = DominoGame.objects.get(id=game_id)
         player = Player.objects.get(user__id=request.user.id)
 
+        game_in_round = Round.objects.filter(game_list__id = game.id).exists()
+        if game_in_round:
+            return Response({'status': 'error', "message":"No puedes salir de un juego de un torneo."}, status=status.HTTP_409_CONFLICT)
         
         if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
             have_points = game_tools.havepoints(game)
