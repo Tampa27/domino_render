@@ -47,8 +47,15 @@ class TournamentService:
             request.data['start_at'] = start_date
             request.data['deadline'] = deadline
             request.data._mutable = False
+        try:
+            pay_percent = int(os.getenv("TOURNAMENT_ADMIN_PERCENT"))
+        except Exception as error:
+            logger.critical("El porciento de ganancias no esta definido")
+            return Response(data={
+                "status": "error",
+                "message": "Algo esta mal vuelva a intantar."
+            }, status=status.HTTP_409_CONFLICT)
         
-        pay_percent = int(os.getenv("TOURNAMENT_ADMIN_PERCENT"))
         if "winner_payout" in request.data and int(request.data["winner_payout"])>0:
             pay_percent += int(request.data["winner_payout"])
 
