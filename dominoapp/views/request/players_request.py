@@ -64,17 +64,10 @@ class PlayerRequest:
         return True, message, status_response
     
     @staticmethod
-    def validate_update(request, player_id, is_partial):
+    def validate_update(request, is_partial):
         is_valid = False
         message = None
         status_response = None
-
-        is_valid = RequestValidator.validate_numeric(player_id)
-
-        if not is_valid:
-            message = "Player ID have wrong value"
-            status_response = status.HTTP_400_BAD_REQUEST
-            return is_valid, message, status_response 
 
         if not is_partial:
             required_keys = [
