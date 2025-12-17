@@ -19,6 +19,9 @@ class PlayerSerializer(serializers.ModelSerializer):
     name = serializers.CharField()
     isPlaying = serializers.BooleanField()
     coins = serializers.SerializerMethodField(read_only = True)
+    lat = serializers.DecimalField(max_digits=9, decimal_places=7)
+    lng = serializers.DecimalField(max_digits=10, decimal_places=7)
+    timezone = serializers.CharField()
 
     def get_coins(self, obj: Player) -> int:
         return obj.recharged_coins + obj.earned_coins
@@ -47,6 +50,9 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.email = validated_data.get('email', instance.email)
         instance.photo_url = validated_data.get('photo_url', instance.photo_url)
         instance.name = validated_data.get('name', instance.name)
+        instance.lat = validated_data.get('lat', instance.lat)
+        instance.lng = validated_data.get('lng', instance.lng)
+        instance.timezone = validated_data.get('timezone', instance.timezone)
         instance.save()
         return instance     
 
