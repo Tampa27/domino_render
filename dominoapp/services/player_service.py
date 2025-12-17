@@ -51,12 +51,12 @@ class PlayerService:
             return Response({"status": "error", "message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         
     @staticmethod
-    def process_update(request, player_id, is_partial):
-        check_player = Player.objects.filter(id = player_id, user__id = request.user.id).exists()
+    def process_update(request, is_partial):
+        check_player = Player.objects.filter(user__id = request.user.id).exists()
         if not check_player:
             return Response({"status":'error',"message":"player not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        result = Player.objects.get(id=player_id)  
+        result = Player.objects.get(user__id = request.user.id)  
         serializer = PlayerSerializer(result, data = request.data, partial=is_partial)
         if serializer.is_valid():  
             serializer.save()  

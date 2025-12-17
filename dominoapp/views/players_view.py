@@ -120,11 +120,11 @@ class PlayerView(viewsets.ModelViewSet):
             }, status = status_response)
 
         return PlayerService.process_create(request)
-        
+    
     def update(self, request, pk, *args, **kwargs):  
         is_partial = kwargs.pop('partial', False)
 
-        is_valid, message, status_response = PlayerRequest.validate_update(request, pk, is_partial)
+        is_valid, message, status_response = PlayerRequest.validate_update(request, is_partial)
         
         if not is_valid:
             return Response(data ={
@@ -132,7 +132,7 @@ class PlayerView(viewsets.ModelViewSet):
                 "message": message
             }, status = status_response)
         
-        return PlayerService.process_update(request, pk, is_partial)
+        return PlayerService.process_update(request, is_partial)
 
     def destroy(self, request, pk):
         is_valid, message, status_response = PlayerRequest.validate_retrieve(pk)
