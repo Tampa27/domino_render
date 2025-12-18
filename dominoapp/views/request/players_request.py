@@ -97,7 +97,8 @@ class PlayerRequest:
             "name": RequestValidator.validate_string,
             "isPlaying": RequestValidator.validate_boolean,
             "lat": RequestValidator.validate_decimal,
-            "lng": RequestValidator.validate_decimal
+            "lng": RequestValidator.validate_decimal,
+            "timezone": RequestValidator.validate_string
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
