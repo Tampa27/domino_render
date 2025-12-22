@@ -2,6 +2,7 @@ import os
 from rest_framework import serializers
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate
+from dominoapp.utils.players_tools import haversine_distance
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -91,7 +92,7 @@ class PlayerGameSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo", "lat", "lng"]
 
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
@@ -117,6 +118,42 @@ class GameCreateSerializer(serializers.ModelSerializer):
 
 class GameSerializer(serializers.ModelSerializer):
 
+    players_close = serializers.SerializerMethodField()
+    
+    def get_players_close(self, obj: DominoGame) -> bool:
+        # Recopilar IDs de jugadores (igual que antes)
+        players_ids = []
+        if obj.player1:
+            players_ids.append(obj.player1.id)
+        if obj.player2:
+            players_ids.append(obj.player2.id)
+        if obj.player3:
+            players_ids.append(obj.player3.id)
+        if obj.player4:
+            players_ids.append(obj.player4.id)
+        
+        if len(players_ids) < 2:
+            return False
+        
+        players = Player.objects.filter(id__in=players_ids).only('id', 'lat', 'lng')
+        players_list = list(players)
+        
+        for i in range(len(players_list)):
+            for j in range(i + 1, len(players_list)):
+                player1 = players_list[i]
+                player2 = players_list[j]
+                
+                # Usar haversine para distancia precisa en metros
+                dist = haversine_distance(
+                    player1.lat, player1.lng,
+                    player2.lat, player2.lng
+                )
+                
+                if dist < 20:  # 20 metros exactos
+                    return True
+        
+        return False
+    
     class Meta:
         model = DominoGame
         fields = ('__all__')
@@ -124,7 +161,8 @@ class GameSerializer(serializers.ModelSerializer):
 class ListGameSerializer(serializers.ModelSerializer):
     is_privated = serializers.SerializerMethodField()
     number_player = serializers.SerializerMethodField()
-
+    players_close = serializers.SerializerMethodField()
+    
     def get_is_privated(self, obj: DominoGame)-> bool:
         return True if obj.password != "" else False
     
@@ -140,9 +178,43 @@ class ListGameSerializer(serializers.ModelSerializer):
             total_player += 1
         return total_player
 
+    def get_players_close(self, obj: DominoGame) -> bool:
+        # Recopilar IDs de jugadores (igual que antes)
+        players_ids = []
+        if obj.player1:
+            players_ids.append(obj.player1.id)
+        if obj.player2:
+            players_ids.append(obj.player2.id)
+        if obj.player3:
+            players_ids.append(obj.player3.id)
+        if obj.player4:
+            players_ids.append(obj.player4.id)
+        
+        if len(players_ids) < 2:
+            return False
+        
+        players = Player.objects.filter(id__in=players_ids).only('id', 'lat', 'lng')
+        players_list = list(players)
+        
+        for i in range(len(players_list)):
+            for j in range(i + 1, len(players_list)):
+                player1 = players_list[i]
+                player2 = players_list[j]
+                
+                # Usar haversine para distancia precisa en metros
+                dist = haversine_distance(
+                    player1.lat, player1.lng,
+                    player2.lat, player2.lng
+                )
+                
+                if dist < 20:  # 20 metros exactos
+                    return True
+        
+        return False
+
     class Meta:
         model = DominoGame
-        fields = ["id","table_no", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player"]
+        fields = ["id","table_no", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player", "players_close"]
 
 class TournamentSerializer(serializers.ModelSerializer):
 

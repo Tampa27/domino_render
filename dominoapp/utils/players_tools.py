@@ -1,5 +1,6 @@
 import hashlib
 from decimal import Decimal
+from math import radians, sin, cos, sqrt, atan2
 from dominoapp.models import Player
 
 def get_client_ip(request):
@@ -106,3 +107,21 @@ def update_elo_pair(pair1: list[Player], pair2: list[Player], tie:bool=False)->N
         delta_R_player = total_delta_R_pair2 / 2
         player.elo += delta_R_player
         player.save(update_fields=['elo'])
+        
+
+def haversine_distance(lat1, lng1, lat2, lng2):
+    # Radio de la Tierra en metros
+    R = 6371000
+    
+    # Convertir grados a radianes
+    lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
+    
+    # Diferencias
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    
+    # Fórmula haversine
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlng/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
+    
+    return R * c
