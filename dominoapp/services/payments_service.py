@@ -158,7 +158,8 @@ class PaymentService:
                 player= player,
                 amount= int(request.data["coins"]),
                 transaction_id= transaction_id,
-                player_phone= player.phone
+                player_phone= player.phone,
+                paymentmethod= request.data.get('paymentmethod', None)
             )
             
             new_transaction = create_reload_transactions(
