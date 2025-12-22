@@ -18,7 +18,7 @@ class GameView(viewsets.ModelViewSet):
 
     filterset_fields = ["inPairs", "perPoints", "variant", "status"]
     search_fields = [
-        "player1__alias","player2__alias", "player3__alias", "player4__alias"
+        "player1__alias","player2__alias", "player3__alias", "player4__alias", "table_no"
     ]
 
     filter_backends = [

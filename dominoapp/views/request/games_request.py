@@ -28,7 +28,8 @@ class GameRequest:
             return is_valid, message, status_response     
 
         validators = {
-            "app_version" : RequestValidator.validate_string_or_empty
+            "app_version" : RequestValidator.validate_string_or_empty,
+            "search": RequestValidator.validate_string
         }
         
         is_valid, message = RequestValidator.validate_query_params(request, validators)
