@@ -170,6 +170,38 @@ class PlayerRequest:
 
         return True, message, status_response
     
+    @staticmethod
+    def validate_send_notification(request):
+        is_valid = False
+        message = None
+        status_response = None
+        
+        required_keys = [
+            "text",
+            "title"
+        ]
+
+        is_valid, message = RequestValidator.validate_required_key(request, required_keys)
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response
+
+        validators = {
+            "player_id": RequestValidator.validate_numeric,
+            "text": RequestValidator.validate_text,
+            "title": RequestValidator.validate_text
+        }
+        
+        is_valid, message = RequestValidator.validate_params(request, validators)
+
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response       
+
+        return True, message, status_response
+    
     
     @staticmethod
     def validate_rankin(request):

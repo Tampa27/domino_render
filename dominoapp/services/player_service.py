@@ -15,6 +15,7 @@ from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import get_device_hash
+from dominoapp.utils.fcm_message import FCMNOTIFICATION
 import logging
 logger = logging.getLogger('django')
 
@@ -214,6 +215,67 @@ class PlayerService:
             logger.error(f"Error creating FCM Device for user {request.user.username}, Error->: {str(error)}")
             
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @staticmethod
+    def process_send_notification(request):
+        """
+        Enviar notificaciones globales o a un player en particular.
+        """
+        try:
+            text = request.data.get("text")
+            if len(str(text).strip()) < 4:
+                return Response(
+                    {"status":'error',
+                     "message": "El texto es obligatorio."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            title = request.data.get("title")
+            if len(str(title).strip()) < 4:
+                return Response(
+                    {"status":'error',
+                     "message": "El título es obligatorio."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if len(str(title).strip()) > 40:
+                return Response(
+                    {"status":'error',
+                     "message": "El título no debe exceder los 40 caracteres."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            player_id = request.data.get("player_id", None)            
+            if player_id:
+                try:
+                    player = Player.objects.get(id = player_id)
+                except:
+                    return Response(
+                        {"status":'error',
+                        "message": "El player no se encuentra."}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            
+                FCMNOTIFICATION.send_fcm_message(
+                    user = player.user,
+                    title = title,
+                    body = text
+                )
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            
+            FCMNOTIFICATION.send_fcm_global_message(
+                title= title,
+                body= text
+            )
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as error:
+            logger.error(f"Error send FCM notification for user {player_id}, Error->: {str(error)}")
+            return Response(
+                    {"status":'error',
+                     "message": f"Halgo no ha salido bien. Error: {str(error)}"},
+                    status=status.HTTP_409_CONFLICT
+                )
         
     @staticmethod
     def process_refer_code(request):
