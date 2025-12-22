@@ -1,6 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.decorators import action
 from dominoapp.models import Player
@@ -29,6 +29,8 @@ class PlayerView(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["login","refer_register"]:
             permission_classes = [AllowAny]
+        elif self.action in ["send_notification"]:
+            permission_classes = [IsAdminUser]
         else:  
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -209,6 +211,37 @@ class PlayerView(viewsets.ModelViewSet):
             }, status = status_response)
 
         return PlayerService.process_fcm_register(request)
+    
+    @extend_schema(
+            operation_id="send_notifications",
+            request={
+                "application/json": inline_serializer(
+                name="Send Notification Request",
+                fields={
+                    "player_id": IntegerField(required=False),
+                    "title": CharField(required=True),
+                    "text": CharField(required=True)                    
+                    },
+            ),    
+            },
+            responses={
+            204: None
+            
+        }
+    ) 
+    @action(detail=False, methods=["post"], url_path="notification")
+    def send_notification(self, request):
+               
+        is_valid, message, status_response = PlayerRequest.validate_send_notification(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+
+        return PlayerService.process_send_notification(request)
+        
     
     @extend_schema(
             operation_id="players_refer_code",
