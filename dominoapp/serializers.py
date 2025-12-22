@@ -161,7 +161,7 @@ class GameSerializer(serializers.ModelSerializer):
 class ListGameSerializer(serializers.ModelSerializer):
     is_privated = serializers.SerializerMethodField()
     number_player = serializers.SerializerMethodField()
-    players_close = serializers.SerializerMethodField()
+    # players_close = serializers.SerializerMethodField()
     
     def get_is_privated(self, obj: DominoGame)-> bool:
         return True if obj.password != "" else False
