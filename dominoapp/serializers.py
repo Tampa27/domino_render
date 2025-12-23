@@ -2,7 +2,7 @@ import os
 from rest_framework import serializers
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate
-from dominoapp.utils.players_tools import haversine_distance
+from geopy.distance import geodesic
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -144,15 +144,12 @@ class GameSerializer(serializers.ModelSerializer):
         
         for i in range(len(players_list)):
             for j in range(i + 1, len(players_list)):
-                player1 = players_list[i]
-                player2 = players_list[j]
                 
-                # Usar haversine para distancia precisa en metros
-                dist = haversine_distance(
-                    player1.lat, player1.lng,
-                    player2.lat, player2.lng
-                )
+                punto1 = (players_list[i].lat, players_list[i].lng)
+                punto2 = (players_list[j].lat, players_list[j].lng)
                 
+                dist = geodesic(punto1, punto2).meters
+
                 if dist < 20:  # 20 metros exactos
                     return True
         
@@ -206,14 +203,11 @@ class ListGameSerializer(serializers.ModelSerializer):
         
         for i in range(len(players_list)):
             for j in range(i + 1, len(players_list)):
-                player1 = players_list[i]
-                player2 = players_list[j]
                 
-                # Usar haversine para distancia precisa en metros
-                dist = haversine_distance(
-                    player1.lat, player1.lng,
-                    player2.lat, player2.lng
-                )
+                punto1 = (players_list[i].lat, players_list[i].lng)
+                punto2 = (players_list[j].lat, players_list[j].lng)
+                
+                dist = geodesic(punto1, punto2).meters
                 
                 if dist < 20:  # 20 metros exactos
                     return True
