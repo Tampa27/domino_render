@@ -228,7 +228,7 @@ class TournamentCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tournament
-        fields = ["variant", "maxScore", "inPairs", "startWinner",  "moveTime", "min_player", "max_player", "active", "registration_fee", "deadline", "start_at", "winner_payout", "second_payout", "third_payout"]
+        fields = ["variant", "maxScore", "inPairs", "startWinner",  "moveTime", "min_player", "max_player", "active", "registration_fee", "deadline", "start_at", "winner_payout", "second_payout", "third_payout", "number_match_win"]
 
 class MyPlayerSerializer(serializers.ModelSerializer):
 
