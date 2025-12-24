@@ -125,7 +125,15 @@ class PaymentService:
             }
         )
         
-        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+        return Response({'status': 'success', 
+                         "message":'Balance recharged',
+                         "data":{
+                            'player': request.data["alias"],
+                            "amount": str(recharged_coins),
+                            "pay": request.data["coins"],
+                            "paymentmethod": request.data.get('paymentmethod', " "),  
+                         }
+                         }, status=status.HTTP_200_OK)
     
     @staticmethod
     def process_request_recharge(request):
@@ -528,7 +536,7 @@ class PaymentService:
                 event_name="update_transaction",
                 data_notification={
                     'status': 'ip',
-                    'amount': transaction.amount,
+                    'amount': str(transaction.amount),
                     'type': transaction.type,
                     'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'admin': admin.alias
@@ -606,7 +614,7 @@ class PaymentService:
                 'admin': transaction.admin.alias if transaction.admin else None
             }
         )
-        return True
+        return recharged_coins
     
     @staticmethod
     def extractions_coins(transaction: Transaction):
@@ -667,15 +675,24 @@ class PaymentService:
                 event_name="update_transaction",
                 data_notification={
                     'status': 'cp',
-                    'amount': transaction.amount,
+                    'amount': str(transaction.amount),
                     'type': transaction.type,
                     'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'admin': admin.alias
                 }
             )
         if transaction.type == 'rl':
-            PaymentService.reload_coins(transaction)
-            return Response({'status': 'success', "message":'Reload confirm'}, status=status.HTTP_200_OK)
+            recharged_coins = PaymentService.reload_coins(transaction)
+            return Response({
+                'status': 'success',
+                "message":'Reload confirm',
+                "data":{
+                    'player': transaction.to_user.alias,
+                    "amount": str(recharged_coins),
+                    "pay": str(transaction.amount),
+                    "paymentmethod": transaction.paymentmethod,
+                         }                             
+                             }, status=status.HTTP_200_OK)
         elif transaction.type == 'ex':
             PaymentService.extractions_coins(transaction)
             return Response({'status': 'success', "message":'Extraction confirm'}, status=status.HTTP_200_OK)
@@ -708,7 +725,7 @@ class PaymentService:
                 event_name="update_transaction",
                 data_notification={
                     'status': 'cc',
-                    'amount': transaction.amount,
+                    'amount': str(transaction.amount),
                     'type': transaction.type,
                     'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
                     'cancel_by': cancel_by.alias
