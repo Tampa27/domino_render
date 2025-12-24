@@ -89,6 +89,12 @@ class TournamentService:
                     "message": "El número máximo de jugadores debe ser mayor que el valor mínimo 8."
                 }, status=status.HTTP_400_BAD_REQUEST) 
         
+        if "number_match_win" in request.data and int(request.data["number_match_win"]) <= 0:
+            return Response(data={
+                "status": "error",
+                "message": f"El número de partidos a ganar debe ser mayor que 0."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = TournamentCreateSerializer(data=request.data)
         try:
             if serializer.is_valid():
@@ -252,7 +258,9 @@ class TournamentService:
             player_coins = int((total_registration_fee*tournament.winner_payout/100)/2)
             
             winner.player1.earned_coins+= player_coins
+            winner.player1.save(update_fields=["earned_coins"])
             winner.player2.earned_coins+= player_coins
+            winner.player2.save(update_fields=["earned_coins"])
             
             ## Crear las transacciones
             create_transactions(
@@ -288,7 +296,9 @@ class TournamentService:
                 player_coins = int((total_registration_fee*tournament.second_payout/100)/2)
             
                 second.player1.earned_coins+= player_coins
-                second.player2.earned_coins+= player_coins
+                second.player1.save(update_fields=["earned_coins"])
+                second.player2.earned_coins+= player_coins                
+                second.player2.save(update_fields=["earned_coins"])
                 
                 ## Crear las transacciones
                 create_transactions(
@@ -323,7 +333,9 @@ class TournamentService:
                 player_coins = int((total_registration_fee*tournament.third_payout/100)/2)
             
                 third.player1.earned_coins+= player_coins
+                third.player1.save(update_fields=["earned_coins"])
                 third.player2.earned_coins+= player_coins
+                third.player2.save(update_fields=["earned_coins"])
                 
                 ## Crear las transacciones
                 create_transactions(

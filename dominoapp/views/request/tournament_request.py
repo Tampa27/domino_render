@@ -38,7 +38,8 @@ class TournamentRequest:
             "winner_payout": RequestValidator.validate_numeric,
             "second_payout": RequestValidator.validate_numeric,
             "third_payout": RequestValidator.validate_numeric,
-            "registration_fee": RequestValidator.validate_numeric
+            "registration_fee": RequestValidator.validate_numeric,
+            "number_match_win": RequestValidator.validate_numeric
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
@@ -50,7 +51,7 @@ class TournamentRequest:
 
         return True, message, status_response
 
-    @staticmethod
+
     @staticmethod
     def validate_tournament_id(tournament_id):
         is_valid = False

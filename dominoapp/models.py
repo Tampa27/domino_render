@@ -159,6 +159,7 @@ class Tournament(models.Model):
     moveTime = models.SmallIntegerField(default=10)
     min_player = models.IntegerField(default=8)
     max_player = models.IntegerField(default=64)
+    number_match_win = models.IntegerField(default=2)
     
     notification_1 = models.BooleanField(default=False)
     notification_30 = models.BooleanField(default=False)
@@ -268,19 +269,22 @@ class Match_Game(models.Model):
     
     @property
     def is_final_match(self):
-        if self.games_win_team_1 == 2 or self.games_win_team_2==2:
+        number_match_win = self.game.tournament.number_match_win
+        if self.games_win_team_1 == number_match_win or self.games_win_team_2==number_match_win:
             return True
         return False
     
     @property
     def winner_pair_1(self):
-        if self.games_win_team_1 == 2:
+        number_match_win = self.game.tournament.number_match_win
+        if self.games_win_team_1 == number_match_win:
             return True
         return False
     
     @property
     def winner_pair_2(self):
-        if self.games_win_team_2 == 2:
+        number_match_win = self.game.tournament.number_match_win
+        if self.games_win_team_2 == number_match_win:
             return True
         return False
     
