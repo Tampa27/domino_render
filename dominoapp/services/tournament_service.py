@@ -274,7 +274,7 @@ class TournamentService:
             FCMNOTIFICATION.send_fcm_message(
                 user= winner.player1.user,
                 title= "🏅 Campeón del Torneo",
-                body=f"¡Felicidades! 🎉 Has ganado el torneo de Dominó Club obteniendo el 1er lugar. Tu premio es de {player_coins} monedas. ¡Excelente juego! 🎯"
+                body=f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
             )
             create_transactions(
                 amount=player_coins,
@@ -286,7 +286,7 @@ class TournamentService:
             FCMNOTIFICATION.send_fcm_message(
                 user= winner.player2.user,
                 title= "🏅 Campeón del Torneo",
-                body=f"¡Felicidades! 🎉 Has ganado el torneo de Dominó Club obteniendo el 1er lugar. Tu premio es de {player_coins} monedas. ¡Excelente juego! 🎯"
+                body=f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
             )
 
         if second:
@@ -311,7 +311,7 @@ class TournamentService:
                 FCMNOTIFICATION.send_fcm_message(
                     user= second.player1.user,
                     title= "🎊 Subcampeón del Torneo",
-                    body=f"¡Gran resultado! 🎊 Obtuviste el 2do lugar en el torneo de Dominó Club. Tu premio es de {player_coins} monedas. ¡Sigue así! ⭐"
+                    body=f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
                 )
                 create_transactions(
                     amount=player_coins,
@@ -323,7 +323,7 @@ class TournamentService:
                 FCMNOTIFICATION.send_fcm_message(
                     user= second.player2.user,
                     title= "🎊 Subcampeón del Torneo",
-                    body=f"¡Gran resultado! 🎊 Obtuviste el 2do lugar en el torneo de Dominó Club. Tu premio es de {player_coins} monedas. ¡Sigue así! ⭐"
+                    body=f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
                 )
                 
         if third:
@@ -348,7 +348,7 @@ class TournamentService:
                 FCMNOTIFICATION.send_fcm_message(
                     user= third.player1.user,
                     title= "👍 ¡Felicitaciones!",
-                    body=f"¡Felicitaciones! 🎊 Lograste el 3er lugar en el torneo de Dominó Club. Tu premio es de {player_coins} monedas. ¡Buen trabajo! 👍"
+                    body=f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones!"
                 )
                 create_transactions(
                     amount=player_coins,
@@ -360,7 +360,7 @@ class TournamentService:
                 FCMNOTIFICATION.send_fcm_message(
                     user= third.player2.user,
                     title= "👍 ¡Felicitaciones!",
-                    body=f"¡Felicitaciones! 🎊 Lograste el 3er lugar en el torneo de Dominó Club. Tu premio es de {player_coins} monedas. ¡Buen trabajo! 👍"
+                    body=f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones!"
                 )
         
         tournament.save(update_fields=["first_place_object_id", "second_place_object_id", "third_place_object_id"])

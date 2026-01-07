@@ -1,7 +1,8 @@
 import os
 from rest_framework import serializers
 from decimal import Decimal
-from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate
+from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
+    Pair
 from geopy.distance import geodesic
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -108,6 +109,13 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
         fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng"]
+
+
+class PlayerListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "photo_url", "elo"]
+
 
 class GameCreateSerializer(serializers.ModelSerializer):
 
@@ -223,6 +231,98 @@ class TournamentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tournament
         fields = ('__all__')
+
+class TournamentDetailsSerializer(serializers.ModelSerializer):
+    
+    player_list = PlayerListSerializer(many=True)
+    games_list = serializers.SerializerMethodField()
+    number_player = serializers.SerializerMethodField()
+    first_place = serializers.SerializerMethodField()
+    second_place = serializers.SerializerMethodField()
+    third_place = serializers.SerializerMethodField()
+    
+    def get_number_player(self, obj:Tournament):
+        return obj.player_list.all().count()
+    
+    def get_games_list(self, tournament: Tournament):
+        games = DominoGame.objects.filter(tournament__id = tournament.id)
+        serializer = ListGameSerializer(games, many=True)
+        return serializer.data
+    
+    def get_first_place(self, tournament: Tournament)-> str:
+        if tournament.place_content_type.model == "pair":
+            if tournament.first_place:
+                pair = tournament.first_place
+                return f"{pair.player1.name} y {pair.player2.name}"
+        if tournament.place_content_type.model == "player":
+            if tournament.first_place:
+                player = tournament.first_place
+                return f"{player.name}"            
+        return None
+    
+    def get_second_place(self, tournament: Tournament)-> str:
+        if tournament.place_content_type.model == "pair":
+            if tournament.second_place:
+                pair = tournament.second_place
+                return f"{pair.player1.name} y {pair.player2.name}"
+        if tournament.place_content_type.model == "player":
+            if tournament.second_place:
+                player = tournament.second_place
+                return f"{player.name}"            
+        return None
+    
+    def get_third_place(self, tournament: Tournament)-> str:
+        if tournament.place_content_type.model == "pair":
+            if tournament.third_place:
+                pair = tournament.third_place
+                return f"{pair.player1.name} y {pair.player2.name}"
+        if tournament.place_content_type.model == "player":
+            if tournament.third_place:
+                player = tournament.third_place
+                return f"{player.name}"            
+        return None
+        
+    
+    class Meta:
+        model = Tournament
+        exclude = [
+            "notification_1",
+            "notification_30",
+            "notification_5",
+            "place_content_type",
+            "first_place_object_id",
+            "second_place_object_id",
+            "third_place_object_id",
+        ]
+        
+
+class TournamentListSerializer(serializers.ModelSerializer):
+
+    number_player = serializers.SerializerMethodField()
+    
+    def get_number_player(self, obj:Tournament):
+        return obj.player_list.all().count()
+    
+    class Meta:
+        model = Tournament
+        fields = [
+            "id",
+            "winner_payout",
+            "second_payout",
+            "third_payout",
+            "registration_fee",
+            "deadline",
+            "start_at",
+            "status",
+            "tournament_no",
+            "variant",
+            "maxScore",
+            "inPairs",
+            "min_player",
+            "max_player",
+            "number_match_win",
+            "number_player"
+        ]
 
 class TournamentCreateSerializer(serializers.ModelSerializer):
 
