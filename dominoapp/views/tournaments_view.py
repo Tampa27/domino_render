@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import SearchFilter, OrderingFilter
 from dominoapp.models import Tournament
-from dominoapp.serializers import TournamentSerializer, TournamentCreateSerializer
+from dominoapp.serializers import TournamentSerializer, TournamentCreateSerializer, TournamentListSerializer, TournamentDetailsSerializer
 from dominoapp.views.request.tournament_request import TournamentRequest
 from dominoapp.services.tournament_service import TournamentService
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
@@ -44,13 +44,21 @@ class TournamentsView(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
 
         return [permission() for permission in permission_classes]
+    def get_serializer_class(self):
+        if self.action in ["list"]:
+            serializer_class = TournamentListSerializer
+        elif self.action in ["retrieve"]:
+            serializer_class = TournamentDetailsSerializer
+        else:
+            serializer_class = TournamentCreateSerializer
+        return serializer_class
     
     @extend_schema(
         request= {
             "application/json": TournamentCreateSerializer()
         },
         responses={
-        200: TournamentSerializer()                        
+        200: TournamentCreateSerializer()                        
         }
     )
     def create(self, request, *args, **kwargs):
@@ -62,35 +70,34 @@ class TournamentsView(viewsets.ModelViewSet):
                 "message": message
             }, status = status_response)
         return TournamentService.process_create(request)
-    
 
     @extend_schema(
             operation_id="tournament_join",
             request= None,
             responses={
             200: inline_serializer(
-                name="Join Game",
+                name="Join Tournament",
                 fields={
                     "status": CharField(default="success"),
                     "message": CharField()
                     },
             ),
             400: inline_serializer(
-                name="Join Game Error",
+                name="Join Tournament Error",
                 fields={
                     "status": CharField(default="error"),
                     "message": CharField()
                     },
             ),
             404: inline_serializer(
-                name="Join Game Not Found",
+                name="Join Tournament Not Found",
                 fields={
                     "status": CharField(default="error"),
                     "message": CharField()
                     },
             ),
             409: inline_serializer(
-                name="Join Game Conflict",
+                name="Join Tournament Conflict",
                 fields={
                     "status": CharField(default="error"),
                     "message": CharField()

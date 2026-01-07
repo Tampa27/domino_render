@@ -65,12 +65,12 @@ def automatic_move_in_game():
                                         FCMNOTIFICATION.send_fcm_message(
                                             user= match.pair_list.first().player1.user,
                                             title= "✅ Partido Completado",
-                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                            body=f"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
                                         )
                                         FCMNOTIFICATION.send_fcm_message(
                                             user= match.pair_list.first().player2.user,
                                             title= "✅ Partido Completado",
-                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                            body=f"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
                                         )
                                 
                                 if match.winner_pair_2:
@@ -79,12 +79,12 @@ def automatic_move_in_game():
                                         FCMNOTIFICATION.send_fcm_message(
                                             user= match.pair_list.last().player1.user,
                                             title= "✅ Partido Completado",
-                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                            body=f"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
                                         )
                                         FCMNOTIFICATION.send_fcm_message(
                                             user= match.pair_list.last().player2.user,
                                             title= "✅ Partido Completado",
-                                            body=f"Has ganado tu partida. El torneo avanza según lo planeado - continuaremos después que concluyan los partidos restantes. ¡Buen trabajo! 🎮"
+                                            body=f"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
                                         )
                                     
                                 for player in players:
@@ -111,7 +111,7 @@ def automatic_move_in_game():
                                             FCMNOTIFICATION.send_fcm_message(
                                                 user= player.user,
                                                 title= "🏆 Torneo Finalizado",
-                                                body=f"El torneo ha finalizado. ¡Felicidades a {winner_pair.player1.name} y {winner_pair.player2.name} ganadores de este torneo!"
+                                                body=f"El torneo ha finalizado. ¡Felicidades a los ganadores de este torneo!"
                                             )
                                                                                 
                                         ##### asignar premios a los ganadores ############
@@ -217,6 +217,12 @@ def automatic_move_in_game():
                 for game in DominoGame.objects.filter(tournament__id=tournament.id):
                     players = game_tools.playersCount(game)
                     automaticStart(game,players)
+                    for player in players:
+                        FCMNOTIFICATION.send_fcm_message(
+                            user= player.user,
+                            title= "🏆 Torneo Iniciado",
+                            body= "Entra ya, no te lo pierdas"
+                        )
                 
                 tournament.status = "ru"
                 tournament.save(update_fields=["status"])
@@ -226,6 +232,12 @@ def automatic_move_in_game():
                     if game.status == 'ready':
                         players = game_tools.playersCount(game)
                         automaticStart(game,players)
+                        for player in players:
+                            FCMNOTIFICATION.send_fcm_message(
+                                user= player.user,
+                                title= "🚨 Ronda Activa 🚨",
+                                body= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
+                            )
                 
                 last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
                 if last_round.end_at is not None and last_round.end_at + timedelta(minutes=5) < now:
