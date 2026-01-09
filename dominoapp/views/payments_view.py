@@ -3,9 +3,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import OrderingFilter
 from django.db.models import Q
 from dominoapp.models import Transaction
 from dominoapp.views.request.payments_request import PaymentRequest
+from dominoapp.views.filters.payment_filter import PaymentSearchFilter
 from dominoapp.services.payments_service import PaymentService
 from dominoapp.serializers import ListTransactionsSerializer
 from dominoapp.utils.request_permitions import IsSuperAdminUser
@@ -21,6 +23,11 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     permission_classes = [IsAuthenticated]
     pagination_class = PaymentListPagination
     serializer_class = ListTransactionsSerializer
+    filter_backends = [
+        OrderingFilter,
+        PaymentSearchFilter
+        ]
+    search_fields = ['type', 'from_user__alias', 'from_user__name', 'to_user__alias', 'to_user__name', 'status_list__status']
 
     def get_permissions(self):
         if self.action in ["recharge", "extract", "select", "confirm"]:
