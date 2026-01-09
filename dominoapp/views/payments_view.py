@@ -9,7 +9,7 @@ from dominoapp.models import Transaction
 from dominoapp.views.request.payments_request import PaymentRequest
 from dominoapp.views.filters.payment_filter import PaymentSearchFilter
 from dominoapp.services.payments_service import PaymentService
-from dominoapp.serializers import ListTransactionsSerializer
+from dominoapp.serializers import ListTransactionsSerializer, ListTransactionsAdminSerializer
 from dominoapp.utils.request_permitions import IsSuperAdminUser
 from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
 from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField 
@@ -50,6 +50,14 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
         if self.action in ["select", "confirm", "cancel"]:
             queryset.exclude(type__in = ["gm","pro","tr"] )
         return queryset 
+    
+    def get_serializer_class(self):
+        user = self.request.user
+        if not user.is_superuser and not user.is_staff:
+            serializer_class = ListTransactionsSerializer
+        else:
+            serializer_class = ListTransactionsAdminSerializer
+        return serializer_class
     
     @extend_schema(
             operation_id="payments_recharge",
