@@ -39,7 +39,7 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
         if not user.is_superuser and not user.is_staff:
             queryset = Transaction.objects.filter(Q(from_user__user__id = user.id) | Q(to_user__user__id = user.id)).order_by("-time")
         else:
-            queryset = Transaction.objects.all().order_by("-time")
+            queryset = Transaction.objects.all().exclude(type__in = ["gm","pro","tr"] ).order_by("-time")
         if self.action in ["select", "confirm", "cancel"]:
             queryset.exclude(type__in = ["gm","pro","tr"] )
         return queryset 
