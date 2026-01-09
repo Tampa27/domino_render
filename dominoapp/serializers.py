@@ -4,6 +4,7 @@ from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
     Pair
 from geopy.distance import geodesic
+import pytz
 
 class PlayerSerializer(serializers.ModelSerializer):
     alias = serializers.CharField(max_length=32,required=True)
@@ -385,6 +386,7 @@ class ListTransactionsSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     user = serializers.SerializerMethodField()
     coins = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
     admin = PlayerLoginSerializer()
     
     def get_status(self, obj: Transaction) -> str:
@@ -406,6 +408,50 @@ class ListTransactionsSerializer(serializers.ModelSerializer):
         if currency_rate:
             recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
         return recharged_coins
+    
+    def get_time(self, obj: Transaction):
+        timezone = "America/Havana"
+        if obj.from_user:
+            timezone = obj.from_user.timezone
+        elif obj.to_user:
+            timezone = obj.to_user.timezone
+        return obj.time.astimezone(pytz.timezone(timezone))
+    
+    class Meta:
+        model = Transaction
+        fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'whatsapp_url']
+
+
+class ListTransactionsAdminSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
+    coins = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
+    admin = PlayerLoginSerializer()
+    
+    def get_status(self, obj: Transaction) -> str:
+        return obj.get_status
+    
+    def get_user(self, obj: Transaction) -> dict:
+        if obj.from_user is not None:
+            serializers = PlayerLoginSerializer(obj.from_user)
+            return serializers.data
+        elif obj.to_user is not None:
+            serializers = PlayerLoginSerializer(obj.to_user)
+            return serializers.data
+        return None
+    
+    def get_coins(self, obj: Transaction) -> int:
+        recharged_coins = int(obj.amount)
+        paymentmethod = obj.paymentmethod if obj.paymentmethod is not None else 'transferencia' 
+        currency_rate = CurrencyRate.objects.filter(code=paymentmethod)
+        if currency_rate:
+            recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
+        return recharged_coins
+    
+    def get_time(self, obj: Transaction):
+        timezone = "America/Havana"
+        return obj.time.astimezone(pytz.timezone(timezone))
     
     class Meta:
         model = Transaction
