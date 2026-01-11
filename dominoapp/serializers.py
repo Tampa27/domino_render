@@ -3,7 +3,7 @@ from rest_framework import serializers
 from datetime import datetime
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Pair
+    Pair, BankAccount
 from geopy.distance import geodesic
 import pytz
 
@@ -112,19 +112,38 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
         model = Player
         fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng"]
 
+class BankAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BankAccount
+        fields = ["id", "account_number", "phone", "created_at"]
+
+class PlayerPaymentSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField()
+    bankaccount = serializers.SerializerMethodField()
+    
+    def get_coins(self, obj: Player) -> int:
+        return obj.earned_coins + obj.recharged_coins
+    
+    def get_bankaccount(self, obj: Player):
+        bankaccount = BankAccount.objects.filter(player__id = obj.id).order_by("-created_at")
+        if bankaccount.exists():
+            return BankAccountSerializer(bankaccount.first()).data
+        return None
+    
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "bankaccount", "phone", "lat", "lng"]
 
 class PlayerListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
         fields = ["id", "name", "alias", "photo_url", "elo"]
 
-
 class GameCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DominoGame
         fields = ["variant", "maxScore", "inPairs", "perPoints", "startWinner", "lostStartInTie", "payPassValue", "payWinValue", "payMatchValue", "startAuto", "sumAllPoints", "capicua", "moveTime", "password"]
-
 
 class GameSerializer(serializers.ModelSerializer):
 
@@ -296,7 +315,6 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
             "second_place_object_id",
             "third_place_object_id",
         ]
-        
 
 class TournamentListSerializer(serializers.ModelSerializer):
 
@@ -422,7 +440,6 @@ class ListTransactionsSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'whatsapp_url']
 
-
 class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     user = serializers.SerializerMethodField()
@@ -435,10 +452,10 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     
     def get_user(self, obj: Transaction) -> dict:
         if obj.from_user is not None:
-            serializers = PlayerLoginSerializer(obj.from_user)
+            serializers = PlayerPaymentSerializer(obj.from_user)
             return serializers.data
         elif obj.to_user is not None:
-            serializers = PlayerLoginSerializer(obj.to_user)
+            serializers = PlayerPaymentSerializer(obj.to_user)
             return serializers.data
         return None
     
