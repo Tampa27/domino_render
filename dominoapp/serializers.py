@@ -3,7 +3,7 @@ from rest_framework import serializers
 from datetime import datetime
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Round, Match_Game, Pair, BankAccount
+    Round, Match_Game, Pair, BankAccount, ChatRoom, ChatMessage
 from geopy.distance import geodesic
 import pytz
 
@@ -550,3 +550,48 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'account_number', 'phone', 'whatsapp_url']
+        
+class ChatMessageSerializer(serializers.ModelSerializer):
+    user = PlayerListSerializer()
+    read_by = PlayerListSerializer(many=True)
+    is_readed = serializers.SerializerMethodField()
+    
+    def get_is_readed(self, message: ChatMessage)-> bool:
+        return message.read
+    
+    class Meta:
+        model = ChatMessage
+        exclude = ["chat_room"]
+
+class ChatRoomSerializer(serializers.ModelSerializer):
+    last_message = ChatMessageSerializer(source="messages")
+    count_users = serializers.SerializerMethodField()
+    
+    def get_count_users(self, chatroom: ChatRoom)-> int:
+        return chatroom.users_list.all().count()
+    
+    class Meta:
+        model = ChatRoom
+        fields = [
+            "id",
+            "title",
+            "created_at",
+            "in_game",
+            "room_type",
+            "count_users",
+            "last_message"            
+            ]
+
+class ChatRoomRetrieveSerializer(serializers.ModelSerializer):
+    users_list = PlayerListSerializer(many=True)
+    class Meta:
+        model = ChatRoom
+        fields = [
+            "id",
+            "title",
+            "created_at",
+            "in_game",
+            "room_type",
+            "users_list",       
+            ]
+
