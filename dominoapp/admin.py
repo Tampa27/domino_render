@@ -6,9 +6,9 @@ from django_admin_listfilter_dropdown.filters import SimpleListFilter
 from datetime import datetime, timedelta
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-from .models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
-    MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
-    BankAccount, PackageCoins, SummaryPlayer
+from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
+        MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
+    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -640,3 +640,5 @@ admin.site.register(CurrencyRate, CurrencyRateAdmin)
 admin.site.register(BankAccount)
 admin.site.register(PackageCoins)
 admin.site.register(SummaryPlayer, SummaryPlayerAdmin)
+admin.site.register(ChatRoom)
+admin.site.register(ChatMessage)
