@@ -1,5 +1,6 @@
 import os
 from rest_framework import serializers
+from datetime import datetime
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
     Pair
@@ -451,7 +452,7 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     
     def get_time(self, obj: Transaction):
         timezone = "America/Havana"
-        return obj.time.astimezone(pytz.timezone(timezone))
+        return obj.time.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S.%f')
     
     class Meta:
         model = Transaction
