@@ -612,7 +612,7 @@ class CurrencyRateAdmin(admin.ModelAdmin):
         "code",
         "rate_exchange",
         "inverce_rate_exchange"
-    ]
+    ]  
 
 class SummaryPlayerAdmin(admin.ModelAdmin):
     list_display = [
