@@ -119,20 +119,27 @@ class BankAccountSerializer(serializers.ModelSerializer):
 
 class PlayerPaymentSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
-    bankaccount = serializers.SerializerMethodField()
+    account_number = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
     
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
     
-    def get_bankaccount(self, obj: Player):
+    def get_account_number(self, obj: Player):
         bankaccount = BankAccount.objects.filter(player__id = obj.id).order_by("-created_at")
         if bankaccount.exists():
-            return BankAccountSerializer(bankaccount.first()).data
+            return bankaccount.first().account_number
         return None
+    
+    def get_phone(self, obj: Player):
+        bankaccount = BankAccount.objects.filter(player__id = obj.id).order_by("-created_at")
+        if bankaccount.exists() and obj.phone != bankaccount.first().phone:
+            return bankaccount.first().phone
+        return obj.phone
     
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "bankaccount", "phone", "lat", "lng"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "account_number", "phone", "lat", "lng"]
 
 class PlayerListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -406,17 +413,17 @@ class ListTransactionsSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     coins = serializers.SerializerMethodField()
     time = serializers.SerializerMethodField()
-    admin = PlayerLoginSerializer()
+    admin = PlayerListSerializer()
     
     def get_status(self, obj: Transaction) -> str:
         return obj.get_status
     
     def get_user(self, obj: Transaction) -> dict:
         if obj.from_user is not None:
-            serializers = PlayerLoginSerializer(obj.from_user)
+            serializers = PlayerListSerializer(obj.from_user)
             return serializers.data
         elif obj.to_user is not None:
-            serializers = PlayerLoginSerializer(obj.to_user)
+            serializers = PlayerListSerializer(obj.to_user)
             return serializers.data
         return None
     
@@ -445,7 +452,7 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     coins = serializers.SerializerMethodField()
     time = serializers.SerializerMethodField()
-    admin = PlayerLoginSerializer()
+    admin = PlayerListSerializer()
     
     def get_status(self, obj: Transaction) -> str:
         return obj.get_status
