@@ -127,7 +127,7 @@ class PlayerPaymentSerializer(serializers.ModelSerializer):
     
     def get_account_number(self, obj: Player):
         transactions = Transaction.objects.filter(
-            from_user__id=obj.id, type='ex').order_by('-time')
+            from_user__id=obj.id, type='ex', bankaccount__isnull = False).order_by('-time')
         if transactions.exists():
             return transactions.first().bank_account.account_number if transactions.first().bank_account else None
         else:
