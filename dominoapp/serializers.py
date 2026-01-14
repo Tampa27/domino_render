@@ -126,9 +126,14 @@ class PlayerPaymentSerializer(serializers.ModelSerializer):
         return obj.earned_coins + obj.recharged_coins
     
     def get_account_number(self, obj: Player):
-        bankaccount = BankAccount.objects.filter(player__id = obj.id).order_by("-created_at")
-        if bankaccount.exists():
-            return bankaccount.first().account_number
+        transactions = Transaction.objects.filter(
+            from_user__id=obj.id, type='ex').order_by('-time')
+        if transactions.exists():
+            return transactions.first().bank_account.account_number if transactions.first().bank_account else None
+        else:
+            bankaccount = BankAccount.objects.filter(player__id = obj.id).order_by("-created_at")
+            if bankaccount.exists():
+                return bankaccount.first().account_number 
         return None
     
     def get_phone(self, obj: Player):
