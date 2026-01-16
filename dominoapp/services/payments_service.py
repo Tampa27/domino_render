@@ -520,6 +520,9 @@ class PaymentService:
         if transaction.get_status != "p" or transaction.type in ["gm","pro","tr"]:
             return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
         
+        if transaction.from_user and int(transaction.amount) > int(transaction.from_user.total_coins):
+            return Response(data={'status': 'error', "message":"The player don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+        
         try:
             admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
         except:
@@ -659,6 +662,9 @@ class PaymentService:
     
         if transaction.get_status != "ip" or transaction.type in ["gm","pro","tr"]:
             return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+        
+        if transaction.from_user and int(transaction.amount) > int(transaction.from_user.total_coins):
+            return Response(data={'status': 'error', "message":"The player don't have enough amount"}, status=status.HTTP_409_CONFLICT)
         
         try:
             admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
