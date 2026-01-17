@@ -61,6 +61,10 @@ class Player(models.Model):
             return 10
 
     @property
+    def is_block(self):
+        return BlockPlayer.objects.filter(player_blocked__id = self.id).exists()
+    
+    @property
     def play_tournament(self):
         tournaments_list = Tournament.objects.filter(Q(status='ready')|Q(status='ru'), player_list=self)
         if tournaments_list.exists():
