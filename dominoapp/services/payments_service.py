@@ -142,6 +142,10 @@ class PaymentService:
         except:
             return Response(data={'status': 'error', "message":"User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
         
+        if player.is_block:
+            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+        
+        
         min_20 = datetime.now() - timedelta(minutes=20)
         
         transactions = Transaction.objects.filter(
@@ -336,6 +340,10 @@ class PaymentService:
         except:
             return Response(data={'status': 'error', "message":"User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
         
+        if player.is_block:
+            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+        
+        
         min_extraction = int(os.environ.get('MIN_EXTRACTION',800))
         
         if player.total_coins < min_extraction:
@@ -456,6 +464,10 @@ class PaymentService:
             to_user = Player.objects.get(id=request.data["to_user"])
         except:
             return Response(data={'status': 'error', "message":'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if from_user.is_block or to_user.is_block:
+            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+        
         check, message = validate_tranfer(from_user, to_user, transfer_coins)
         if not check:
             return Response(data={'status': 'error', "message":message}, status=status.HTTP_409_CONFLICT)
