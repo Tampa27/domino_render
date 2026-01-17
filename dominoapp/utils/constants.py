@@ -153,5 +153,6 @@ class ApiConstants:
     AUTO_PASS_WAIT = 2          # Tiempo del automatico para pasar a un jugador
     AUTO_START_WAIT = 10        # Tiempo que espera el automatico para comenzar un juego
     AUTO_EXIT_GAME = 300        # Tiempo en que el automatico te saca de la mesa por inactividad
-    NOTIFICATION_TIME = 15        # Tiempo que espera para enviar una notificacion
+    NOTIFICATION_TIME = 30        # Tiempo que espera para enviar una notificacion
+    NOTIFICATION_PLAYER_TIME = 24  # Tiempo que se espera para enviar una notificacion a un player
     AdminNotifyEvents = EnumBehavior.set_enum(AdminNotifyEvents)
