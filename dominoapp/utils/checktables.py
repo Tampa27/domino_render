@@ -4,7 +4,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
 
 from dominoapp.utils import game_tools
-from dominoapp.models import DominoGame, Tournament, User, Match_Game, Round
+from dominoapp.models import DominoGame, Tournament, User, Match_Game, Round, Player
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from django.utils import timezone
 from django.utils.timezone import timedelta
@@ -31,6 +31,7 @@ def automatic_move_in_game():
             players = game_tools.playersCount(game)
             players_running = list(filter(lambda p: p.isPlaying, players))
             if game.status == 'ru':
+                game.notifications_players_send.clear()
                 possibleStarter = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
                 if possibleStarter:
                     logger_api.info('Esperando al salidor')
@@ -144,10 +145,44 @@ def automatic_move_in_game():
                         game_tools.exitPlayer(game,player,players,len(players))
                 
                 game.refresh_from_db()
-                if game.status == 'wt' and len(players)<2:
+                new_players = game_tools.playersCount(game)
+                if game.status == 'wt' and len(new_players)<2:
                     game.starter=-1
                     game.board = ""
+                    if len(new_players)<1:
+                        game.notifications_players_send.clear()
                     game.save()
+                    
+                ### Enviar notificacion si falta por completar la mesa
+                if game.status == 'wt' and 1<= len(new_players) < 4:
+                    diff_time_notifications = timezone.now() - game.last_notifications
+                    players_id = list(game.notifications_players_send.all().values_list("id", flat=True))
+                    if game.player3 is not None:
+                        diff_time = timezone.now() - game.player3.lastTimeInSystem
+                        players_id.append(game.player3.id)
+                        players_id.append(game.player2.id)
+                        players_id.append(game.player1.id)
+                    elif game.player2 is not None:
+                        diff_time = timezone.now() - game.player2.lastTimeInSystem
+                        players_id.append(game.player2.id)
+                        players_id.append(game.player1.id)
+                    elif game.player1 is not None:
+                        diff_time = timezone.now() - game.player1.lastTimeInSystem
+                        players_id.append(game.player1.id)
+                    
+                    if diff_time.seconds > ApiConstants.NOTIFICATION_TIME and diff_time_notifications.seconds > ApiConstants.NOTIFICATION_TIME:
+                        game.last_notifications = timezone.now()
+                        game.save(update_fields=['last_notifications'])
+                        players_notify = Player.objects.filter(isPlaying = False).exclude(id__in = players_id).order_by("-lastTimeInSystem")[:10]
+                        players_needed = 4 - len(new_players)
+                        for player in players_notify:
+                            FCMNOTIFICATION.send_fcm_message(
+                                player.user,
+                                title= "🎮 Mesa de Domino Activa",
+                                body= f"¡Faltan solo {players_needed} jugadores! Únete a esta partida en Domino Club."
+                            )
+                            game.notifications_players_send.add(player)
+                    
     except Exception as error:
         logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
     
