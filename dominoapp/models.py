@@ -235,6 +235,8 @@ class DominoGame(models.Model):
     hours_active = models.IntegerField(default=0,null=True,blank=True)
     table_no = models.IntegerField(null=True, blank=True)
     tournament = models.ForeignKey(Tournament, related_name="game_in_tournament", on_delete=models.SET_NULL, null=True, blank=True)    
+    notifications_players_send = models.ManyToManyField(Player, related_name="notify_players", blank=True, null= True, help_text="Jugadores que ya han sido notificados sobre esta mesa")
+    last_notifications = models.DateTimeField(default=timezone.now)
     
     def save(self, *args, **kwargs):
         if not self.table_no:            
