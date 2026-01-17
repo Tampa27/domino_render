@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.utils import timezone
+from django.utils import timezone as timezone_dj
 import uuid
 from shortuuid.django_fields import ShortUUIDField
 from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus, TournamentStatus
@@ -23,7 +23,7 @@ class Player(models.Model):
     dataLoss = models.IntegerField(default=0)
     matchWins = models.IntegerField(default=0)
     matchLoss = models.IntegerField(default=0)
-    lastTimeInSystem = models.DateTimeField(default=timezone.now)
+    lastTimeInSystem = models.DateTimeField(default=timezone_dj.now)
     email = models.CharField(max_length=250, unique=True, null=True, blank=True)
     photo_url = models.URLField(max_length=250, null=True, blank=True)
     name = models.CharField(max_length=50,null=True, blank=True)
@@ -45,7 +45,8 @@ class Player(models.Model):
     lat = models.DecimalField(max_digits=9, decimal_places=7, null=True, blank=True)
     lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     timezone = models.CharField(max_length=50, default="America/Havana")
-
+    last_notifications = models.DateTimeField(default=timezone_dj.now)
+    
     @property
     def total_coins(self):
         return self.earned_coins + self.recharged_coins
@@ -141,14 +142,14 @@ class Tournament(models.Model):
     
     registration_fee = models.IntegerField(default=0)
       
-    deadline = models.DateTimeField(default=timezone.now, help_text="%d-%m-%Y %H:%M:%S")   # Fecha tope de inscripción 
-    start_at = models.DateTimeField(default=timezone.now, help_text="%d-%m-%Y %H:%M:%S")   # Fecha en que comienza el torneo.
+    deadline = models.DateTimeField(default=timezone_dj.now, help_text="%d-%m-%Y %H:%M:%S")   # Fecha tope de inscripción 
+    start_at = models.DateTimeField(default=timezone_dj.now, help_text="%d-%m-%Y %H:%M:%S")   # Fecha en que comienza el torneo.
     end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el torneo
     
     status = models.CharField(max_length=32,choices=TournamentStatus.status_choices,default="wt")
     active = models.BooleanField(default=True)
         
-    created_time = models.DateTimeField(default=timezone.now)
+    created_time = models.DateTimeField(default=timezone_dj.now)
     tournament_no = models.IntegerField(null=True, blank=True)
     
     ## Reglas del Torneo ###
@@ -205,7 +206,7 @@ class DominoGame(models.Model):
     next_player = models.SmallIntegerField(default=-1)
     board = models.CharField(max_length=500,blank=True,default="")
     variant = models.CharField(max_length=10,choices= GameVariants.variant_choices,default="d6")
-    start_time = models.DateTimeField(default=timezone.now)
+    start_time = models.DateTimeField(default=timezone_dj.now)
     winner = models.SmallIntegerField(default=-1)
     scoreTeam1 = models.IntegerField(default=0)
     scoreTeam2 = models.IntegerField(default=0)
@@ -221,23 +222,21 @@ class DominoGame(models.Model):
     payPassValue = models.IntegerField(default=0)
     payWinValue = models.IntegerField(default=0)
     payMatchValue = models.IntegerField(default=0)
-    lastTime1 = models.DateTimeField(default=timezone.now,null=True,blank=True)
-    lastTime2 = models.DateTimeField(default=timezone.now,null=True,blank=True)
-    lastTime3 = models.DateTimeField(default=timezone.now,null=True,blank=True)
-    lastTime4 = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    lastTime1 = models.DateTimeField(default=timezone_dj.now,null=True,blank=True)
+    lastTime2 = models.DateTimeField(default=timezone_dj.now,null=True,blank=True)
+    lastTime3 = models.DateTimeField(default=timezone_dj.now,null=True,blank=True)
+    lastTime4 = models.DateTimeField(default=timezone_dj.now,null=True,blank=True)
     startAuto = models.IntegerField(default=2,null=True,blank=True)
     sumAllPoints = models.BooleanField(default=False)
     capicua = models.BooleanField(default=False)
     rounds = models.SmallIntegerField(default=0)
     moveTime = models.SmallIntegerField(default=10)
-    created_time = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    created_time = models.DateTimeField(default=timezone_dj.now,null=True,blank=True)
     password = models.CharField(max_length=20,blank=True,default="")
     hours_active = models.IntegerField(default=0,null=True,blank=True)
     table_no = models.IntegerField(null=True, blank=True)
     tournament = models.ForeignKey(Tournament, related_name="game_in_tournament", on_delete=models.SET_NULL, null=True, blank=True)    
-    notifications_players_send = models.ManyToManyField(Player, related_name="notify_players", blank=True, null= True, help_text="Jugadores que ya han sido notificados sobre esta mesa")
-    last_notifications = models.DateTimeField(default=timezone.now)
-    
+        
     def save(self, *args, **kwargs):
         if not self.table_no:            
             numbers = DominoGame.objects.all().order_by('table_no').values_list('table_no',flat=True)
@@ -266,7 +265,7 @@ class Match_Game(models.Model):
     pair_list = models.ManyToManyField(Pair, related_name="pairs_in_game") # Lista de parejas en la ronda
     games_win_team_1 = models.IntegerField(default=0)
     games_win_team_2 = models.IntegerField(default=0)
-    start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza el partido.
+    start_at = models.DateTimeField(default=timezone_dj.now)   # Fecha en que comienza el partido.
     end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el partido
     
     @property
@@ -296,7 +295,7 @@ class Round(models.Model):
     pair_list = models.ManyToManyField(Pair, related_name="pairs_in_round") # Lista de parejas en la ronda
     round_no = models.IntegerField(null=True, blank=True)
     game_list = models.ManyToManyField(DominoGame, related_name="games_in_round") # lista de mesas que se van a usar en la ronda
-    start_at = models.DateTimeField(default=timezone.now)   # Fecha en que comienza la ronda.
+    start_at = models.DateTimeField(default=timezone_dj.now)   # Fecha en que comienza la ronda.
     end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo la ronda
     winner_pair_list = models.ManyToManyField(Pair, related_name="winner_pairs_in_round", null=True, blank=True) # Lista de parejas ganadoras en esta ronda
     
