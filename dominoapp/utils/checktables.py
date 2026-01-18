@@ -8,7 +8,7 @@ from dominoapp.models import DominoGame, Tournament, User, Match_Game, Round, Pl
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from django.utils import timezone
 from django.utils.timezone import timedelta
-from django.db import connection
+from django.db import connection, transaction
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
 import logging
@@ -286,19 +286,20 @@ def automatic_move_in_game():
 
         
 def automaticCoupleStarter(game_id):
-    game = DominoGame.objects.select_for_update().get(id=game_id)
-    next = game.next_player
-    patner = (next+2)%4
-    starter = game.starter
-    lastMoveTime = lastMove(game)
-    time_diff1 = timezone.now() - lastMoveTime
-    logger_api.info("Entro a automaticCouple")
-    logger_api.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
-    if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
-        game_tools.setWinnerStarterNext1(game,next,next,next)
-    elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
-        game_tools.setWinnerStarterNext1(game,patner,patner,patner)
-    game.save()         
+    with transaction.atomic():
+        game = DominoGame.objects.select_for_update().get(id=game_id)
+        next = game.next_player
+        patner = (next+2)%4
+        starter = game.starter
+        lastMoveTime = lastMove(game)
+        time_diff1 = timezone.now() - lastMoveTime
+        logger_api.info("Entro a automaticCouple")
+        logger_api.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
+        if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
+            game_tools.setWinnerStarterNext1(game,next,next,next)
+        elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
+            game_tools.setWinnerStarterNext1(game,patner,patner,patner)
+        game.save()         
 
 def automaticMove(game,players):
     next = game.next_player
