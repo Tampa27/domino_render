@@ -2,6 +2,7 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q
+from django.db import transaction
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
@@ -334,10 +335,11 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.select_for_update().get(id=game_id)
+        with transaction.atomic():
+            game = DominoGame.objects.select_for_update().get(id=game_id)
 
-        game_tools.setWinner1(game,request.data["winner"])
-        game.save()
+            game_tools.setWinner1(game,request.data["winner"])
+            game.save()
         return Response({'status': 'success'}, status=200)
     
     @staticmethod
@@ -346,9 +348,10 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.select_for_update().get(id=game_id)
-        game.starter = request.data["starter"]
-        game.save()
+        with transaction.atomic():
+            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game.starter = request.data["starter"]
+            game.save()
         
         return Response({'status': 'success'}, status=200)
 
@@ -358,10 +361,11 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.select_for_update().get(id=game_id)
-        game.starter = request.data["starter"]
-        game.winner = request.data["winner"]
-        game.save()
+        with transaction.atomic():
+            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game.starter = request.data["starter"]
+            game.winner = request.data["winner"]
+            game.save()
         return Response({'status': 'success'}, status=200)
     
     @staticmethod
@@ -370,9 +374,10 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.select_for_update().get(id=game_id)
-        game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
-        game.save()
+        with transaction.atomic():
+            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
+            game.save()
         return Response({'status': 'success'}, status=200)
 
     @staticmethod
@@ -382,29 +387,30 @@ class GameService:
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
-        game = DominoGame.objects.select_for_update().get(id=game_id)
-        
-        game_in_round = Round.objects.filter(game_list__id = game.id).exists()
-        if game_in_round:
-            return Response({'status': 'error', "message":"No se pueden cambiar las parejas en un torneo."}, status=status.HTTP_409_CONFLICT)
-        
-        if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
-            return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
-        
-        players = game_tools.playersCount(game)
-        # if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
-        #     return Response({'status': 'success'}, status=200)  
-        # else:    
-        for player in players:
-            if player.alias == request.data["alias"]:
-                patner = player
-                break
-        aux = game.player3
-        if game.player2.alias == request.data["alias"]:
-            game.player2 = aux
-            game.player3 = patner
-        elif game.player4.alias == request.data["alias"]:
-            game.player4 = aux
-            game.player3 = patner
-        game.save()    
+        with transaction.atomic():
+            game = DominoGame.objects.select_for_update().get(id=game_id)
+            
+            game_in_round = Round.objects.filter(game_list__id = game.id).exists()
+            if game_in_round:
+                return Response({'status': 'error', "message":"No se pueden cambiar las parejas en un torneo."}, status=status.HTTP_409_CONFLICT)
+            
+            if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
+                return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
+            
+            players = game_tools.playersCount(game)
+            # if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
+            #     return Response({'status': 'success'}, status=200)  
+            # else:    
+            for player in players:
+                if player.alias == request.data["alias"]:
+                    patner = player
+                    break
+            aux = game.player3
+            if game.player2.alias == request.data["alias"]:
+                game.player2 = aux
+                game.player3 = patner
+            elif game.player4.alias == request.data["alias"]:
+                game.player4 = aux
+                game.player3 = patner
+            game.save()    
         return Response({'status': 'success'}, status=200) 
