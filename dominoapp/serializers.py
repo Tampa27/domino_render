@@ -458,6 +458,8 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
     time = serializers.SerializerMethodField()
     admin = PlayerListSerializer()
+    account_number = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
     
     def get_status(self, obj: Transaction) -> str:
         return obj.get_status
@@ -483,6 +485,20 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
         timezone = "America/Havana"
         return obj.time.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S.%f')
     
+    def get_account_number(self, obj: Transaction):
+        if obj.bank_account:
+            return obj.bank_account.account_number
+        return None
+    
+    def get_phone(self, obj: Transaction):
+        if obj.bank_account:
+            return obj.bank_account.phone
+        elif obj.from_user:
+            return obj.from_user.phone
+        elif obj.to_user:
+            return obj.to_user.phone
+        return None
+    
     class Meta:
         model = Transaction
-        fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'whatsapp_url']
+        fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'account_number', 'phone', 'whatsapp_url']

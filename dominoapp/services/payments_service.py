@@ -7,7 +7,7 @@ from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount, CurrencyRate
+from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -343,7 +343,9 @@ class PaymentService:
         if player.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
         
-        
+        if not player.earned_game:
+            return Response(data={'status': 'error', "message":'Solo puedes extraer monedas ganadas en los juegos, contacta a los administradores.'}, status=status.HTTP_403_FORBIDDEN)
+                
         min_extraction = int(os.environ.get('MIN_EXTRACTION',800))
         
         if player.total_coins < min_extraction:
@@ -352,6 +354,11 @@ class PaymentService:
         if player.total_coins < int(request.data["coins"]):
             return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
         
+        player_ids = BankAccount.objects.filter(Q(account_number=request.data["card_number"])|Q(phone = request.data["phone"])).values_list('player__id', flat=True)
+        check_block_player = BlockPlayer.objects.filter(player_blocked__id__in = player_ids).exists()
+        if check_block_player:
+           return Response(data={'status': 'error', "message":'Esta cuenta esta asociada a un player bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT) 
+                
         new_bank = True
         try:
             new_bank = False
@@ -467,6 +474,9 @@ class PaymentService:
         
         if from_user.is_block or to_user.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+        
+        if not to_user.have_recharge:
+            return Response(data={'status': 'error', "message":'El usuario debe recargar su cuenta primero, contacta a los administradores.'}, status=status.HTTP_403_FORBIDDEN)
         
         check, message = validate_tranfer(from_user, to_user, transfer_coins)
         if not check:

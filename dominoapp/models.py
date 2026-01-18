@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Subquery, OuterRef
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -63,6 +63,27 @@ class Player(models.Model):
     @property
     def is_block(self):
         return BlockPlayer.objects.filter(player_blocked__id = self.id).exists()
+    
+    @property
+    def have_recharge(self):
+        return Transaction.objects.filter(
+                to_user__id=self.id, type='rl'
+            ).annotate(
+                latest_status_name=Subquery(
+                    Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+            ).order_by('-created_at').values('status')[:1])
+            ).filter(latest_status_name='cp').exists()
+    
+    @property
+    def earned_game(self):
+        return Transaction.objects.filter(
+                to_user__id=self.id, type='gm'
+            ).annotate(
+                latest_status_name=Subquery(
+                    Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+            ).order_by('-created_at').values('status')[:1])
+            ).filter(latest_status_name='cp').exists()
+    
     
     @property
     def play_tournament(self):
