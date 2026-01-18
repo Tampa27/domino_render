@@ -172,12 +172,11 @@ def automatic_move_in_game():
                             isPlaying = False,
                             last_notifications__lte = last_notifications
                             ).exclude(id__in = players_id).order_by("-lastTimeInSystem")[:10]
-                        players_needed = 4 - len(new_players)
                         for player in players_notify:
                             FCMNOTIFICATION.send_fcm_message(
                                 player.user,
                                 title= "🎮 Mesa de Domino Activa",
-                                body= f"¡Faltan solo {players_needed} jugadores! Únete a esta partida en Domino Club."
+                                body= f"Hay jugadores esperando para jugar, únete a esta partida en Domino Club."
                             )
                             player.last_notifications = timezone.now()
                             player.save(update_fields=['last_notifications'])
