@@ -8,7 +8,8 @@ django.setup()
 
 from django.core.management.base import BaseCommand
 from django.utils.timezone import timedelta, now
-from dominoapp.models import Player
+from django.db.models import OuterRef, Exists
+from dominoapp.models import Player, BlockPlayer
 from dominoapp.connectors.email_connector import EmailConnector
 import logging
 logger = logging.getLogger('django')
@@ -20,12 +21,17 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         expired_time = now() - timedelta(days= 60)
         
-        players_models = Player.objects.filter(
-            lastTimeInSystem__lt=expired_time,
-            send_delete_email = False,
-            inactive_player = False
-            ).only('email', 'send_delete_email')
-
+        players_models = Player.objects.annotate(
+                is_blocked = Exists(
+                    BlockPlayer.objects.filter(player_blocked = OuterRef('pk'))
+                    )
+                ).filter(
+                    lastTimeInSystem__lt=expired_time,
+                    send_delete_email = False,
+                    inactive_player = False,
+                    is_blocked = False
+                ).only('email', 'send_delete_email')
+        
         for player in players_models[:100].iterator():
             expiration_time = now() + timedelta(days=30)
             if EmailConnector.email_inactive_players(player, expiration_time):
@@ -41,10 +47,15 @@ class Command(BaseCommand):
                 )
         
         expired_time = now() - timedelta(days= 83)        
-        players_models = Player.objects.filter(
+        players_models = Player.objects.annotate(
+                is_blocked = Exists(
+                    BlockPlayer.objects.filter(player_blocked = OuterRef('pk'))
+                    )
+                ).filter(
             lastTimeInSystem__lt=expired_time,
             send_delete_email = True,
-            inactive_player = False
+            inactive_player = False,
+            is_blocked = False
             ).only('email', 'inactive_player')
 
         for player in players_models[:100].iterator():
@@ -62,10 +73,15 @@ class Command(BaseCommand):
                 )
 
         expired_time = now() - timedelta(days= 90)
-        players_models_delete = Player.objects.filter(
+        players_models_delete = Player.objects.annotate(
+                is_blocked = Exists(
+                    BlockPlayer.objects.filter(player_blocked = OuterRef('pk'))
+                    )
+                ).filter(
             lastTimeInSystem__lt=expired_time,
             send_delete_email = True,
-            inactive_player = True
+            inactive_player = True,
+            is_blocked = False
             ).only('email')
 
         for player in players_models_delete.iterator():
