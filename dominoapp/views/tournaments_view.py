@@ -33,7 +33,7 @@ class TournamentsView(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.action in ["list"]:
-            queryset = Tournament.objects.filter(active=True).order_by('-created_time')
+            queryset = Tournament.objects.all().order_by('-created_time')
         else:
             queryset = Tournament.objects.all().order_by('-created_time')
         return queryset 

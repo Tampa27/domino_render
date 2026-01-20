@@ -137,6 +137,9 @@ class TournamentService:
 
         tournament = Tournament.objects.get(id=tournament_id)
 
+        if not tournament.active:
+            return Response({"status":'error',"message":"Este torneo aun no esta activo"},status=status.HTTP_409_CONFLICT)
+        
         if player.total_coins < tournament.registration_fee:
             return Response({'status': 'error', "message":"No tienes suficientes monedas para inscribirte en el torneo."}, status=status.HTTP_409_CONFLICT)
 
