@@ -24,9 +24,15 @@ class TournamentService:
         except:
             pass
         today = datetime.now(pytz.utc)
-        start_date = pytz.timezone(timezone).localize(datetime.strptime(request.data.get('start_at'), "%d-%m-%Y %H:%M:%S")).astimezone(pytz.utc)
-        deadline = pytz.timezone(timezone).localize(datetime.strptime(request.data.get('deadline'), "%d-%m-%Y %H:%M:%S")).astimezone(pytz.utc)
-                
+        try:
+            start_date = pytz.timezone(timezone).localize(datetime.strptime(request.data.get('start_at'), "%d-%m-%Y %H:%M:%S")).astimezone(pytz.utc)
+            deadline = pytz.timezone(timezone).localize(datetime.strptime(request.data.get('deadline'), "%d-%m-%Y %H:%M:%S")).astimezone(pytz.utc)
+        except:
+            return Response(data={
+                    "status": "error",
+                    "message": "Formato de fechas incorrecto. (%d-%m-%Y %H:%M:%S)"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
         if deadline <= today:
             return Response(data={
                 "status": "error",
@@ -229,7 +235,8 @@ class TournamentService:
             )
             round.game_list.add(game)
             match = Match_Game.objects.create(
-                game = game
+                game = game,
+                round = round
             )
             match.player_list.add(pair_list[i].player1)
             match.player_list.add(pair_list[i].player2)

@@ -3,7 +3,7 @@ from rest_framework import serializers
 from datetime import datetime
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Pair, BankAccount
+    Round, Match_Game, Pair, BankAccount
 from geopy.distance import geodesic
 import pytz
 
@@ -259,6 +259,58 @@ class ListGameSerializer(serializers.ModelSerializer):
         model = DominoGame
         fields = ["id","table_no", "status", "variant", "start_time", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "created_time", "is_privated", "password", "number_player", "players_close"]
 
+class PairSerializaer(serializers.ModelSerializer):
+    player1 = serializers.SerializerMethodField()
+    player2 = serializers.SerializerMethodField()
+    
+    def get_player1(self, pair: Pair)-> str:
+        if pair.player1:
+            return pair.player1.name
+        return "Desconocido"
+    
+    def get_player2(self, pair: Pair)-> str:
+        if pair.player2:
+            return pair.player2.name
+        return "Desconocido"
+    
+    class Meta:
+        model = Pair
+        fields = [
+            "id",
+            "player1",
+            "player2"
+        ]
+
+class ListMatchGameSerializer(serializers.ModelSerializer):
+    pair_list = PairSerializaer(many=True)
+    game = serializers.SerializerMethodField()
+    
+    def get_game(self, match : Match_Game)-> int|None:
+        if match.game:
+            return match.game.id
+        return None
+    
+    class Meta:
+        model = Match_Game
+        fields = [
+            "count_game",
+            "pair_list",
+            "games_win_team_1",
+            "games_win_team_2",
+            "start_at",
+            "end_at",
+            "game"
+        ]
+        depth = 1
+
+class ListRoundSerializer(serializers.ModelSerializer):
+    winner_pair_list = PairSerializaer(many=True)
+    match_list = ListMatchGameSerializer(many=True, source="match_round")
+
+    class Meta:
+        model = Round
+        fields = ["id","round_no", "winner_pair_list", "start_at", "end_at", "match_list"]
+
 class TournamentSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -268,20 +320,15 @@ class TournamentSerializer(serializers.ModelSerializer):
 class TournamentDetailsSerializer(serializers.ModelSerializer):
     
     player_list = PlayerListSerializer(many=True)
-    games_list = serializers.SerializerMethodField()
+    round_list = ListRoundSerializer(many=True, source = "round_in_tournament")
     number_player = serializers.SerializerMethodField()
     first_place = serializers.SerializerMethodField()
     second_place = serializers.SerializerMethodField()
     third_place = serializers.SerializerMethodField()
     
-    def get_number_player(self, obj:Tournament):
+    def get_number_player(self, obj:Tournament)-> int:
         return obj.player_list.all().count()
-    
-    def get_games_list(self, tournament: Tournament):
-        games = DominoGame.objects.filter(tournament__id = tournament.id)
-        serializer = ListGameSerializer(games, many=True)
-        return serializer.data
-    
+        
     def get_first_place(self, tournament: Tournament)-> str:
         if tournament.place_content_type.model == "pair":
             if tournament.first_place:
@@ -339,6 +386,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
         model = Tournament
         fields = [
             "id",
+            "name",
             "winner_payout",
             "second_payout",
             "third_payout",
@@ -360,7 +408,7 @@ class TournamentCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tournament
-        fields = ["variant", "maxScore", "inPairs", "startWinner",  "moveTime", "min_player", "max_player", "active", "registration_fee", "deadline", "start_at", "winner_payout", "second_payout", "third_payout", "number_match_win"]
+        fields = ["name", "variant", "maxScore", "inPairs", "startWinner",  "moveTime", "min_player", "max_player", "active", "registration_fee", "deadline", "start_at", "winner_payout", "second_payout", "third_payout", "number_match_win"]
 
 class MyPlayerSerializer(serializers.ModelSerializer):
 
