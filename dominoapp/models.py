@@ -142,13 +142,14 @@ class BankAccount(models.Model):
         return self.account_number
 
 class Tournament(models.Model):
+    name = models.CharField(max_length=100)
     
     # Limit the models that can have a GenericRelation to this table
     MODEL_CHOICES = models.Q(app_label="dominoapp", model="player") | models.Q(
         app_label="dominoapp", model="pair"
     )
         
-    player_list = models.ManyToManyField(Player, related_name="player_list")
+    player_list = models.ManyToManyField(Player, related_name="player_list",null=True,blank=True)
     
     place_content_type = models.ForeignKey(ContentType,on_delete=models.CASCADE,null=True,blank=True, limit_choices_to=MODEL_CHOICES)
     
@@ -282,38 +283,8 @@ class DominoGame(models.Model):
         if self.tournament is not None:
             return True
         return False
-    
-class Match_Game(models.Model):
-    game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
-    count_game = models.IntegerField(default=1)
-    player_list = models.ManyToManyField(Player, related_name="players_in_game") # Lista de player en la ronda
-    pair_list = models.ManyToManyField(Pair, related_name="pairs_in_game") # Lista de parejas en la ronda
-    games_win_team_1 = models.IntegerField(default=0)
-    games_win_team_2 = models.IntegerField(default=0)
-    start_at = models.DateTimeField(default=timezone_dj.now)   # Fecha en que comienza el partido.
-    end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el partido
-    
-    @property
-    def is_final_match(self):
-        number_match_win = self.game.tournament.number_match_win
-        if self.games_win_team_1 == number_match_win or self.games_win_team_2==number_match_win:
-            return True
-        return False
-    
-    @property
-    def winner_pair_1(self):
-        number_match_win = self.game.tournament.number_match_win
-        if self.games_win_team_1 == number_match_win:
-            return True
-        return False
-    
-    @property
-    def winner_pair_2(self):
-        number_match_win = self.game.tournament.number_match_win
-        if self.games_win_team_2 == number_match_win:
-            return True
-        return False
-    
+
+   
 class Round(models.Model):
     tournament = models.ForeignKey(Tournament, related_name="round_in_tournament", on_delete=models.CASCADE)
     player_list = models.ManyToManyField(Player, related_name="players_in_round") # Lista de player en la ronda
@@ -356,7 +327,38 @@ class Round(models.Model):
         if total_pair // 2 == 1 and total_wins_pair == 1:
             return True
         return False
+
+class Match_Game(models.Model):
+    game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
+    round = models.ForeignKey(Round, related_name="match_round", on_delete=models.CASCADE, null=True, blank=True)
+    count_game = models.IntegerField(default=1)
+    player_list = models.ManyToManyField(Player, related_name="players_in_game") # Lista de player en la ronda
+    pair_list = models.ManyToManyField(Pair, related_name="pairs_in_game") # Lista de parejas en la ronda
+    games_win_team_1 = models.IntegerField(default=0)
+    games_win_team_2 = models.IntegerField(default=0)
+    start_at = models.DateTimeField(default=timezone_dj.now)   # Fecha en que comienza el partido.
+    end_at = models.DateTimeField(blank=True, null=True)    # Fecha en que finalizo el partido
     
+    @property
+    def is_final_match(self):
+        number_match_win = self.game.tournament.number_match_win
+        if self.games_win_team_1 == number_match_win or self.games_win_team_2==number_match_win:
+            return True
+        return False
+    
+    @property
+    def winner_pair_1(self):
+        number_match_win = self.game.tournament.number_match_win
+        if self.games_win_team_1 == number_match_win:
+            return True
+        return False
+    
+    @property
+    def winner_pair_2(self):
+        number_match_win = self.game.tournament.number_match_win
+        if self.games_win_team_2 == number_match_win:
+            return True
+        return False   
     
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
