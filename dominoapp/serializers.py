@@ -281,14 +281,15 @@ class PairSerializaer(serializers.ModelSerializer):
             "player2"
         ]
 
+class GameMatchSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = DominoGame
+        fields = ["id", "status", "table_no", "scoreTeam1", "scoreTeam2"]
+
 class ListMatchGameSerializer(serializers.ModelSerializer):
     pair_list = PairSerializaer(many=True)
-    game = serializers.SerializerMethodField()
-    
-    def get_game(self, match : Match_Game)-> int|None:
-        if match.game:
-            return match.game.id
-        return None
+    game = GameMatchSerializer()
     
     class Meta:
         model = Match_Game
