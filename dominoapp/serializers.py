@@ -160,7 +160,8 @@ class GameCreateSerializer(serializers.ModelSerializer):
 class GameSerializer(serializers.ModelSerializer):
 
     players_close = serializers.SerializerMethodField()
-    
+    in_tournament = serializers.SerializerMethodField()
+
     def get_players_close(self, obj: DominoGame) -> bool:
         # Recopilar IDs de jugadores (igual que antes)
         players_ids = []
@@ -196,6 +197,9 @@ class GameSerializer(serializers.ModelSerializer):
         
         return False
     
+    def get_in_tournament(self, obj: DominoGame) -> bool:
+        return obj.in_tournament
+
     class Meta:
         model = DominoGame
         fields = ('__all__')

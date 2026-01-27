@@ -279,7 +279,7 @@ class DominoGame(models.Model):
         return super().save(*args, **kwargs)
 
     @property
-    def in_tournament(self, ):
+    def in_tournament(self):
         if self.tournament is not None:
             return True
         return False
