@@ -366,7 +366,24 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
                 player = tournament.third_place
                 return f"{player.name}"            
         return None
-        
+
+    def get_start_at(self, obj: Tournament):
+        timezone = "America/Havana"
+        if obj.start_at:
+            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S.%f')
+        return None
+
+    def get_end_at(self, obj: Tournament):
+        timezone = "America/Havana"
+        if obj.end_at:
+            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S.%f')
+        return None
+    
+    def get_deadline(self, obj: Tournament):
+        timezone = "America/Havana"
+        if obj.deadline:
+            return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S.%f')
+        return None
     
     class Meta:
         model = Tournament
