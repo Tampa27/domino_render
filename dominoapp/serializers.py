@@ -330,9 +330,9 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
     first_place = serializers.SerializerMethodField()
     second_place = serializers.SerializerMethodField()
     third_place = serializers.SerializerMethodField()
-    start_at = serializers.SerializerMethodField()
-    end_at = serializers.SerializerMethodField()
-    deadline = serializers.SerializerMethodField()
+    # start_at = serializers.SerializerMethodField()
+    # end_at = serializers.SerializerMethodField()
+    # deadline = serializers.SerializerMethodField()
     
     def get_number_player(self, obj:Tournament)-> int:
         return obj.player_list.all().count()
@@ -370,23 +370,23 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
                 return f"{player.name}"            
         return None
 
-    def get_start_at(self, obj: Tournament):
-        timezone = "America/Havana"
-        if obj.start_at:
-            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
-        return None
+    # def get_start_at(self, obj: Tournament):
+    #     timezone = "America/Havana"
+    #     if obj.start_at:
+    #         return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
+    #     return None
 
-    def get_end_at(self, obj: Tournament):
-        timezone = "America/Havana"
-        if obj.end_at:
-            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
-        return None
+    # def get_end_at(self, obj: Tournament):
+    #     timezone = "America/Havana"
+    #     if obj.end_at:
+    #         return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
+    #     return None
     
-    def get_deadline(self, obj: Tournament):
-        timezone = "America/Havana"
-        if obj.deadline:
-            return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
-        return None
+    # def get_deadline(self, obj: Tournament):
+    #     timezone = "America/Havana"
+    #     if obj.deadline:
+    #         return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
+    #     return None
     
     class Meta:
         model = Tournament
@@ -403,23 +403,23 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
 class TournamentListSerializer(serializers.ModelSerializer):
 
     number_player = serializers.SerializerMethodField()
-    start_at = serializers.SerializerMethodField()
-    deadline = serializers.SerializerMethodField()
+    # start_at = serializers.SerializerMethodField()
+    # deadline = serializers.SerializerMethodField()
     
     def get_number_player(self, obj:Tournament):
         return obj.player_list.all().count()
     
-    def get_start_at(self, obj: Tournament):
-        timezone = "America/Havana"
-        if obj.start_at:
-            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
-        return None
+    # def get_start_at(self, obj: Tournament):
+    #     timezone = "America/Havana"
+    #     if obj.start_at:
+    #         return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
+    #     return None
     
-    def get_deadline(self, obj: Tournament):
-        timezone = "America/Havana"
-        if obj.deadline:
-            return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
-        return None
+    # def get_deadline(self, obj: Tournament):
+    #     timezone = "America/Havana"
+    #     if obj.deadline:
+    #         return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%S')
+    #     return None
 
     class Meta:
         model = Tournament
