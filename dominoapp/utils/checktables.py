@@ -206,10 +206,11 @@ def automatic_move_in_game():
                         body=f"El torneo se pospuso para el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {tournament.deadline.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')}."
                     )
                 
-                FCMNOTIFICATION.send_fcm_global_message(
-                    title="⏰ Últimas horas para inscribirte al torneo",
-                    body= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
-                )
+                ##### Se va a comentar hasta que Ahmed termine las pruebas de notificaciones ##### 
+                # FCMNOTIFICATION.send_fcm_global_message(
+                #     title="⏰ Últimas horas para inscribirte al torneo",
+                #     body= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
+                # )
             
             diff_start = tournament.start_at - timedelta(hours=2)
             if  diff_start < now and not tournament.notification_1:
