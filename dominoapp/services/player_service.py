@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db import transaction
-from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value
+from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value, Exists, OuterRef
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.shortcuts import redirect
@@ -331,7 +331,13 @@ class PlayerService:
         
         paginator.page_size = page_size  # Items por página
         
-        queryset = Player.objects.all()
+        queryset = Player.objects.all().exclude(
+            Exists(BlockPlayer.objects.filter(
+                    player_blocked__id = OuterRef('id')
+                )
+            )
+        )
+
         if order_by in ['elo', '-elo']:
             queryset = queryset.exclude(elo=1500).order_by(order_by)
         elif order_by in ['data_percent', '-data_percent']:
