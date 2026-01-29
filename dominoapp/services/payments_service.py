@@ -868,7 +868,7 @@ class PaymentService:
         except:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
         
-        if str(request.data['amount']) < str(1):
+        if int(request.data['amount']) < int(1):
             return Response(data={'status': 'error', "message":'The amount must be greater than 0.'}, status=status.HTTP_409_CONFLICT)
 
         response, error = PayPalConnector.create_payment(amount = request.data['amount'], user_email= user.email)
