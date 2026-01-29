@@ -25,6 +25,7 @@ class TournamentRequest:
             return is_valid, message, status_response
 
         validators = {
+            "name": RequestValidator.validate_string,
             "variant": (RequestValidator.validate_in_array_0, GameVariants.variant_choices),
             "maxScore": RequestValidator.validate_numeric,
             "inPairs": RequestValidator.validate_boolean,
