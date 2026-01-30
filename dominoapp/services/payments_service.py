@@ -7,7 +7,7 @@ from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer
+from dominoapp.models import Player, Bank, Transaction, Payment, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -877,15 +877,48 @@ class PaymentService:
             return error
         
         if response["status"] == "success":
+            new_transaction = create_reload_transactions(
+                to_user=user, amount=int(request.data["amount"]), status="p", external_id=response["external_id"],
+                paymentmethod= "paypal"
+                )
+            payment = Payment.objects.create(
+                external_id = response["external_id"],
+                transaction = new_transaction,
+                user = user,
+                amount = request.data["amount"]
+            )
+            status_payment = Status_Payment.objects.create(
+                status = "pending"
+            )
+            payment.status_list.add(status_payment)
             return Response(data = response, status=status.HTTP_200_OK)
         else:
             return Response(data = response, status=status.HTTP_400_BAD_REQUEST)
     
     @staticmethod
     def process_paypal_capture(request):
+        check_payment = Payment.objects.filter(external_id= request.data["external_id"]).annotate(
+            latest_status_name=Subquery(
+                Status_Payment.objects.filter(status_payment=OuterRef('pk')
+                    ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='pending').exists()
+        if not check_payment:
+            return Response(data = {
+                "status": "error",
+                "message": "Solicitud de pago no encontrado."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        payment = Payment.objects.get(external_id= request.data["external_id"])
         response = PayPalConnector.capture_payment(external_id=request.data["external_id"])
 
         if response:
+            payment_status = Status_Payment.objects.create(status = "paid")            
+            payment.status_list.add(payment_status)
+            new_status = Status_Transaction.objects.create(status = 'cp')
+            payment.transaction.status_list.add(new_status)
+
+            PaymentService.reload_coins(payment.transaction)
+
             return Response(data = {
                 "status": "success",
                 "message": "Payment captured successfully"
@@ -893,6 +926,6 @@ class PaymentService:
         else:
             return Response(data = {
                 "status": "error",
-                "message": "Failed to capture payment"
+                "message": "Fallo al completar el pago"
             }, status=status.HTTP_400_BAD_REQUEST)
 
