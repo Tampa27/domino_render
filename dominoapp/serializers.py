@@ -3,7 +3,7 @@ from rest_framework import serializers
 from datetime import datetime
 from decimal import Decimal
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Round, Match_Game, Pair, BankAccount
+    Round, Match_Game, Pair, BankAccount, PackageCoins
 from geopy.distance import geodesic
 import pytz
 
@@ -589,3 +589,9 @@ class ListTransactionsAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'user', 'amount', 'coins','type', 'status', 'time', 'descriptions', 'admin', 'paymentmethod', 'account_number', 'phone', 'whatsapp_url']
+
+class PackageCoinsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PackageCoins
+        fields = ["id", "amount", "coin_amount"]

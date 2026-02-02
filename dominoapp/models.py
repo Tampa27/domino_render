@@ -427,7 +427,14 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     paid_time = models.DateTimeField(blank=True, null=True)
     
+class PackageCoins(models.Model):
+    amount = models.DecimalField(decimal_places=2, max_digits=10)
+    coin_amount = models.PositiveIntegerField(default=0)
+    paymentmethod = models.CharField(max_length=32,choices=TransactionPaymentMethod.payment_choices, null=True, blank=True)
+    currency = models.CharField(max_length=4)
 
+    def __str__(self):
+        return f"{self.paymentmethod}: {self.coin_amount} - {self.amount} {self.currency}"
 
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")

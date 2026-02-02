@@ -9,7 +9,7 @@ from dominoapp.models import Transaction
 from dominoapp.views.request.payments_request import PaymentRequest
 from dominoapp.views.filters.payment_filter import PaymentSearchFilter
 from dominoapp.services.payments_service import PaymentService
-from dominoapp.serializers import ListTransactionsSerializer, ListTransactionsAdminSerializer
+from dominoapp.serializers import ListTransactionsSerializer, ListTransactionsAdminSerializer, PackageCoinsSerializer
 from dominoapp.utils.request_permitions import IsSuperAdminUser
 from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
 from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField 
@@ -32,7 +32,7 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     def get_permissions(self):
         if self.action in ["recharge", "extract", "select", "confirm"]:
             permission_classes = [IsAdminUser]
-        elif self.action in ["resume_game", "send_test_message"]:
+        elif self.action in ["resume_game", "send_test_message", "list_package"]:
             permission_classes = [AllowAny]
         elif self.action in ['promotion']:
             permission_classes = [IsSuperAdminUser]       
@@ -567,3 +567,13 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
         
         except Exception as e:
             return Response(data={'error': str(e)}, status=400)
+
+    @extend_schema(
+            request=None,
+            responses={
+                200: PackageCoinsSerializer(many=True)
+            }
+    )
+    @action(methods=["GET"], detail=False)
+    def list_package(self, request):
+        return PaymentService.process_list_package_coins(request)
