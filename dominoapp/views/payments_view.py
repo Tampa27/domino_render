@@ -465,7 +465,8 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
                 "application/json": inline_serializer(
                     name="Payments Create Request",
                     fields={
-                        "amount" : IntegerField(required=True)
+                        "amount" : IntegerField(required=False),
+                        "package_id": IntegerField(required=False)
                     }
                 )
             },
