@@ -572,18 +572,21 @@ class PaymentService:
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     @staticmethod
-    def reload_coins(transaction: Transaction):
+    def reload_coins(transaction: Transaction, package_coins:int=None):
         try:
             bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
         
         player = transaction.to_user
-        recharged_coins = int(transaction.amount)
-        currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
-        if currency_rate:
-            recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
-        
+        if not package_coins:
+            recharged_coins = int(transaction.amount)
+            currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
+            if currency_rate:
+                recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
+        else:
+            recharged_coins = package_coins
+
         player.recharged_coins+= recharged_coins
         player.save(update_fields=["recharged_coins"])
                 
@@ -869,24 +872,37 @@ class PaymentService:
         except:
             return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
         
-        if int(request.data['amount']) < int(1):
-            return Response(data={'status': 'error', "message":'The amount must be greater than 0.'}, status=status.HTTP_409_CONFLICT)
-
-        response, error = PayPalConnector.create_payment(amount = request.data['amount'], user_email= user.email)
+        amount = 0
+        package = None
+        if not "package_id" in request.data:
+            if int(request.data['amount']) < int(1):
+                return Response(data={'status': 'error', "message":'El valor debe ser mayor que 0.'}, status=status.HTTP_409_CONFLICT)
+            amount = request.data['amount']
+        else:
+            try:
+                package = PackageCoins.objects.get(id = request.data["package_id"])
+            except Exception as error:
+                return Response(
+                    data={'status': 'error', "message":'Paquete no disponible'}, status=status.HTTP_404_NOT_FOUND
+                )
+            amount = package.amount
+        
+        response, error = PayPalConnector.create_payment(amount = amount, user_email= user.email)
 
         if error:
             return error
         
         if response["status"] == "success":
             new_transaction = create_reload_transactions(
-                to_user=user, amount=int(request.data["amount"]), status="p", external_id=response["external_id"],
+                to_user=user, amount=int(amount), status="p", external_id=response["external_id"],
                 paymentmethod= "paypal"
                 )
             payment = Payment.objects.create(
                 external_id = response["external_id"],
                 transaction = new_transaction,
                 user = user,
-                amount = request.data["amount"]
+                amount = amount,
+                package_coins = package if package else None
             )
             status_payment = Status_Payment.objects.create(
                 status = "pending"
@@ -918,7 +934,7 @@ class PaymentService:
             new_status = Status_Transaction.objects.create(status = 'cp')
             payment.transaction.status_list.add(new_status)
 
-            PaymentService.reload_coins(payment.transaction)
+            PaymentService.reload_coins(payment.transaction, package_coins= payment.package_coins.coin_amount)
 
             return Response(data = {
                 "status": "success",

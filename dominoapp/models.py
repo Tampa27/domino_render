@@ -416,16 +416,6 @@ class Status_Payment(models.Model):
     status = models.CharField(max_length=32,choices=PaymentStatus.payment_choices,default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
 
-
-class Payment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True, db_index=True)
-    external_id = models.CharField(max_length=50, null=True, blank=True, db_index=True)
-    status_list = models.ManyToManyField(to=Status_Payment, blank=True, related_name="status_payment")
-    transaction = models.ForeignKey(Transaction, related_name="transaction_payment", on_delete=models.SET_NULL, blank=True, null= True)
-    user = models.ForeignKey(Player,related_name="payer_payment",on_delete=models.PROTECT)
-    amount = models.DecimalField(default=0, decimal_places=2, max_digits= 9)
-    created_at = models.DateTimeField(auto_now_add=True)
-    paid_time = models.DateTimeField(blank=True, null=True)
     
 class PackageCoins(models.Model):
     amount = models.DecimalField(decimal_places=2, max_digits=10)
@@ -435,6 +425,17 @@ class PackageCoins(models.Model):
 
     def __str__(self):
         return f"{self.paymentmethod}: {self.coin_amount} - {self.amount} {self.currency}"
+
+class Payment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    external_id = models.CharField(max_length=50, null=True, blank=True, db_index=True)
+    status_list = models.ManyToManyField(to=Status_Payment, blank=True, related_name="status_payment")
+    transaction = models.ForeignKey(Transaction, related_name="transaction_payment", on_delete=models.SET_NULL, blank=True, null= True)
+    user = models.ForeignKey(Player,related_name="payer_payment",on_delete=models.PROTECT)
+    amount = models.DecimalField(default=0, decimal_places=2, max_digits= 9)
+    package_coins = models.ForeignKey(PackageCoins, on_delete=models.SET_NULL, related_name="package_payment", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_time = models.DateTimeField(blank=True, null=True)
 
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")

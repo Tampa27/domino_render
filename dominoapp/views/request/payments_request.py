@@ -226,9 +226,11 @@ class PaymentRequest:
         message = None
         status_response = None
 
-        required_keys = [
-            "amount"
-        ]
+        required_keys = []
+        if not "package_id" in request.data:
+            required_keys = [
+                "amount"
+            ]
 
         is_valid, message = RequestValidator.validate_required_key(request, required_keys)
         if not is_valid:
@@ -237,7 +239,8 @@ class PaymentRequest:
             return is_valid, message, status_response
 
         validators = {
-            "amount": RequestValidator.validate_numeric
+            "amount": RequestValidator.validate_numeric,
+            "package_id": RequestValidator.validate_numeric
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
