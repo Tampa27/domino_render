@@ -7,7 +7,8 @@ from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Payment, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer
+from dominoapp.models import Player, Bank, Transaction, Payment, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer, PackageCoins
+from dominoapp.serializers import PackageCoinsSerializer
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
@@ -929,3 +930,7 @@ class PaymentService:
                 "message": "Fallo al completar el pago"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+    def process_list_package_coins(request):
+        queryset = PackageCoins.objects.all()
+        serializer = PackageCoinsSerializer(queryset, many=True)
+        return Response(data= serializer.data, status=status.HTTP_200_OK)

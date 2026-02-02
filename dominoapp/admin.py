@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from .models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
-    MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, BankAccount
+    MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
+    BankAccount, PackageCoins
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -630,3 +631,4 @@ admin.site.register(AppVersion, AppVersionAdmin)
 admin.site.register(ReferralPlayers, ReferralPlayersAdmin)
 admin.site.register(CurrencyRate, CurrencyRateAdmin)
 admin.site.register(BankAccount)
+admin.site.register(PackageCoins)
