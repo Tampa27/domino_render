@@ -933,7 +933,7 @@ class PaymentService:
         
         if response:
             package = PackageCoins.objects.get(id = request.data["package_id"])
-            payment = Payment.objects.get_or_create(
+            payment, create = Payment.objects.get_or_create(
                     external_id= request.data["external_id"],
                     package_coins = package,
                     user = Player.objects.get(user__id = request.user.id),
