@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q, Subquery, OuterRef
+from django.db.models import Q, Subquery, OuterRef, Sum
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -19,10 +19,6 @@ class Player(models.Model):
     earned_coins = models.IntegerField(default=0)
     recharged_coins = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
-    dataWins = models.IntegerField(default=0)
-    dataLoss = models.IntegerField(default=0)
-    matchWins = models.IntegerField(default=0)
-    matchLoss = models.IntegerField(default=0)
     lastTimeInSystem = models.DateTimeField(default=timezone_dj.now)
     email = models.CharField(max_length=250, unique=True, null=True, blank=True)
     photo_url = models.URLField(max_length=250, null=True, blank=True)
@@ -46,16 +42,19 @@ class Player(models.Model):
     lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     timezone = models.CharField(max_length=50, default="America/Havana")
     last_notifications = models.DateTimeField(default=timezone_dj.now)
-    
+    send_game_notifications = models.BooleanField(default=True)
+
     @property
     def total_coins(self):
         return self.earned_coins + self.recharged_coins
     
     @property
     def elo_factor(self):
-        if (self.dataLoss + self.dataWins) < 100:
+        total_data = SummaryPlayer.objects.filter(player__id=self.id).aggregate(total=Sum('data_wins') + Sum('data_loss') + Sum('data_tie'))['total'] or 0
+        
+        if (total_data) < 100:
             return 40
-        elif (self.dataLoss + self.dataWins) >= 100 and self.elo < 2400:
+        elif (total_data) >= 100 and self.elo < 2400:
             return 20
         else:
             return 10
@@ -113,7 +112,21 @@ class Player(models.Model):
         if self.elo<0:
             self.elo=0
         return super().save(*args, **kwargs)
-    
+
+class SummaryPlayer(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="summary_player")
+    created_at = models.DateTimeField(default=timezone_dj.now)
+
+    # Datos a Resumir
+    data_wins = models.PositiveIntegerField(default=0)
+    data_loss = models.PositiveIntegerField(default=0)
+    data_tie = models.PositiveIntegerField(default=0)
+    match_wins = models.PositiveIntegerField(default=0)
+    match_loss = models.PositiveIntegerField(default=0)
+    tournament_wins = models.PositiveIntegerField(default=0)
+    pass_player = models.PositiveIntegerField(default=0)  ## Pases que da un player
+    owner_pass = models.PositiveIntegerField(default=0)  ## Pases que recibe un player
+
 
 class Pair(models.Model):
     player1 = models.ForeignKey(Player,related_name="pair_1",on_delete=models.CASCADE)

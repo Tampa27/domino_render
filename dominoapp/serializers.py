@@ -2,8 +2,9 @@ import os
 from rest_framework import serializers
 from datetime import datetime
 from decimal import Decimal
+from django.db.models import Sum
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Round, Match_Game, Pair, BankAccount, PackageCoins
+    Round, Match_Game, Pair, BankAccount, PackageCoins, SummaryPlayer
 from geopy.distance import geodesic
 import pytz
 
@@ -13,10 +14,6 @@ class PlayerSerializer(serializers.ModelSerializer):
     earned_coins = serializers.IntegerField()
     recharged_coins = serializers.IntegerField()
     points = serializers.IntegerField()
-    dataWins = serializers.IntegerField()
-    dataLoss = serializers.IntegerField()
-    matchWins = serializers.IntegerField()
-    matchLoss = serializers.IntegerField()
     lastTimeInSystem = serializers.DateTimeField()
     email = serializers.CharField()
     photo_url = serializers.CharField()
@@ -26,6 +23,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     lat = serializers.DecimalField(max_digits=9, decimal_places=7)
     lng = serializers.DecimalField(max_digits=10, decimal_places=7)
     timezone = serializers.CharField()
+    send_game_notifications = serializers.BooleanField()
 
     def get_coins(self, obj: Player) -> int:
         return obj.recharged_coins + obj.earned_coins
@@ -46,10 +44,6 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.alias = validated_data.get('alias', instance.alias)
         instance.tiles = validated_data.get('tiles', instance.tiles)        
         instance.points = validated_data.get('points', instance.points)
-        instance.dataWins = validated_data.get('dataWins', instance.dataWins)
-        instance.dataLoss = validated_data.get('dataLoss', instance.dataLoss)
-        instance.matchWins = validated_data.get('matchWins', instance.matchWins)
-        instance.matchLoss = validated_data.get('matchLoss', instance.matchLoss)
         instance.lastTimeInSystem = validated_data.get('lastTimeInSystem',instance.lastTimeInSystem)
         instance.email = validated_data.get('email', instance.email)
         instance.photo_url = validated_data.get('photo_url', instance.photo_url)
@@ -57,11 +51,16 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.lat = validated_data.get('lat', instance.lat)
         instance.lng = validated_data.get('lng', instance.lng)
         instance.timezone = validated_data.get('timezone', instance.timezone)
+        instance.send_game_notifications = validated_data.get('send_game_notifications', instance.send_game_notifications)
         instance.save()
         return instance     
 
 class PlayerRankinSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
+    dataWins = serializers.SerializerMethodField()
+    dataLoss = serializers.SerializerMethodField()
+    matchWins = serializers.SerializerMethodField()
+    matchLoss = serializers.SerializerMethodField()
     data_win_percent = serializers.SerializerMethodField()
     match_win_percent = serializers.SerializerMethodField()
     
@@ -69,21 +68,37 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
         return obj.earned_coins + obj.recharged_coins
     
     def get_data_win_percent(self, obj: Player) -> str:
-        total_game = obj.dataWins + obj.dataLoss
-        if total_game == 0:
+        data_wins =  SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('data_wins'))['total'] or 0 
+        other_data = SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('data_loss') + Sum('data_tie'))['total'] or 0
+        if data_wins + other_data == 0:
             return "0.00"
         else:
-           win_percent = Decimal((obj.dataWins * 100)/total_game)
+           win_percent = Decimal((data_wins * 100)/(data_wins + other_data))
            return str(round(win_percent, 2))
     
     def get_match_win_percent(self, obj: Player) -> str:
-        total_game = obj.matchWins + obj.matchLoss
-        if total_game == 0:
+        match_wins =  SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('match_wins'))['total'] or 0 
+        other_match = SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('match_loss'))['total'] or 0
+        
+        if match_wins + other_match == 0:
             return "0.00"
         else:
-           win_percent = Decimal((obj.matchWins * 100)/total_game)
+           win_percent = Decimal((match_wins * 100)/(match_wins + other_match))
            return str(round(win_percent, 2))
     
+    def get_dataWins(self, obj: Player) -> str:
+        return SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('data_wins'))['total'] or 0 
+
+    def get_dataLoss(self, obj: Player) -> str:
+        return SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('data_loss'))['total'] or 0 
+
+    def get_matchWins(self, obj: Player) -> str:
+        return SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('match_wins'))['total'] or 0 
+        
+    def get_matchLoss(self, obj: Player) -> str:
+        return SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('match_loss'))['total'] or 0 
+    
+
     class Meta:
         model = Player
         fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent"]
