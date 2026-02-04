@@ -9,7 +9,7 @@ from dominoapp.utils.transactions import create_game_transactions
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.move_register_utils import movement_register
-from dominoapp.utils.players_tools import update_elo_pair, update_elo
+from dominoapp.utils.players_tools import update_elo_pair, update_elo, get_summary_model
 
 logger = logging.getLogger(__name__)
 logger_discord = logging.getLogger('django')
@@ -213,6 +213,11 @@ def movement(game_id,player,players,tile, automatic=False):
                         game.winner = DominoGame.Winner_Couple_1
                     elif winner == DominoGame.Winner_Player_2 or winner == DominoGame.Winner_Player_4:
                         game.winner = DominoGame.Winner_Couple_2                
+            if winner == DominoGame.Tie_Game:
+                for player in players:
+                    summary = get_summary_model(player)
+                    summary.data_tie +=1 
+                    summary.save(update_fields=['data_tie'])
         else:
             move_register = movement_register(game, player, tile, players, automatic) 
             if game.payPassValue > 0:
@@ -294,8 +299,10 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
             n_p+=1
     if game.inPairs:
         for i in range(n):
+            summary = get_summary_model(players[i])
             if (i == w or i == ((w+2)%4)) and w < 4:
-                players[i].dataWins+=1
+                summary.data_wins += 1
+                summary.save(update_fields=['data_wins'])
                 if game.payWinValue > 0:
                     bank_coins = int(game.payWinValue*ApiConstants.DISCOUNT_PERCENT/100)
                     player_coins = (game.payWinValue-bank_coins)
@@ -306,7 +313,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         descriptions=f"gane en el juego {game.id}",
                         move_register=move_register)
                 if status == "fg" and game.perPoints:
-                    players[i].matchWins+=1
+                    summary.match_wins += 1
+                    summary.save(update_fields=['match_wins'])
                     if game.payMatchValue > 0:
                         bank_coins = int(game.payMatchValue*ApiConstants.DISCOUNT_PERCENT/100)
                         bank.game_coins+=bank_coins
@@ -318,7 +326,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             move_register=move_register)
                 players[i].save()
             else:
-                players[i].dataLoss+=1
+                summary.data_loss += 1
+                summary.save(update_fields=['data_loss'])
                 if game.payWinValue > 0 and w != 4:
                     players[i].earned_coins-=game.payWinValue
                     if players[i].earned_coins<0:
@@ -329,7 +338,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         descriptions=f"perdi en el juego {game.id}",
                         move_register=move_register)
                 if status == "fg" and game.perPoints:
-                    players[i].matchLoss+=1
+                    summary.match_loss += 1
+                    summary.save(update_fields=['match_loss'])
                     if game.payMatchValue > 0 and w != 4:
                         players[i].earned_coins-=game.payMatchValue
                         if players[i].earned_coins<0:
@@ -353,8 +363,11 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     logger_discord.critical(f"Error en actualizar los ElOS por pareja y al capturar el error, players: {players}, winner: {w}")
     else:
         for i in range(n):
+            summary = get_summary_model(players[i])
             if i == w:
-                players[i].dataWins+=1
+                summary.data_wins += 1
+                summary.save(update_fields=['data_wins'])
+
                 if game.payWinValue > 0:
                     bank_coins = int(game.payWinValue*(n_p-1)*ApiConstants.DISCOUNT_PERCENT/100)
                     bank.game_coins+=bank_coins
@@ -365,7 +378,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         descriptions=f"gane en el juego {game.id}",
                         move_register=move_register)
                 if status == "fg" and game.perPoints:
-                    players[i].matchWins+=1
+                    summary.match_wins += 1
+                    summary.save(update_fields=['match_wins'])
                     if game.payMatchValue > 0:
                         bank_coins = int(game.payMatchValue*(n_p-1)*ApiConstants.DISCOUNT_PERCENT/100)
                         bank.game_coins+=bank_coins
@@ -377,7 +391,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                             move_register=move_register)
                 players[i].save()
             elif players[i].isPlaying == True and w < 4:
-                players[i].dataLoss+=1
+                summary.data_loss += 1
+                summary.save(update_fields=['data_loss'])
                 if game.payWinValue > 0:
                     players[i].earned_coins-=game.payWinValue
                     if players[i].earned_coins<0:
@@ -388,7 +403,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         descriptions=f"perdi en el juego {game.id}",
                         move_register=move_register)
                 if status == "fg" and game.perPoints:
-                    players[i].matchLoss+=1
+                    summary.match_loss += 1
+                    summary.save(update_fields=['match_loss'])
                     if game.payMatchValue > 0 and w != 4:
                         players[i].earned_coins-=game.payMatchValue
                         if players[i].earned_coins<0:
@@ -447,6 +463,12 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             game=game, to_user=players[pos1], amount=coins, status="cp", 
                             descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
                             move_register=move_register)
+                        summary_player_pass = get_summary_model(players[pos])
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass'])
+                        summary_player_passed = get_summary_model(players[pos1])
+                        summary_player_passed.pass_player += 1
+                        summary_player_passed.save(update_fields=['pass_player'])
                         players[pos].save()
                         players[pos1].save()
                     else:
@@ -475,6 +497,12 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             game=game, to_user=players[pos1], amount=coins, status="cp",
                             descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
                             move_register=move_register)
+                        summary_player_pass = get_summary_model(players[pos])
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass'])
+                        summary_player_passed = get_summary_model(players[pos1])
+                        summary_player_passed.pass_player += 1
+                        summary_player_passed.save(update_fields=['pass_player'])
                         players[pos].save()
                         players[pos1].save()
                 elif prev == 2 and game.inPairs == False:
@@ -504,6 +532,12 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             game=game, to_user=players[pos1], amount=coins, status="cp",
                             descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
                             move_register=move_register)
+                        summary_player_pass = get_summary_model(players[pos])
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass'])
+                        summary_player_passed = get_summary_model(players[pos1])
+                        summary_player_passed.pass_player += 1
+                        summary_player_passed.save(update_fields=['pass_player'])
                         players[pos].save()
                         players[pos1].save()
                     else:        
@@ -532,6 +566,12 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                             game=game, to_user=players[pos1], amount=coins, status="cp",
                             descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
                             move_register=move_register)
+                        summary_player_pass = get_summary_model(players[pos])
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass'])
+                        summary_player_passed = get_summary_model(players[pos1])
+                        summary_player_passed.pass_player += 1
+                        summary_player_passed.save(update_fields=['pass_player'])
                         players[pos].save()
                         players[pos1].save()
                 break                            

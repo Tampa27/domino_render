@@ -1,6 +1,7 @@
 import hashlib
 from decimal import Decimal
-from dominoapp.models import Player
+from datetime import datetime
+from dominoapp.models import Player, SummaryPlayer
 
 def get_client_ip(request):
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -106,4 +107,14 @@ def update_elo_pair(pair1: list[Player], pair2: list[Player], tie:bool=False)->N
         delta_R_player = total_delta_R_pair2 / 2
         player.elo += delta_R_player
         player.save(update_fields=['elo'])
-  
+
+def get_summary_model(player: Player)-> SummaryPlayer:
+    """Obtiene o crea el modelo SummaryPlayer asociado a un Player."""
+    now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    summary = SummaryPlayer.objects.filter(
+        player__id=player.id,
+        created_at__gte=now
+        ).order_by('-created_at').first()
+    if not summary:
+        summary = SummaryPlayer.objects.create(player=player, created_at=now)
+    return summary

@@ -8,7 +8,7 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from .models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
     MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
-    BankAccount, PackageCoins
+    BankAccount, PackageCoins, SummaryPlayer
 from dominoapp.utils.admin_helpers import AdminHelpers
 
 admin.site.site_title = "DOMINO site admin (DEV)"
@@ -612,6 +612,13 @@ class CurrencyRateAdmin(admin.ModelAdmin):
         "code",
         "rate_exchange",
         "inverce_rate_exchange"
+    ]
+
+class SummaryPlayerAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "player",
+        "created_at"
     ]  
 
 # Register your models here.
@@ -632,3 +639,4 @@ admin.site.register(ReferralPlayers, ReferralPlayersAdmin)
 admin.site.register(CurrencyRate, CurrencyRateAdmin)
 admin.site.register(BankAccount)
 admin.site.register(PackageCoins)
+admin.site.register(SummaryPlayer, SummaryPlayerAdmin)

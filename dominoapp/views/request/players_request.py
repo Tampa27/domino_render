@@ -39,19 +39,12 @@ class PlayerRequest:
             "email": RequestValidator.validate_email,
             "alias": RequestValidator.validate_string,
             "phone": RequestValidator.validate_phone_number,
-            "tiles": RequestValidator.validate_string,
-            "coins": RequestValidator.validate_integer,
-            "points": RequestValidator.validate_integer,
-            "dataWins": RequestValidator.validate_integer,
-            "dataLoss": RequestValidator.validate_integer,
-            "matchWins": RequestValidator.validate_integer,
-            "matchLoss": RequestValidator.validate_integer,
-            "lastTimeInSystem": RequestValidator.validate_timestamp,
             "photo_url": RequestValidator.validate_url,
             "name": RequestValidator.validate_string,
-            "isPlaying": RequestValidator.validate_boolean,
             "lat": RequestValidator.validate_decimal,
-            "lng": RequestValidator.validate_decimal
+            "lng": RequestValidator.validate_decimal,
+            "timezone": RequestValidator.validate_text,
+            "send_game_notifications": RequestValidator.validate_boolean
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)
@@ -85,20 +78,12 @@ class PlayerRequest:
             "email": RequestValidator.validate_email,
             "phone": RequestValidator.validate_phone_number,
             "alias": RequestValidator.validate_string,
-            "tiles": RequestValidator.validate_string,
-            "coins": RequestValidator.validate_integer,
-            "points": RequestValidator.validate_integer,
-            "dataWins": RequestValidator.validate_integer,
-            "dataLoss": RequestValidator.validate_integer,
-            "matchWins": RequestValidator.validate_integer,
-            "matchLoss": RequestValidator.validate_integer,
-            "lastTimeInSystem": RequestValidator.validate_timestamp,
             "photo_url": RequestValidator.validate_url,
             "name": RequestValidator.validate_string,
-            "isPlaying": RequestValidator.validate_boolean,
             "lat": RequestValidator.validate_decimal,
             "lng": RequestValidator.validate_decimal,
-            "timezone": RequestValidator.validate_text
+            "timezone": RequestValidator.validate_text,
+            "send_game_notifications": RequestValidator.validate_boolean
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

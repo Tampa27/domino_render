@@ -170,7 +170,8 @@ def automatic_move_in_game():
                         last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)
                         players_notify = Player.objects.filter(
                             isPlaying = False,
-                            last_notifications__lte = last_notifications
+                            last_notifications__lte = last_notifications,
+                            send_game_notifications = True
                             ).exclude(id__in = players_id).order_by("-lastTimeInSystem")[:10]
                         for player in players_notify:
                             FCMNOTIFICATION.send_fcm_message(
