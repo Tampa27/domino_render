@@ -9,6 +9,7 @@ from dominoapp.serializers import TournamentCreateSerializer
 from dominoapp.models import Player, BlockPlayer, Tournament, Round, Pair, DominoGame, Match_Game, Bank
 from dominoapp.utils.transactions import create_transactions
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
+from dominoapp.utils.players_tools import get_summary_model
 logger = logging.getLogger('django')
 
 
@@ -272,6 +273,13 @@ class TournamentService:
             winner.player2.earned_coins+= player_coins
             winner.player2.save(update_fields=["earned_coins"])
             
+            summary_winner1 = get_summary_model(winner.player1)
+            summary_winner1.tournament_wins += 1
+            summary_winner1.save(update_fields=['tournament_wins'])
+            summary_winner2 = get_summary_model(winner.player2)
+            summary_winner2.tournament_wins += 1
+            summary_winner2.save(update_fields=['tournament_wins'])
+
             ## Crear las transacciones
             create_transactions(
                 amount=player_coins,

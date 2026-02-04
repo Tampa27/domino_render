@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db import transaction
-from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value, Exists, OuterRef
+from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value, Exists, OuterRef, Sum
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.shortcuts import redirect
@@ -342,28 +342,60 @@ class PlayerService:
             queryset = queryset.exclude(elo=1500).order_by(order_by)
         elif order_by in ['data_percent', '-data_percent']:
             queryset = queryset.annotate(
-                total_games=F('dataWins') + F('dataLoss'),
+                total_wins=Sum('summary_player__data_wins'),
+                total_loss=Sum('summary_player__data_loss'),
+                total_tie=Sum('summary_player__data_tie')
+            ).annotate(
+                total_games=Case(
+                    When(total_wins__isnull=True, then=Value(0)),
+                    When(total_loss__isnull=True, then=Value(0)),
+                    When(total_tie__isnull=True, then=Value(0)),
+                    default=F('total_wins') + F('total_loss') + F('total_tie'),
+                    output_field=FloatField()
+                ),
                 data_percent=Case(
-                    When(total_games=0, then=Value(0.0)),
+                    When(
+                        total_games=0, 
+                        then=Value(0.0)
+                    ),
+                    When(
+                        total_wins__isnull=True, 
+                        then=Value(0.0)
+                    ),
                     default=ExpressionWrapper(
-                        F('dataWins') * 100.0 / F('total_games'),
+                        F('total_wins') * 100.0 / F('total_games'),
                         output_field=FloatField()
                     ),
                     output_field=FloatField()
                 )
-            ).filter(total_games__gte = 100).order_by(order_by)
+            ).filter(total_games__gte=100).order_by(order_by)
         elif order_by in ['match_percent', '-match_percent']:
             queryset = queryset.annotate(
-                total_games=F('matchWins') + F('matchLoss'),
+                total_wins=Sum('summary_player__match_wins'),
+                total_loss=Sum('summary_player__match_loss')
+            ).annotate(
+                total_games=Case(
+                    When(total_wins__isnull=True, then=Value(0)),
+                    When(total_loss__isnull=True, then=Value(0)),
+                    default=F('total_wins') + F('total_loss'),
+                    output_field=FloatField()
+                ),
                 match_percent=Case(
-                    When(total_games=0, then=Value(0.0)),
+                    When(
+                        total_games=0, 
+                        then=Value(0.0)
+                    ),
+                    When(
+                        total_wins__isnull=True, 
+                        then=Value(0.0)
+                    ),
                     default=ExpressionWrapper(
-                        F('matchWins') * 100.0 / F('total_games'),
+                        F('total_wins') * 100.0 / F('total_games'),
                         output_field=FloatField()
                     ),
                     output_field=FloatField()
                 )
-            ).filter(total_games__gte = 20).order_by(order_by)
+            ).filter(total_games__gte=20).order_by(order_by)
         elif order_by in ['coins', '-coins']:
             queryset = queryset.annotate(
                 coins=F('earned_coins') + F('recharged_coins')
