@@ -540,7 +540,7 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
                 "message": message
             }, status = status_response)
         
-        return PaymentService.process_payment(request)
+        return PaymentService.process_paypal_capture(request)
     
     @action(detail=False, methods=["post"])
     def send_test_message(self, request):
