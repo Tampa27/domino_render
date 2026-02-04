@@ -262,16 +262,18 @@ def automatic_move_in_game():
                 tournament.save(update_fields=["status"])
 
             if tournament.status == 'ru':
-                for game in DominoGame.objects.filter(tournament__id=tournament.id):
-                    if game.status == 'ready':
-                        players = game_tools.playersCount(game)
-                        automaticStart(game,players)
-                        for player in players:
-                            FCMNOTIFICATION.send_fcm_message(
-                                user= player.user,
-                                title= "🚨 Ronda Activa 🚨",
-                                body= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
-                            )
+                last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
+                if last_round.status == 'ready' and last_round.start_at + timedelta(seconds=30) < now:
+                    for game in last_round.game_list.all():
+                        if game.status == 'ready':
+                            players = game_tools.playersCount(game)
+                            automaticStart(game,players)
+                            for player in players:
+                                FCMNOTIFICATION.send_fcm_message(
+                                    user= player.user,
+                                    title= "🚨 Ronda Activa 🚨",
+                                    body= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
+                                )
                 
                 last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
                 if last_round.end_at is not None and last_round.end_at + timedelta(minutes=5) < now:

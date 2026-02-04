@@ -328,6 +328,18 @@ class Round(models.Model):
             return True
         return False
 
+    @property
+    def status(self)-> str:
+        if self.game_list.filter(status='wt').exists():
+            return 'wt'
+        elif self.game_list.filter(status='ready').count() == self.game_list.all().count():
+            return 'ready'
+        elif self.game_list.filter(status__in=['ru', 'fi']).exists():
+            return 'ru'
+        else:
+            return 'fg'
+
+
 class Match_Game(models.Model):
     game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
     round = models.ForeignKey(Round, related_name="match_round", on_delete=models.CASCADE, null=True, blank=True)
