@@ -430,7 +430,7 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
         ]
 
 class TournamentListSerializer(serializers.ModelSerializer):
-
+    player_list = PlayerListSerializer(many=True)
     number_player = serializers.SerializerMethodField()
     start_at = serializers.SerializerMethodField()
     deadline = serializers.SerializerMethodField()
@@ -469,7 +469,8 @@ class TournamentListSerializer(serializers.ModelSerializer):
             "min_player",
             "max_player",
             "number_match_win",
-            "number_player"
+            "number_player",
+            "player_list"
         ]
 
 class TournamentCreateSerializer(serializers.ModelSerializer):
