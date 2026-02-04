@@ -260,7 +260,8 @@ class PaymentRequest:
         status_response = None
 
         required_keys = [
-            "external_id"
+            "external_id",
+            "package_id"
         ]
 
         is_valid, message = RequestValidator.validate_required_key(request, required_keys)
@@ -270,7 +271,8 @@ class PaymentRequest:
             return is_valid, message, status_response
 
         validators = {
-            "external_id": RequestValidator.validate_string
+            "external_id": RequestValidator.validate_string,
+            "package_id": RequestValidator.validate_numeric
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

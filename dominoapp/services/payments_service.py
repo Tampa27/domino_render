@@ -914,25 +914,47 @@ class PaymentService:
     
     @staticmethod
     def process_paypal_capture(request):
-        check_payment = Payment.objects.filter(external_id= request.data["external_id"]).annotate(
-            latest_status_name=Subquery(
-                Status_Payment.objects.filter(status_payment=OuterRef('pk')
-                    ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='pending').exists()
-        if not check_payment:
-            return Response(data = {
-                "status": "error",
-                "message": "Solicitud de pago no encontrado."
-            }, status=status.HTTP_404_NOT_FOUND)
+        # check_payment = Payment.objects.filter(external_id= request.data["external_id"]).annotate(
+        #     latest_status_name=Subquery(
+        #         Status_Payment.objects.filter(status_payment=OuterRef('pk')
+        #             ).order_by('-created_at').values('status')[:1])
+        # ).filter(latest_status_name='pending').exists()
+        # if not check_payment:
+        #     return Response(data = {
+        #         "status": "error",
+        #         "message": "Solicitud de pago no encontrado."
+        #     }, status=status.HTTP_404_NOT_FOUND)
 
-        payment = Payment.objects.get(external_id= request.data["external_id"])
         response = PayPalConnector.capture_payment(external_id=request.data["external_id"])
 
+        ### Quitar despues que se terminen las pruebas
+        DiscordConnector.send_error(f"Pago de paypal Completado: {response}.\n External_id: {request.data["external_id"]},\n Package: {request.data["package_id"]},\n User: {request.user.id}")
+        ######
+        
         if response:
+            package = PackageCoins.objects.get(id = request.data["package_id"])
+            payment = Payment.objects.get_or_create(
+                    external_id= request.data["external_id"],
+                    package_coins = package,
+                    user = Player.objects.get(user__id = request.user.id),
+                    paid_time = datetime.now(),
+                    amount = package.amount
+                )
             payment_status = Status_Payment.objects.create(status = "paid")            
             payment.status_list.add(payment_status)
-            new_status = Status_Transaction.objects.create(status = 'cp')
-            payment.transaction.status_list.add(new_status)
+            
+            transaction = Transaction.objects.create(
+                to_user= payment.user,
+                amount= package.amount,
+                type='rl',
+                external_id= request.data["external_id"],
+                paymentmethod='paypal'
+                )            
+            payment.transaction = transaction
+            payment.save(update_fields=['transaction'])
+
+            new_status = Status_Transaction.objects.create(status = 'cp')            
+            transaction.status_list.add(new_status)
 
             PaymentService.reload_coins(payment.transaction, package_coins= payment.package_coins.coin_amount)
 

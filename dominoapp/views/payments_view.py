@@ -506,7 +506,8 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
                 "application/json": inline_serializer(
                     name="Paypal Capture Request",
                     fields={
-                        "external_id": CharField(required=True)
+                        "external_id": CharField(required=True),
+                        "package_id": IntegerField(required=True)
                     }
                 )
             },
