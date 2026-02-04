@@ -294,7 +294,22 @@ class GameMatchSerializer(serializers.ModelSerializer):
 class ListMatchGameSerializer(serializers.ModelSerializer):
     pair_list = PairSerializaer(many=True)
     game = GameMatchSerializer()
-    
+    start_at = serializers.SerializerMethodField()
+    end_at = serializers.SerializerMethodField()
+
+    def get_start_at(self, obj: Match_Game):
+        timezone = "America/Havana"
+        if obj.start_at:
+            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return None
+
+    def get_end_at(self, obj: Match_Game):
+        timezone = "America/Havana"
+        if obj.end_at:
+            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return None
+
+
     class Meta:
         model = Match_Game
         fields = [
@@ -311,6 +326,20 @@ class ListMatchGameSerializer(serializers.ModelSerializer):
 class ListRoundSerializer(serializers.ModelSerializer):
     winner_pair_list = PairSerializaer(many=True)
     match_list = ListMatchGameSerializer(many=True, source="match_round")
+    start_at = serializers.SerializerMethodField()
+    end_at = serializers.SerializerMethodField()
+
+    def get_start_at(self, obj: Round):
+        timezone = "America/Havana"
+        if obj.start_at:
+            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return None
+
+    def get_end_at(self, obj: Round):
+        timezone = "America/Havana"
+        if obj.end_at:
+            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return None    
 
     class Meta:
         model = Round
