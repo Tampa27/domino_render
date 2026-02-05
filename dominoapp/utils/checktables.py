@@ -293,17 +293,13 @@ def automaticCoupleStarter(game_id):
     with transaction.atomic():
         game = DominoGame.objects.select_for_update().get(id=game_id)
         next = game.next_player
-        patner = (next+2)%4
-        starter = game.starter
         lastMoveTime = lastMove(game)
         time_diff1 = timezone.now() - lastMoveTime
         logger_api.info("Entro a automaticCouple")
         logger_api.info("La diferencia de tiempo es "+ str(time_diff1.seconds))
-        if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER and starter == next:
+        if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER:
             game_tools.setWinnerStarterNext1(game,next,next,next)
-        elif time_diff1.seconds > ApiConstants.AUTO_WAIT_WINNER and starter != next:
-            game_tools.setWinnerStarterNext1(game,patner,patner,patner)
-        game.save()         
+            game.save(update_fields=["starter", "winner", "next_player", "start_time"])
 
 def automaticMove(game,players):
     next = game.next_player

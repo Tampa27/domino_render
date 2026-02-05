@@ -377,7 +377,7 @@ class GameService:
         with transaction.atomic():
             game = DominoGame.objects.select_for_update().get(id=game_id)
             game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
-            game.save()
+            game.save(update_fields= ["starter", "winner", "next_player", "start_time"])
         return Response({'status': 'success'}, status=200)
 
     @staticmethod
