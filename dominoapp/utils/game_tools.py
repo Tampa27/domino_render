@@ -159,8 +159,9 @@ def movement(game_id,player,players,tile, automatic=False):
                     game.starter = w
                     game.next_player = w
                 else:
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter    
+                    starter_next = (game.starter+1)%n
+                    game.next_player = starter_next
+                    game.starter = starter_next
                 game.winner = w
                 if game.perPoints:
                     game.rounds+=1
@@ -195,8 +196,9 @@ def movement(game_id,player,players,tile, automatic=False):
                     game.starter = winner
                     game.next_player = winner
                 else:
-                    game.starter = (game.starter+1)%n
-                    game.next_player = game.starter        
+                    starter_next = (game.starter+1)%n
+                    game.next_player = starter_next
+                    game.starter = starter_next                    
             if game.perPoints and winner < DominoGame.Tie_Game:
                 updateAllPoints(game,players,winner,move_register)
             elif game.perPoints and winner == DominoGame.Tie_Game:

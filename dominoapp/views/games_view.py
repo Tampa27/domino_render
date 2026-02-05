@@ -249,6 +249,9 @@ class GameView(viewsets.ModelViewSet):
     def set_winner(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setwinner(request, pk)
         
+        ## Esta Bloqueada por el momento para que no se tarequee en los juegos por pareja
+        is_valid = False
+        message = "Esta Bloqueada por el momento para evitar conflictos en los juegos por pareja."
         if not is_valid:
             return Response(data ={
                 "status":'error',
@@ -281,6 +284,9 @@ class GameView(viewsets.ModelViewSet):
     def set_starter(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setstarter(request, pk)
         
+        ## Esta Bloqueada por el momento para que no se tarequee en los juegos por pareja
+        is_valid = False
+        message = "Esta Bloqueada por el momento para evitar conflictos en los juegos por pareja."
         if not is_valid:
             return Response(data ={
                 "status":'error',
@@ -314,6 +320,9 @@ class GameView(viewsets.ModelViewSet):
     def set_winner_starter(self, request, pk):
         is_valid, message, status_response = GameRequest.validate_setwinnerstarter(request, pk)
         
+        ## Esta Bloqueada por el momento para que no se tarequee en los juegos por pareja
+        is_valid = False
+        message = "Esta Bloqueada por el momento para evitar conflictos en los juegos por pareja."
         if not is_valid:
             return Response(data ={
                 "status":'error',
