@@ -228,7 +228,7 @@ class GameView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="games_set_winner",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Set Winner Game Request",
                     fields={
                         "winner": IntegerField()
@@ -252,6 +252,7 @@ class GameView(viewsets.ModelViewSet):
         ## Esta Bloqueada por el momento para que no se tarequee en los juegos por pareja
         is_valid = False
         message = "Esta Bloqueada por el momento para evitar conflictos en los juegos por pareja."
+        status_response = 400
         if not is_valid:
             return Response(data ={
                 "status":'error',
@@ -263,7 +264,7 @@ class GameView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="games_set_starter",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Set Starter Game Request",
                     fields={
                         "starter": IntegerField()
@@ -287,6 +288,7 @@ class GameView(viewsets.ModelViewSet):
         ## Esta Bloqueada por el momento para que no se tarequee en los juegos por pareja
         is_valid = False
         message = "Esta Bloqueada por el momento para evitar conflictos en los juegos por pareja."
+        status_response = 400
         if not is_valid:
             return Response(data ={
                 "status":'error',
@@ -298,7 +300,7 @@ class GameView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="games_set_winner_starter",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Set Winner Starter Game Request",
                     fields={
                         "winner" : IntegerField(required=True),
@@ -323,6 +325,7 @@ class GameView(viewsets.ModelViewSet):
         ## Esta Bloqueada por el momento para que no se tarequee en los juegos por pareja
         is_valid = False
         message = "Esta Bloqueada por el momento para evitar conflictos en los juegos por pareja."
+        status_response = 400
         if not is_valid:
             return Response(data ={
                 "status":'error',
@@ -334,7 +337,7 @@ class GameView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="games_set_winner_starter_next",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Set Winner, Starter and Next Game Request",
                     fields={
                         "winner" : IntegerField(required=True),
