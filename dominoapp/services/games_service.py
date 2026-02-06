@@ -199,9 +199,9 @@ class GameService:
 
         if joined == True:
             if game.inPairs:
-                if len(players) == 4 and game.status != "ru":
+                if len(players) == 4 and game.status == "wt":
                     game.status = "ready"
-                elif game.status != "ru":
+                elif len(players) != 4:
                     game.status = "wt"
             else:                
                 if len(players) >= 2 and game.status != "ru" and game.status != "fi":
