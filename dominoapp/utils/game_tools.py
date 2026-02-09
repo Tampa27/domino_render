@@ -221,9 +221,8 @@ def movement(game_id,player,players,tile, automatic=False):
                     summary.data_tie +=1 
                     summary.save(update_fields=['data_tie'])
         else:
-            move_register = movement_register(game, player, tile, players, automatic) 
-            if game.payPassValue > 0:
-                updatePassCoins(w,game,players, move_register)
+            move_register = movement_register(game, player, tile, players, automatic)
+            updatePassCoins(w,game,players, move_register)
             game.next_player = (w+1) % n
         
         try:
@@ -310,6 +309,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     player_coins = (game.payWinValue-bank_coins)
                     bank.game_coins+=(bank_coins)
                     players[i].earned_coins+= player_coins
+                    summary.earned_coins+= player_coins
+                    summary.save(update_fields=['earned_coins'])
                     create_game_transactions(
                         game=game,to_user=players[i], amount=player_coins, status="cp", 
                         descriptions=f"gane en el juego {game.id}",
@@ -335,6 +336,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     if players[i].earned_coins<0:
                         players[i].recharged_coins += players[i].earned_coins
                         players[i].earned_coins = 0
+                    summary.loss_coins+=game.payWinValue
+                    summary.save(update_fields=['loss_coins'])
                     create_game_transactions(
                         game=game, from_user=players[i], amount=game.payWinValue, status="cp", 
                         descriptions=f"perdi en el juego {game.id}",
@@ -347,6 +350,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
                             players[i].earned_coins = 0
+                        summary.loss_coins+=game.payMatchValue
+                        summary.save(update_fields=['loss_coins'])
                         create_game_transactions(
                             game=game, from_user=players[i], amount=game.payMatchValue, status="cp", 
                             descriptions=f"perdi en el juego {game.id}",
@@ -375,6 +380,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     bank.game_coins+=bank_coins
                     player_coins = (game.payWinValue*(n_p-1)-bank_coins)
                     players[i].earned_coins+= player_coins
+                    summary.earned_coins += player_coins
+                    summary.save(update_fields=['earned_coins'])
                     create_game_transactions(
                         game=game, to_user=players[i], amount=player_coins, status="cp", 
                         descriptions=f"gane en el juego {game.id}",
@@ -387,6 +394,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         bank.game_coins+=bank_coins
                         player_coins = (game.payMatchValue*(n_p-1)-bank_coins)
                         players[i].earned_coins+= player_coins
+                        summary.earned_coins += player_coins
+                        summary.save(update_fields=['earned_coins'])
                         create_game_transactions(
                             game=game, to_user=players[i], amount=player_coins, status="cp", 
                             descriptions=f"gane en el juego {game.id}",
@@ -400,6 +409,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                     if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
                             players[i].earned_coins = 0
+                    summary.loss_coins+=game.payWinValue
+                    summary.save(update_fields=['loss_coins'])
                     create_game_transactions(
                         game=game, from_user=players[i], amount=game.payWinValue, status="cp", 
                         descriptions=f"perdi en el juego {game.id}",
@@ -412,6 +423,8 @@ def updatePlayersData(game,players,w,status,move_register: MoveRegister):
                         if players[i].earned_coins<0:
                             players[i].recharged_coins += players[i].earned_coins
                             players[i].earned_coins = 0
+                        summary.loss_coins+=game.payMatchValue
+                        summary.save(update_fields=['loss_coins'])
                         create_game_transactions(
                             game=game, from_user=players[i], amount=game.payMatchValue, status="cp", 
                             descriptions=f"perdi en el juego {game.id}",
@@ -441,141 +454,157 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                 if prev == 1 or prev == 3:
                     if (pos - prev) < 0:
                         pos1 = pos + (n-prev)
-                        loss_coins = game.payPassValue
-                        players[pos].earned_coins-=loss_coins
-                        if players[pos].earned_coins<0:
-                            players[pos].recharged_coins += players[pos].earned_coins
-                            players[pos].earned_coins = 0
-                        
-                        # try:
-                        #     bank = Bank.objects.all().first()
-                        # except ObjectDoesNotExist:
-                        #     bank = Bank.objects.create()
-                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.game_coins+=bank_coins
-                        bank_coins=0
-                        
-                        coins = loss_coins - bank_coins
-                        players[pos1].earned_coins+=coins
-                        create_game_transactions(
-                            game=game, from_user=players[pos], amount=loss_coins, status="cp", 
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
-                        create_game_transactions(
-                            game=game, to_user=players[pos1], amount=coins, status="cp", 
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
                         summary_player_pass = get_summary_model(players[pos])
-                        summary_player_pass.owner_pass += 1
-                        summary_player_pass.save(update_fields=['owner_pass'])
                         summary_player_passed = get_summary_model(players[pos1])
+                        if game.payPassValue > 0:
+                            loss_coins = game.payPassValue
+                            players[pos].earned_coins-=loss_coins
+                            if players[pos].earned_coins<0:
+                                players[pos].recharged_coins += players[pos].earned_coins
+                                players[pos].earned_coins = 0
+                            
+                            # try:
+                            #     bank = Bank.objects.all().first()
+                            # except ObjectDoesNotExist:
+                            #     bank = Bank.objects.create()
+                            # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                            # bank.game_coins+=bank_coins
+                            bank_coins=0
+                            
+                            coins = loss_coins - bank_coins
+                            players[pos1].earned_coins+=coins
+                            create_game_transactions(
+                                game=game, from_user=players[pos], amount=loss_coins, status="cp", 
+                                descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            create_game_transactions(
+                                game=game, to_user=players[pos1], amount=coins, status="cp", 
+                                descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            
+                            summary_player_pass.loss_coins+=loss_coins
+                            summary_player_passed.earned_coins+=coins
+                            players[pos].save()
+                            players[pos1].save()
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass','loss_coins'])
                         summary_player_passed.pass_player += 1
-                        summary_player_passed.save(update_fields=['pass_player'])
-                        players[pos].save()
-                        players[pos1].save()
+                        summary_player_passed.save(update_fields=['pass_player', 'earned_coins'])
+
                     else:
                         pos1 = pos - prev
-                        loss_coins = game.payPassValue
-                        players[pos].earned_coins-=loss_coins
-                        if players[pos].earned_coins<0:
-                            players[pos].recharged_coins += players[pos].earned_coins
-                            players[pos].earned_coins = 0
-                        
-                        # try:
-                        #     bank = Bank.objects.all().first()
-                        # except ObjectDoesNotExist:
-                        #     bank = Bank.objects.create()
-                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.game_coins+=bank_coins
-                        bank_coins=0
-
-                        coins = loss_coins - bank_coins
-                        players[pos1].earned_coins+=coins
-                        create_game_transactions(
-                            game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
-                        create_game_transactions(
-                            game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
                         summary_player_pass = get_summary_model(players[pos])
-                        summary_player_pass.owner_pass += 1
-                        summary_player_pass.save(update_fields=['owner_pass'])
                         summary_player_passed = get_summary_model(players[pos1])
+                        if game.payPassValue > 0:
+                            loss_coins = game.payPassValue
+                            players[pos].earned_coins-=loss_coins
+                            if players[pos].earned_coins<0:
+                                players[pos].recharged_coins += players[pos].earned_coins
+                                players[pos].earned_coins = 0
+                            
+                            # try:
+                            #     bank = Bank.objects.all().first()
+                            # except ObjectDoesNotExist:
+                            #     bank = Bank.objects.create()
+                            # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                            # bank.game_coins+=bank_coins
+                            bank_coins=0
+
+                            coins = loss_coins - bank_coins
+                            players[pos1].earned_coins+=coins
+                            create_game_transactions(
+                                game=game, from_user=players[pos], amount=loss_coins, status="cp",
+                                descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            create_game_transactions(
+                                game=game, to_user=players[pos1], amount=coins, status="cp",
+                                descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            summary_player_pass.loss_coins += loss_coins
+                            summary_player_passed.earned_coins += coins
+                            players[pos].save()
+                            players[pos1].save()
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass','loss_coins'])
                         summary_player_passed.pass_player += 1
-                        summary_player_passed.save(update_fields=['pass_player'])
-                        players[pos].save()
-                        players[pos1].save()
+                        summary_player_passed.save(update_fields=['pass_player', 'earned_coins'])
                 elif prev == 2 and game.inPairs == False:
                     if (pos - 2) < 0:
                         pos1 = pos + (n-prev)
-                        loss_coins = game.payPassValue
-                        players[pos].earned_coins-=loss_coins
-                        if players[pos].earned_coins<0:
-                            players[pos].recharged_coins += players[pos].earned_coins
-                            players[pos].earned_coins = 0
-                        
-                        # try:
-                        #     bank = Bank.objects.all().first()
-                        # except ObjectDoesNotExist:
-                        #     bank = Bank.objects.create()
-                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.game_coins+=bank_coins
-                        bank_coins=0
-                        
-                        coins = loss_coins - bank_coins
-                        players[pos1].earned_coins+=coins
-                        create_game_transactions(
-                            game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
-                        create_game_transactions(
-                            game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
                         summary_player_pass = get_summary_model(players[pos])
-                        summary_player_pass.owner_pass += 1
-                        summary_player_pass.save(update_fields=['owner_pass'])
                         summary_player_passed = get_summary_model(players[pos1])
+                        if game.payPassValue > 0:
+                            loss_coins = game.payPassValue
+                            players[pos].earned_coins-=loss_coins
+                            if players[pos].earned_coins<0:
+                                players[pos].recharged_coins += players[pos].earned_coins
+                                players[pos].earned_coins = 0
+                            
+                            # try:
+                            #     bank = Bank.objects.all().first()
+                            # except ObjectDoesNotExist:
+                            #     bank = Bank.objects.create()
+                            # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                            # bank.game_coins+=bank_coins
+                            bank_coins=0
+                            
+                            coins = loss_coins - bank_coins
+                            players[pos1].earned_coins+=coins
+                            create_game_transactions(
+                                game=game, from_user=players[pos], amount=loss_coins, status="cp",
+                                descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            create_game_transactions(
+                                game=game, to_user=players[pos1], amount=coins, status="cp",
+                                descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            summary_player_pass.loss_coins += loss_coins
+                            summary_player_passed.earned_coins += coins
+                            players[pos].save()
+                            players[pos1].save()
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass','loss_coins'])
                         summary_player_passed.pass_player += 1
-                        summary_player_passed.save(update_fields=['pass_player'])
-                        players[pos].save()
-                        players[pos1].save()
+                        summary_player_passed.save(update_fields=['pass_player', 'earned_coins'])
+                        
                     else:        
                         pos1 = pos - prev
-                        loss_coins = game.payPassValue
-                        players[pos].earned_coins-=loss_coins
-                        if players[pos].earned_coins<0:
-                            players[pos].recharged_coins += players[pos].earned_coins
-                            players[pos].earned_coins = 0
-                        
-                        # try:
-                        #     bank = Bank.objects.all().first()
-                        # except ObjectDoesNotExist:
-                        #     bank = Bank.objects.create()
-                        # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
-                        # bank.game_coins+=bank_coins
-                        bank_coins=0
-                        
-                        coins = loss_coins - bank_coins
-                        players[pos1].earned_coins+=coins
-                        create_game_transactions(
-                            game=game, from_user=players[pos], amount=loss_coins, status="cp",
-                            descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
-                        create_game_transactions(
-                            game=game, to_user=players[pos1], amount=coins, status="cp",
-                            descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
-                            move_register=move_register)
                         summary_player_pass = get_summary_model(players[pos])
-                        summary_player_pass.owner_pass += 1
-                        summary_player_pass.save(update_fields=['owner_pass'])
                         summary_player_passed = get_summary_model(players[pos1])
+                        if game.payPassValue > 0:
+                            loss_coins = game.payPassValue
+                            players[pos].earned_coins-=loss_coins
+                            if players[pos].earned_coins<0:
+                                players[pos].recharged_coins += players[pos].earned_coins
+                                players[pos].earned_coins = 0
+                            
+                            # try:
+                            #     bank = Bank.objects.all().first()
+                            # except ObjectDoesNotExist:
+                            #     bank = Bank.objects.create()
+                            # bank_coins = int(loss_coins*ApiConstants.DISCOUNT_PERCENT/100)
+                            # bank.game_coins+=bank_coins
+                            bank_coins=0
+                            
+                            coins = loss_coins - bank_coins
+                            players[pos1].earned_coins+=coins
+                            create_game_transactions(
+                                game=game, from_user=players[pos], amount=loss_coins, status="cp",
+                                descriptions=f"{players[pos1].alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            create_game_transactions(
+                                game=game, to_user=players[pos1], amount=coins, status="cp",
+                                descriptions=f"pase a {players[pos].alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}",
+                                move_register=move_register)
+                            
+                            summary_player_pass.loss_coins += loss_coins
+                            summary_player_passed.earned_coins += coins
+                            players[pos].save()
+                            players[pos1].save()
+                        summary_player_pass.owner_pass += 1
+                        summary_player_pass.save(update_fields=['owner_pass','loss_coins'])
                         summary_player_passed.pass_player += 1
-                        summary_player_passed.save(update_fields=['pass_player'])
-                        players[pos].save()
-                        players[pos1].save()
+                        summary_player_passed.save(update_fields=['pass_player', 'earned_coins'])
                 break                            
 
 
@@ -653,6 +682,9 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                 if game.inPairs:
                     coins_value = int(coins/2)
                     players[(pos+1)%4].earned_coins+=coins_value
+                    summary_player = get_summary_model(players[(pos+1)%4])
+                    summary_player.earned_coins
+                    summary_player.save(update_fields=['earned_coins'])
                     create_game_transactions(
                         game=game, to_user=players[(pos+1)%4], amount=coins_value, status="cp",
                         descriptions=f"{player.alias} salio del juego {game.id}")
@@ -660,6 +692,9 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                     create_game_transactions(
                         game=game, to_user=players[(pos+3)%4], amount=coins_value, status="cp",
                         descriptions=f"{player.alias} salio del juego {game.id}")
+                    summary_player = get_summary_model(players[(pos+3)%4])
+                    summary_player.earned_coins
+                    summary_player.save(update_fields=['earned_coins'])
                     players[(pos+1)%4].save()
                     players[(pos+3)%4].save()     
                 else:
@@ -670,12 +705,17 @@ def exitPlayer(game: DominoGame, player: Player, players: list, totalPlayers: in
                             create_game_transactions(
                                 game=game, to_user=p, amount=int(coins/n), status="cp",
                                 descriptions=f"{player.alias} salio del juego {game.id}")
+                            summary_player = get_summary_model(p)
+                            summary_player.earned_coins
+                            summary_player.save(update_fields=['earned_coins'])
                             p.save()
                 player.earned_coins-=loss_coins
                 if player.earned_coins<0:
                     player.recharged_coins += player.earned_coins
                     player.earned_coins = 0
-                
+                summary_player = get_summary_model(player)
+                summary_player.loss_coins
+                summary_player.save(update_fields=['loss_coins'])
                 create_game_transactions(
                     game=game, from_user=player, amount=loss_coins, status="cp",
                     descriptions=f"por salir del juego {game.id}")
