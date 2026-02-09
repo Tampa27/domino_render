@@ -126,6 +126,8 @@ class SummaryPlayer(models.Model):
     tournament_wins = models.PositiveIntegerField(default=0)
     pass_player = models.PositiveIntegerField(default=0)  ## Pases que da un player
     owner_pass = models.PositiveIntegerField(default=0)  ## Pases que recibe un player
+    earned_coins = models.IntegerField(default=0)
+    loss_coins = models.IntegerField(default=0)
 
 
 class Pair(models.Model):
