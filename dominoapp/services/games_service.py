@@ -376,6 +376,18 @@ class GameService:
         
         with transaction.atomic():
             game = DominoGame.objects.select_for_update().get(id=game_id)
+            select_starter = (game.inPairs and game.startWinner)
+            if not select_starter:
+                return Response(data ={
+                    "status":'error',
+                    "message": "En este juego no se permite seleccionar al salidor."
+                }, status = status.HTTP_401_UNAUTHORIZED)
+            if game.winner < DominoGame.Tie_Game:
+                return Response(data ={
+                    "status":'error',
+                    "message": "Ya se ha seleccionado un salidor."
+                }, status = status.HTTP_401_UNAUTHORIZED)
+            
             game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
             game.save(update_fields= ["starter", "winner", "next_player", "start_time"])
         return Response({'status': 'success'}, status=200)
