@@ -53,9 +53,9 @@ class Player(models.Model):
         total_data = SummaryPlayer.objects.filter(player__id=self.id).aggregate(total=Sum('data_wins') + Sum('data_loss') + Sum('data_tie'))['total'] or 0
         
         if (total_data) < 100:
-            return 40
+            return 10  # 40
         elif (total_data) >= 100 and self.elo < 2400:
-            return 20
+            return 10 # 20
         else:
             return 10
 
@@ -198,6 +198,7 @@ class Tournament(models.Model):
     maxScore = models.IntegerField(default=100)
     inPairs = models.BooleanField(default=True)
     startWinner = models.BooleanField(default=False)
+    sumAllPoints = models.BooleanField(default=False)
     moveTime = models.SmallIntegerField(default=10)
     min_player = models.IntegerField(default=8)
     max_player = models.IntegerField(default=64)
