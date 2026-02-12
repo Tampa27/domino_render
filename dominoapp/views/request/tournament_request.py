@@ -30,6 +30,7 @@ class TournamentRequest:
             "maxScore": RequestValidator.validate_numeric,
             "inPairs": RequestValidator.validate_boolean,
             "startWinner": RequestValidator.validate_boolean,
+            "sumAllPoints": RequestValidator.validate_boolean,
             "moveTime": RequestValidator.validate_numeric,
             "min_player": RequestValidator.validate_numeric,
             "max_player": RequestValidator.validate_numeric,
