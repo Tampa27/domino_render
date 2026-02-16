@@ -101,6 +101,11 @@ class Player(models.Model):
                     ).exists():
                         return True
         return False
+    
+    @property
+    def registered_in_tournament(self):
+        tournaments_registered = Tournament.objects.filter(player_list=self, active=True).order_by("-start_at").first()
+        return tournaments_registered
         
     def __str__(self):
         return self.alias

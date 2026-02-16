@@ -35,7 +35,7 @@ class GameView(viewsets.ModelViewSet):
 
     @extend_schema(
             request= {
-                200:GameCreateSerializer()
+                "application/json":GameCreateSerializer()
             },
             responses={
             200: inline_serializer(
@@ -171,7 +171,7 @@ class GameView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="game_move",
             request = {
-                200:inline_serializer(
+                "application/json":inline_serializer(
                     name="Move Tile Request",
                     fields={
                         "tile": CharField(required = True),
@@ -371,7 +371,7 @@ class GameView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="games_set_patner",
             request = {
-                200: inline_serializer(
+                "application/json": inline_serializer(
                     name="Set Patner Game Request",
                     fields={
                         "alias" : CharField(required=True)

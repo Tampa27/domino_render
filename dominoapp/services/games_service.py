@@ -1,6 +1,7 @@
 from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
+from datetime import timedelta
 from django.db.models import Q
 from django.db import transaction
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
@@ -119,6 +120,12 @@ class GameService:
         if check_others_game:
             return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
 
+        if player1.registered_in_tournament and player1.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now():
+            return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
+
+        if player1.play_tournament:
+            return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+        
         player1.tiles = ""
         player1.lastTimeInSystem = timezone.now()
         player1.inactive_player = False
@@ -132,6 +139,11 @@ class GameService:
         try:
             game_serializer.is_valid(raise_exception=True)
             game: DominoGame =  game_serializer.save()
+            if not game_tools.ready_to_play(game,player1):
+                players = game_tools.playersCount(game)
+                game_tools.exitPlayer(game,player1,players,len(players))
+                return Response({"status": "error", "message": "No tienes suficientes monedas para crear esta mesa"}, status=status.HTTP_409_CONFLICT)
+                        
         except serializers.ValidationError as e:
             return Response(
                 {'status': 'error', 'message': 'Invalid data', 'errors': e.detail},
@@ -172,6 +184,9 @@ class GameService:
         
         game_in_round = Round.objects.filter(game_list__id = game.id).exists()
         
+        if not game_in_round and player.registered_in_tournament and player.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now():
+            return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
+
         if player.play_tournament and not game_in_round:
             return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
                 

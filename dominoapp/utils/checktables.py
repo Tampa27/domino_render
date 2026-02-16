@@ -49,7 +49,8 @@ def automatic_move_in_game():
                     if game.status == 'fg':
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInSystem
-                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament) and player.isPlaying:
+                            start_in_30_min = timezone.now() + timedelta(minutes=30)
+                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                                 game_tools.exitPlayer(game,player,players,len(players))
                         players = game_tools.playersCount(game)
                         if len(players)<2:
@@ -138,9 +139,10 @@ def automatic_move_in_game():
             elif (game.status == 'fg' or game.status == 'wt' or game.status == 'ready') and not game.in_tournament:
                 for player in players:
                     diff_time = timezone.now() - player.lastTimeInSystem
-                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player)) and player.isPlaying:
+                    start_in_30_min = timezone.now() + timedelta(minutes=30)
+                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                         game_tools.exitPlayer(game,player,players,len(players))
-                    elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME):
+                    elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min):
                         game_tools.exitPlayer(game,player,players,len(players))
                 
                 game.refresh_from_db()
