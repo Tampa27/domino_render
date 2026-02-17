@@ -225,6 +225,7 @@ class TournamentService:
                 player2 = pair_list[i+1].player1,
                 player4 = pair_list[i+1].player2,
                 variant= tournament.variant,
+                sumAllPoints = tournament.sumAllPoints,
                 status = "ready",
                 maxScore = tournament.maxScore,
                 inPairs = True,
