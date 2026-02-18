@@ -647,19 +647,42 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     is_readed = serializers.SerializerMethodField()
     
     def get_is_readed(self, message: ChatMessage)-> bool:
-        return message.read
+        return message.read()
     
     class Meta:
         model = ChatMessage
         exclude = ["chat_room"]
 
+class ChatMessageCreateSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = ChatMessage
+        fields = ["message", "user","reply_to", "chat_room"]
+
+class ChatMessageRetrieveSerializer(serializers.ModelSerializer):
+    is_readed = serializers.SerializerMethodField()
+
+    def get_is_readed(self, message: ChatMessage)-> bool:
+        return message.read()
+    
+    class Meta:
+        model = ChatMessage
+        fields = ["id","message", "user","reply_to", "chat_room", "read_by", "is_readed", "created_at", "updated_at"] 
+
+
 class ChatRoomSerializer(serializers.ModelSerializer):
-    last_message = ChatMessageSerializer(source="messages")
+    last_message = serializers.SerializerMethodField()
     count_users = serializers.SerializerMethodField()
     
     def get_count_users(self, chatroom: ChatRoom)-> int:
         return chatroom.users_list.all().count()
     
+    def get_last_message(self, chatroom: ChatRoom):
+        last_message = chatroom.messages.first()  # Obtiene el último mensaje
+        if last_message:
+            return ChatMessageSerializer(last_message).data
+        return ""
+
     class Meta:
         model = ChatRoom
         fields = [
@@ -673,7 +696,22 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             ]
 
 class ChatRoomRetrieveSerializer(serializers.ModelSerializer):
+    messages = ChatMessageSerializer(many=True, read_only=True)
     users_list = PlayerListSerializer(many=True)
+    class Meta:
+        model = ChatRoom
+        fields = [
+            "id",
+            "title",
+            "created_at",
+            "in_game",
+            "room_type",
+            "users_list",
+            "messages"
+            ]
+        
+class ChatRoomCreateSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = ChatRoom
         fields = [

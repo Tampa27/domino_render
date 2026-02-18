@@ -576,4 +576,4 @@ class ChatMessage(models.Model):
     
     def read(self):
         """Muestra si el mensaje ha sido leido por todos los usuarios"""
-        return self.chat_room.users_list.all().count() == self.read_by.all().count()
+        return (self.chat_room.users_list.all().count()-1) == self.read_by.all().count()
