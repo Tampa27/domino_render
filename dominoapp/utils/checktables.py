@@ -315,7 +315,7 @@ def automaticMove(game,players):
                 # with transaction.atomic():
                 error = game_tools.movement(game.id,player_w,players,tile,automatic=True)
                 if error is not None:
-                    logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
+                    logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
                 game_tools.updateLastPlayerTime(game,player_w.alias)  
                 # game_tools.move1(game.id,player_w.alias,tile)
             except Exception as e:
@@ -341,7 +341,7 @@ def automaticMove(game,players):
                 # with transaction.atomic():
                 error = game_tools.movement(game.id,player_w,players,tile,automatic=True)
                 if error is not None:
-                    logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error})")
+                    logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
                 game_tools.updateLastPlayerTime(game,player_w.alias)  
                 # game_tools.move1(game.id,player_w.alias,tile)
             except Exception as e:
