@@ -122,9 +122,9 @@ def movement(game_id,player,players,tile, automatic=False):
         w = getPlayerIndex(players,player)
         passTile = isPass(tile)
         
-        if isMyTurn(game.board,w,game.starter,n) == False:
-            logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es su turno")
-            return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno")
+        if isMyTurn(game.board,w,game.starter,n, game.next_player) == False:
+            logger.warning(f"{player.alias} intento mover {tile} pero se detecto que no es su turno. Esta en la posicion: {w} y le toca el turno al player: {game.next_player}. El salidor es {game.starter}")
+            return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno. Esta en la posicion: {w} y le toca el turno al player: {game.next_player}. El salidor es {game.starter}")
         if noCorrect(game,tile):
             logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
             return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
@@ -1050,10 +1050,12 @@ def takeRandomCorrectTile(tiles,left,right):
     
     return best_tile if best_tile is not None else "-1|-1"
 
-def isMyTurn(board,myPos,starter,n):
-    moves_count = len(board.split(","))-1
-    res = moves_count%n
-    return (starter+res)%n == myPos
+def isMyTurn(board,myPos,starter,n, next_player):
+    # Vamos a cambiar la forma de verificar si es el turno del player
+    # moves_count = len(board.split(","))-1
+    # res = moves_count%n
+    # return (starter+res)%n == myPos
+    return myPos == next_player
 
 def getLastMoveTime(game,player):
     if game.player1 is not None and game.player1.alias == player.alias:
