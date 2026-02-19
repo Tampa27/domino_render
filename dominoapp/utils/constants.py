@@ -136,6 +136,15 @@ class TransactionTypes:
         TRANSACTION_TRANSFER
     ]
 
+class ChatRoomTypes:
+    CHATROOM_PRIVATE = ("private", "Privado")
+    CHATROOM_GROUP = ("group", "Grupo")
+
+    chatroom_choices = [
+        CHATROOM_PRIVATE, 
+        CHATROOM_GROUP
+    ]
+
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'
     DEFAULT_LANGUAGE = 'es'

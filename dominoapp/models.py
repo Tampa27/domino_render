@@ -8,7 +8,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone as timezone_dj
 import uuid
 from shortuuid.django_fields import ShortUUIDField
-from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, TransactionPaymentMethod, PaymentStatus, TournamentStatus
+from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, \
+    TransactionPaymentMethod, PaymentStatus, TournamentStatus, ChatRoomTypes
 # Create your models here.
 
 class Player(models.Model):
@@ -392,7 +393,6 @@ class Match_Game(models.Model):
         if self.games_win_team_2 == number_match_win:
             return True
         return False   
-    
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
@@ -416,7 +416,6 @@ class Status_Transaction(models.Model):
     status = models.CharField(max_length=32,choices=TransactionStatus.transaction_choices,default="p")
     created_at = models.DateTimeField(auto_now_add=True)
 
-
 class Transaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     from_user = models.ForeignKey(Player,related_name="payer",on_delete=models.PROTECT,null=True,blank=True)
@@ -438,12 +437,10 @@ class Transaction(models.Model):
         last_status = self.status_list.all().order_by('-created_at').first()
         return last_status.status if last_status else 'p'
 
-
 class CurrencyRate(models.Model):
     code = models.CharField(max_length=15)
     rate_exchange = models.DecimalField(default=0.00, decimal_places=6, max_digits=11)
     inverce_rate_exchange = models.DecimalField(default=0.00, decimal_places=6, max_digits=11, null=True, blank=True)
-    
 
 class Status_Payment(models.Model):
     status = models.CharField(max_length=32,choices=PaymentStatus.payment_choices,default="pending")
@@ -469,7 +466,7 @@ class Payment(models.Model):
     package_coins = models.ForeignKey(PackageCoins, on_delete=models.SET_NULL, related_name="package_payment", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_time = models.DateTimeField(blank=True, null=True)
-
+ 
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")
     # image = models.ImageField(upload_to='media') # Por el momento se guarda el url hasta que logre poner a guardar los ficheros
@@ -480,7 +477,6 @@ class Marketing(models.Model):
     updated_at = models.DateTimeField(auto_now= True)
     approved = models.BooleanField(default=False)
 
-
 class AppVersion(models.Model):
     version = models.CharField(max_length=100, unique=True, db_index=True)
     store_link = models.CharField(max_length=100,null=True, blank=True)
@@ -490,7 +486,6 @@ class AppVersion(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-
 
 class BlockPlayer(models.Model):
     player_blocker = models.ForeignKey(Player, on_delete=models.SET_NULL, related_name="blocking_players", null=True)
@@ -505,7 +500,6 @@ class BlockPlayer(models.Model):
                 name="player_can_only_block_other_player_once",
             )
         ]
-
 
 class MoveRegister(models.Model):
     game = models.ForeignKey(DominoGame,related_name="game_played",on_delete=models.SET_NULL, null=True, blank=True)
@@ -532,3 +526,54 @@ class ReferralPlayers(models.Model):
     
     class Meta:
         ordering = ["-created_at"]
+        
+class ChatRoom(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    title = models.CharField(max_length=150)
+    users_list = models.ManyToManyField(Player, related_name="chat_room_users", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    in_game = models.ForeignKey(DominoGame, on_delete=models.CASCADE, blank=True, null=True, related_name="chat_in_game")
+    room_type = models.CharField(max_length=10, default="group", choices=ChatRoomTypes.chatroom_choices)
+    
+    class Meta:
+          ordering = ['created_at']
+        
+    def __str__(self):
+        try:
+            title = ""
+            for user in self.users_list.all():    
+                title += f"{user.alias}-"
+            return (str(title).strip("-") if len(str(title).strip("-")) < 50 else (str(title).strip("-")[:50]+"...") )+f"-{self.room_type}"
+        except Exception as error:
+            return f"{self.title} - {self.room_type}"
+    
+class ChatMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    message = models.TextField()
+    user = models.ForeignKey(Player, related_name="user_sender", on_delete=models.SET_NULL, blank=True, null=True)
+    reply_to = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True, related_name="replies")
+    chat_room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="messages")
+    read_by = models.ManyToManyField(Player, related_name="user_read", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        
+    def __str__(self):
+        return f"{self.user}: {self.message[:50]}"
+    
+    def get_reply_preview(self):
+        """Obtiene una vista previa del mensaje que se responde"""
+        if self.reply_to:
+            return {
+                "id": self.reply_to.id,
+                "user": self.reply_to.user.alias,
+                "message": self.reply_to.message[:100],
+                "created_at": self.reply_to.created_at
+            }
+        return None
+    
+    def read(self):
+        """Muestra si el mensaje ha sido leido por todos los usuarios"""
+        return (self.chat_room.users_list.all().count()-1) == self.read_by.all().count()
