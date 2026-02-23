@@ -19,13 +19,11 @@ def setWinner1(game: DominoGame, winner: int):
     game.winner = winner
     game.start_time = timezone.now()
 
-
 def setWinnerStarterNext1(game: DominoGame, winner: int, starter: int, next_player: int):
     game.starter = starter
     game.winner = winner
     game.next_player = next_player
     game.start_time = timezone.now()
-
 
 def checkPlayerJoined(player,game):
     res = False
@@ -48,19 +46,10 @@ def checkPlayerJoined(player,game):
             res = True
     return res,players
 
-
 def startGame1(game_id,players):
     with transaction.atomic():
         game = DominoGame.objects.select_for_update().get(id=game_id)
-        # if game.status != "fi":
-        #     for player in players:
-        #         if player.isPlaying == False:
-        #             player.isPlaying = True
-        #             #player.save()
-        # players_ru = []
-        # for player in players:
-        #     if player.isPlaying:
-        #         players_ru.append(player)       
+              
         n = len(players)
         if game.starter == -1 or game.starter >= n:
             game.next_player = random.randint(0,n-1)
@@ -74,14 +63,12 @@ def startGame1(game_id,players):
                 game.winner = DominoGame.Winner_Couple_1
             else:
                 game.winner = DominoGame.Winner_Couple_2    
-        #game.winner=-1
-
+        
         try:
             bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
         
-        ### Pensar aqui en que lugar sumo las datas y los game
         bank.data_played+=1
 
         game.board = ''
@@ -98,8 +85,6 @@ def startGame1(game_id,players):
         
         bank.save(update_fields=['game_played', 'data_played'])
 
-        #if game.inPairs and (game.status =="ready" or game.status =="fg") and (game.payMatchValue > 0 or game.payWinValue > 0):
-        #    shuffleCouples(game,players_ru)    
         shuffle(game,players)          
         game.status = "ru"
         game.start_time = timezone.now()
@@ -110,7 +95,6 @@ def startGame1(game_id,players):
         game.lastTime3 = timezone.now()
         game.lastTime4 = timezone.now()
         game.save()
-
 
 def movement(game_id,player,players,tile, automatic=False):
     with transaction.atomic():
@@ -234,6 +218,21 @@ def movement(game_id,player,players,tile, automatic=False):
             bank.data_completed+=1
             bank.game_completed+=1
             
+            for player in players:
+                summary = get_summary_model(player)
+                if game.variant == 'd6':
+                    summary.play_66_game += 1
+                else:
+                    summary.play_99_game += 1
+                if game.inPairs:
+                    summary.play_in_pairs += 1
+                else:
+                    summary.play_in_single += 1
+                if game.perPoints:
+                    summary.play_by_points += 1
+                else:
+                    summary.play_without_points += 1
+                summary.save()            
         elif game.status == "fi":
             bank.data_completed+=1
         
@@ -607,7 +606,6 @@ def updatePassCoins(pos,game,players,move_register:MoveRegister):
                         summary_player_passed.save(update_fields=['pass_player', 'earned_coins'])
                 break                            
 
-
 def move1(game_id,alias,tile):
     # game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
     game = DominoGame.objects.get(id=game_id)
@@ -630,7 +628,6 @@ def move1(game_id,alias,tile):
         game.player4.save() 
     
     return error
-
 
 def shuffleCouples(game,players):
     random.shuffle(players)
@@ -1063,7 +1060,6 @@ def getLastMoveTime(game,player):
     elif game.player4 is not None and game.player4.alias == player.alias:
         return game.lastTime4
     return None
-
 
 def havepoints(game: DominoGame):
     """

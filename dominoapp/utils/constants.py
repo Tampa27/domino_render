@@ -127,13 +127,15 @@ class TransactionTypes:
     TRANSATIONS_IN_GAMES = ("gm", "game")
     TRANSACTION_PROMOTION = ("pro", "promotion")
     TRANSACTION_TRANSFER = ("tr", "transfer")
+    TRANSACTION_REWARD = ("rw", "reward")
 
     transaction_type = [
         TRANSACTION_RELOAD, 
         TRANSACTION_EXTRACTION,
         TRANSATIONS_IN_GAMES,
         TRANSACTION_PROMOTION,
-        TRANSACTION_TRANSFER
+        TRANSACTION_TRANSFER,
+        TRANSACTION_REWARD
     ]
 
 class ChatRoomTypes:
