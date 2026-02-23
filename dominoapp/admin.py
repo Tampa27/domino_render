@@ -8,8 +8,9 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
         MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
-    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer
+    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward
 from dominoapp.utils.admin_helpers import AdminHelpers
+from dominoapp.utils.players_tools import get_reward_type_choices
 
 admin.site.site_title = "DOMINO site admin (DEV)"
 admin.site.site_header = "DOMINO administration"
@@ -620,7 +621,52 @@ class SummaryPlayerAdmin(admin.ModelAdmin):
         "id",
         "player",
         "created_at"
-    ]  
+    ]
+
+class PlayerRewardAdmin(admin.ModelAdmin):
+    class RewardForm(forms.ModelForm):
+        reward_type = forms.ChoiceField(choices=get_reward_type_choices())
+        date_of_week = forms.IntegerField(
+            required=False,
+            min_value=0,
+            max_value=6,
+            widget=forms.Select(choices=[(None, "----")] + [
+                (0, 'MONDAY'),
+                (1, 'TUESDAY'),
+                (2, 'WEDNESDAY'),
+                (3, 'THURSDAY'),
+                (4, 'FRIDAY'),
+                (5, 'SATURDAY'),
+                (6, 'SUNDAY')
+            ])
+        )
+        date_of_month = forms.IntegerField(
+            required=False,
+            min_value=1,
+            max_value=31,
+            widget=forms.Select(choices=[(None, "----")] + [(i, str(i)) for i in range(1, 32)])
+        )
+
+        class Meta:
+            model = PlayerReward
+            fields = "__all__"
+            exclude = []
+
+    list_display = [
+        "id",
+        "reward_type",
+        "date_week",
+        "date_of_month",
+        "created_at"
+    ]
+    form = RewardForm
+
+    def date_week(self, obj: PlayerReward):
+        if obj.date_of_week is None:
+            return "----"
+        days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+        return days[obj.date_of_week]
+    
 
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
@@ -643,3 +689,4 @@ admin.site.register(PackageCoins)
 admin.site.register(SummaryPlayer, SummaryPlayerAdmin)
 admin.site.register(ChatRoom)
 admin.site.register(ChatMessage)
+admin.site.register(PlayerReward, PlayerRewardAdmin)

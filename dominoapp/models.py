@@ -134,7 +134,31 @@ class SummaryPlayer(models.Model):
     owner_pass = models.PositiveIntegerField(default=0)  ## Pases que recibe un player
     earned_coins = models.IntegerField(default=0)
     loss_coins = models.IntegerField(default=0)
+    play_99_game = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas del 9|9
+    play_66_game = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas del 6|6
+    play_in_pairs = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas por parejas
+    play_in_single = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas individuales
+    play_by_points = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas por puntos
+    play_without_points = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas sin puntos, solo por ganes
 
+    def __str__(self):
+        return f"Summary - {self.player.alias}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @classmethod
+    def get_available_fields(cls):
+        """Retorna los campos del modelo excluyendo player y created_at"""
+        exclude_fields = ['player', 'created_at', 'id']
+        return [field.name for field in cls._meta.get_fields() 
+                if field.name not in exclude_fields and not field.is_relation]
+
+class PlayerReward(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    reward_type = models.CharField(max_length=50)
+    date_of_week = models.IntegerField(null=True, blank=True)  # 0-6 for Monday-Sunday
+    date_of_month = models.IntegerField(null=True, blank=True)  # 1-31 for day of month
 
 class Pair(models.Model):
     player1 = models.ForeignKey(Player,related_name="pair_1",on_delete=models.CASCADE)
@@ -154,7 +178,7 @@ class BankAccount(models.Model):
     phone = models.CharField(max_length=20,blank=True, null=True, validators=[RegexValidator(regex=r'^\+{1}?\d{9,15}$')])
     created_at = models.DateTimeField(auto_now_add=True)
 
-     # Ensure a player cannot have duplicate bank accounts with the same account number
+    # Ensure a player cannot have duplicate bank accounts with the same account number
     class Meta:
         unique_together = ('player', 'account_number')
         ordering = ['-created_at']
@@ -305,7 +329,6 @@ class DominoGame(models.Model):
         if self.tournament is not None:
             return True
         return False
-
    
 class Round(models.Model):
     tournament = models.ForeignKey(Tournament, related_name="round_in_tournament", on_delete=models.CASCADE)
@@ -361,7 +384,6 @@ class Round(models.Model):
         else:
             return 'fg'
 
-
 class Match_Game(models.Model):
     game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
     round = models.ForeignKey(Round, related_name="match_round", on_delete=models.CASCADE, null=True, blank=True)
@@ -393,6 +415,7 @@ class Match_Game(models.Model):
         if self.games_win_team_2 == number_match_win:
             return True
         return False   
+
 class Bank(models.Model):
     extracted_coins = models.PositiveIntegerField(default=0)
     buy_coins = models.PositiveIntegerField(default=0)
@@ -431,7 +454,8 @@ class Transaction(models.Model):
     descriptions = models.CharField(max_length=100, null=True, blank=True)
     whatsapp_url = models.URLField(null=True, blank=True, max_length=1500)
     bank_account = models.ForeignKey(BankAccount, related_name="bank_account_transaction", on_delete=models.SET_NULL, null=True, blank=True)
-    
+    reward = models.ForeignKey(PlayerReward, related_name="reward_transaction", on_delete=models.SET_NULL, null=True, blank=True)
+
     @property
     def get_status(self):
         last_status = self.status_list.all().order_by('-created_at').first()
@@ -445,8 +469,7 @@ class CurrencyRate(models.Model):
 class Status_Payment(models.Model):
     status = models.CharField(max_length=32,choices=PaymentStatus.payment_choices,default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
-
-    
+   
 class PackageCoins(models.Model):
     amount = models.DecimalField(decimal_places=2, max_digits=10)
     coin_amount = models.PositiveIntegerField(default=0)

@@ -118,3 +118,7 @@ def get_summary_model(player: Player)-> SummaryPlayer:
     if not summary:
         summary = SummaryPlayer.objects.create(player=player, created_at=now)
     return summary
+
+def get_reward_type_choices():
+    """Wrapper para obtener choices solo cuando los modelos están cargados"""
+    return [(field, field) for field in SummaryPlayer.get_available_fields()]
