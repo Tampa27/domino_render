@@ -146,6 +146,9 @@ class PaymentService:
         if player.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
         
+        check_player_phone = Player.objects.filter(phone = request.data["phone"]).exclude(id = player.id)
+        if check_player_phone.exists():
+            return Response(data={'status': 'error', "message":"Este teléfono ya esta asociado a otro player."}, status=status.HTTP_409_CONFLICT)
         
         min_20 = datetime.now() - timedelta(minutes=20)
         

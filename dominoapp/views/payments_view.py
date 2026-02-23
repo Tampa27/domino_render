@@ -110,7 +110,8 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
                     name="Payments Request Recharge",
                     fields={
                         "coins" : IntegerField(required=True),
-                        "phone": CharField(required=True)
+                        "phone": CharField(required=True),
+                        "paymentmethod": CharField(required=False, help_text="saldo, transferencia")
                     }
                 )
             },
