@@ -1051,10 +1051,6 @@ def takeRandomCorrectTile(tiles,left,right):
     return best_tile if best_tile is not None else "-1|-1"
 
 def isMyTurn(board,myPos,starter,n, next_player):
-    # Vamos a cambiar la forma de verificar si es el turno del player
-    # moves_count = len(board.split(","))-1
-    # res = moves_count%n
-    # return (starter+res)%n == myPos
     return myPos == next_player
 
 def getLastMoveTime(game,player):

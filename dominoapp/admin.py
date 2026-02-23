@@ -228,8 +228,9 @@ class PlayerAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "alias",
-        "email",
         "name",
+        "email",
+        "phone",
         "earned_coins",
         "recharged_coins",
         "elo",
