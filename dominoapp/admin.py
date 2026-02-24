@@ -401,10 +401,9 @@ class TransactionAdmin(admin.ModelAdmin):
     actions = [AdminHelpers.get_pdf_resume_transaction]
 
     def status(self, obj):
-        if obj.status_list.last():
-            return obj.status_list.last().status
-        else:
-            return "---"
+        if obj.status_list.count() == 0:
+            return "----"
+        return obj.status_list.last().status
 
 class PaymentAdmin(admin.ModelAdmin):
     list_display = [

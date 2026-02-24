@@ -72,7 +72,7 @@ class Command(BaseCommand):
         
         transaction_models = Transaction.objects.filter(
             time__lt=expired_time
-            )
+            ).exclude(type = 'rw')
         
         for transaction in transaction_models.iterator():
             for status in transaction.status_list.all():
