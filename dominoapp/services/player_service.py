@@ -412,19 +412,12 @@ class PlayerService:
             ).order_by(order_by)
         elif order_by in ['data_wins', '-data_wins']:
             queryset = queryset.annotate(
-                data_wins=Sum('summary_player__data_wins')
+                data_wins=Sum('summary_player__data_wins', filter=date_filter)
             ).order_by(order_by)
         elif order_by in ['match_wins', '-match_wins']:
-            if start_date and end_date:
-                start = datetime.strptime(start_date, '%d-%m-%Y').date()
-                end = datetime.strptime(end_date, '%d-%m-%Y').date()
-                queryset = queryset.annotate(
-                    match_wins=Sum('summary_player__match_wins', filter=Q(summary_player__created_at__range=[start, end]))
-                ).order_by(order_by)
-            else:
-                queryset = queryset.annotate(
-                    match_wins=Sum('summary_player__match_wins')
-                ).order_by(order_by)
+            queryset = queryset.annotate(
+                match_wins=Sum('summary_player__match_wins', filter=date_filter)
+            ).order_by(order_by)        
         elif order_by in ['balance_coins', '-balance_coins']:
             earned_subquery = SummaryPlayer.objects.filter(
                 player__id=OuterRef('pk')
