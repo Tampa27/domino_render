@@ -60,8 +60,14 @@ class PlayerView(viewsets.ModelViewSet):
                     'elo', '-elo', 
                     'data_percent', '-data_percent', 
                     'match_percent', '-match_percent',
-                    'coins', '-coins'
-                    ])
+                    'coins', '-coins',
+                    'data_wins', '-data_wins',
+                    'match_wins', '-match_wins',
+                    'balance_coins', '-balance_coins'
+                    ]),
+                OpenApiParameter(name="start_date", type=str, description="Fecha de inicio con formato `d-m-y`"),
+                OpenApiParameter(name="end_date", type=str, description="Fecha final con formato `d-m-y`"),
+
                 ],
             request=None,
             responses={
@@ -242,7 +248,6 @@ class PlayerView(viewsets.ModelViewSet):
 
         return PlayerService.process_send_notification(request)
         
-    
     @extend_schema(
             operation_id="players_refer_code",
             request=None,

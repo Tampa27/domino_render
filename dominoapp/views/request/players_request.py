@@ -197,7 +197,9 @@ class PlayerRequest:
         validators = {
             "ordering": RequestValidator.validate_string,
             "page": RequestValidator.validate_numeric,
-            "page_size": RequestValidator.validate_numeric
+            "page_size": RequestValidator.validate_numeric,
+            "start_date": RequestValidator.validate_timestamp,
+            "end_date": RequestValidator.validate_timestamp,
         }
         
         is_valid, message = RequestValidator.validate_query_params(request, validators)

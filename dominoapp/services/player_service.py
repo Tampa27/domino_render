@@ -1,15 +1,18 @@
 import os
+from urllib import request
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db import transaction
-from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value, Exists, OuterRef, Sum
+from django.db.models import Q, F, ExpressionWrapper, FloatField, Case, When, Value, Exists, OuterRef, Sum, IntegerField, Subquery
+from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.shortcuts import redirect
+from datetime import datetime
 from fcm_django.models import FCMDevice
-from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers
+from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
@@ -328,7 +331,14 @@ class PlayerService:
         
         page_size = request.query_params.get("page_size", 100)
         order_by = request.query_params.get("ordering", None)
-        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        date_filter = Q()
+        if start_date and end_date:
+            start = datetime.strptime(start_date, '%d-%m-%Y').date()
+            end = datetime.strptime(end_date, '%d-%m-%Y').date()
+            date_filter = Q(summary_player__created_at__range=[start, end])
+
         paginator.page_size = page_size  # Items por página
         
         queryset = Player.objects.all().exclude(
@@ -337,7 +347,7 @@ class PlayerService:
                 )
             )
         )
-
+        
         if order_by in ['elo', '-elo']:
             queryset = queryset.exclude(elo=1500).order_by(order_by)
         elif order_by in ['data_percent', '-data_percent']:
@@ -400,8 +410,50 @@ class PlayerService:
             queryset = queryset.annotate(
                 coins=F('earned_coins') + F('recharged_coins')
             ).order_by(order_by)
+        elif order_by in ['data_wins', '-data_wins']:
+            queryset = queryset.annotate(
+                data_wins=Sum('summary_player__data_wins', filter=date_filter)
+            ).order_by(order_by)
+        elif order_by in ['match_wins', '-match_wins']:
+            queryset = queryset.annotate(
+                match_wins=Sum('summary_player__match_wins', filter=date_filter)
+            ).order_by(order_by)        
+        elif order_by in ['balance_coins', '-balance_coins']:
+            earned_subquery = SummaryPlayer.objects.filter(
+                player__id=OuterRef('pk')
+            )
+            if start_date and end_date:
+                earned_subquery = earned_subquery.filter(created_at__range=[start, end])
+
+            loss_subquery = SummaryPlayer.objects.filter(
+                player__id=OuterRef('pk')
+            )
+            if start_date and end_date:
+                loss_subquery = loss_subquery.filter(created_at__range=[start, end])
+            
+            queryset = queryset.annotate(
+                win_coins=Coalesce(
+                    Subquery(
+                        earned_subquery.values('player')
+                        .annotate(total=Sum('earned_coins'))
+                        .values('total')[:1]
+                    ),
+                    Value(0, output_field=IntegerField())
+                ),
+                loss_coins=Coalesce(
+                    Subquery(
+                        loss_subquery.values('player')
+                        .annotate(total=Sum('loss_coins'))
+                        .values('total')[:1]
+                    ),
+                    Value(0, output_field=IntegerField())
+                )
+            ).annotate(
+                balance_coins=F('win_coins') - F('loss_coins')
+            ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
         serializer = PlayerRankinSerializer(result_page, many=True)
-        
+        serializer.context['start_date'] = start_date
+        serializer.context['end_date'] = end_date
         return paginator.get_paginated_response(serializer.data)
