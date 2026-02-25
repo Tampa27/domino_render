@@ -41,3 +41,12 @@ Tu solicitud de extraer un monto de {amount} pesos de la cuenta **{player.alias}
     texto_codificado = urllib.parse.quote(texto_original)
     
     return f"https://wa.me/{player_phone}/?text={texto_codificado}"
+
+def get_whatsapp_reward_text(player: Player, player_phone:str, reward_type:str, period:str):
+    texto_original = f"""
+    Hola *{player.name}*,
+                
+Has ganado un premio por ser el jugador con más {reward_type} en {f'la última {period}' if period == 'semana' else f'el último {period}'} en Domino Club.
+"""    
+    texto_codificado = urllib.parse.quote(texto_original)
+    return f"https://wa.me/{player_phone}/?text={texto_codificado}"

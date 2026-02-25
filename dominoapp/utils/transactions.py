@@ -1,4 +1,4 @@
-from dominoapp.models import Player, Status_Transaction, Transaction, DominoGame, MoveRegister
+from dominoapp.models import Player, Status_Transaction, Transaction, DominoGame, MoveRegister, PlayerReward
 import logging
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
@@ -209,3 +209,32 @@ def create_transfer_transactions(amount, from_user:Player=None, to_user:Player=N
         logger.critical(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: {e}")
         return False
     
+def create_reward_transactions(to_user:Player, amount:int=None, status:str=None, descriptions:str=None, reward:PlayerReward=None, whatsapp_url=None):
+    try:
+        if not to_user:
+            logger.error(f"Transaction of {amount} pesos failed for {to_user}, error: The to_user field should not be empty")
+            return None
+        if amount is not None and amount < 0:
+            logger.error(f"Transaction of {amount} pesos failed for {to_user}, error: The amount must greater or equal than 0")
+            return None
+        if status is not None and not status in ["p", "cp", "cc"]:
+            logger.error(f"Transaction of {amount} pesos failed for {to_user}, error: status is not correct")
+            return None
+        
+        new_status = Status_Transaction.objects.create(status = 'p' if status==None else status)
+        new_transaction = Transaction.objects.create(
+            to_user = to_user,
+            amount = amount if amount else 0,
+            type="rw",
+            descriptions = descriptions if descriptions else None,
+            reward = reward if reward else None,
+            whatsapp_url = whatsapp_url if whatsapp_url else None
+        )
+        new_transaction.status_list.add(new_status)
+        
+        logger_api.info(f"Reward transaction of {amount} pesos satisfactory for {to_user}")
+        return new_transaction
+    except Exception as e:
+        print(f"error: {e}")
+        logger.critical(f"Reward transaction of {amount} pesos failed for {to_user}, error: {e}")
+        return None
