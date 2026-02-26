@@ -17,8 +17,11 @@ class AdminHelpers:
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
         ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='cp').exclude(type ='gm')
+        ).filter(latest_status_name='cp').exclude(type__in =['gm','pro','tr','rw'])
         queryset_total = queryset.count()
+        if queryset_total == 0:
+            messages.warning(request, f"No se ha seleccionado ninguna transaccion de recarga o extraccion")
+            return
         queryset_ids = queryset.values_list('id', flat=True)
         
         chunk_size = 40000  # Procesar de 40000 en 40000
@@ -35,7 +38,9 @@ class AdminHelpers:
         admin_resume = {str(alias): {
             "trans_amount_rl": 0,
             "saldo_amount_rl": 0,
+            "trans_num": 0,
             "total_admin_amount_ext": 0,
+            "ext_num": 0,
             "balance": 0
         } for alias in admin_tuples}
         
@@ -92,21 +97,26 @@ class AdminHelpers:
             del total_amount_win_in_game
             
             for admin in admin_list.iterator():
-                trans_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id, paymentmethod='transferencia').aggregate(total=Sum('amount'))['total'] or 0
+                total_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id)
+                transaction_data["admin_resume"][str(admin.alias)]["trans_num"] += total_rl.count()
+                trans_amount_rl = total_rl.filter(paymentmethod='transferencia').aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["trans_amount_rl"] += round(trans_amount_rl, 2)
                 del trans_amount_rl
                 
-                saldo_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id, paymentmethod='saldo').aggregate(total=Sum('amount'))['total'] or 0
+                saldo_amount_rl = total_rl.filter(paymentmethod='saldo').aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["saldo_amount_rl"] += round(saldo_amount_rl, 2)
                 del saldo_amount_rl
-                
-                total_admin_amount_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
+                                
+                total_admin_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id)
+                transaction_data["admin_resume"][str(admin.alias)]["ext_num"] += total_admin_ext.count()
+                total_admin_amount_ext = total_admin_ext.aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["total_admin_amount_ext"] += round(total_admin_amount_ext, 2)
                 
-                total_admin_amount_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id).aggregate(total=Sum('amount'))['total'] or 0
+                total_admin_amount_rl = total_rl.aggregate(total=Sum('amount'))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["balance"] += round(total_admin_amount_rl - total_admin_amount_ext, 2)
                 del total_admin_amount_ext
                 del total_admin_amount_rl
+                del total_rl
                 gc.collect()
             
             # Limpiar memoria
@@ -141,7 +151,6 @@ class AdminHelpers:
             # Limpiar memoria
             del queryset
             gc.collect()
-            print("limpio el queryset")  
             pdf_out = create_resume_pdf(transaction_data, admin_tuples)
 
             response = HttpResponse(pdf_out, content_type='application/pdf')
