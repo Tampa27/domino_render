@@ -2,15 +2,17 @@ from django.contrib import admin
 from django import forms
 from django.urls import reverse
 from django.utils.html import format_html
+from django.db.models import Subquery, OuterRef
 from django_admin_listfilter_dropdown.filters import SimpleListFilter
 from datetime import datetime, timedelta
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
         MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
-    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward
+    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward, Status_Transaction
 from dominoapp.utils.admin_helpers import AdminHelpers
 from dominoapp.utils.players_tools import get_reward_type_choices
+from dominoapp.utils.constants import TransactionStatus
 
 admin.site.site_title = "DOMINO site admin (DEV)"
 admin.site.site_header = "DOMINO administration"
@@ -285,6 +287,23 @@ class AdminFilter(SimpleListFilter):
         if admin:
             return queryset.filter(admin__id=admin)
         return queryset
+    
+class StatusFilter(SimpleListFilter):
+    title = "status"
+    parameter_name = "status"
+
+    def lookups(self, request, model_admin):        
+        return TransactionStatus.transaction_choices
+
+    def queryset(self, request, queryset):
+        status = self.value()
+        if status:
+            return queryset.annotate(
+                latest_status_name=Subquery(
+                    Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+            ).order_by('-created_at').values('status')[:1])
+            ).filter(latest_status_name=status)
+        return queryset
 
 class FromTimeFilter(SimpleListFilter):
     title = "from_date"
@@ -392,6 +411,7 @@ class TransactionAdmin(admin.ModelAdmin):
         "game",
         "type",
         AdminFilter,
+        StatusFilter,
         FromTimeFilter,
         ToTimeFilter
     ]
