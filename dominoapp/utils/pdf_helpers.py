@@ -141,117 +141,277 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
     pdf.cell(50, 8,"Recaudado en Juegos:" , border=border, align='L', fill=0)
     pdf.cell(40, 8, f"{transaction_data['game_amount']} CUP", border=border, align='C', fill=0)
 
-    current_y = pdf.get_y() + 20
-    pdf.set_xy(x_start, current_y)
-    pdf.cell(194, 8,"Desglose por Administrador" , border=0, align='C', fill=0)
-    current_y = pdf.get_y() + 8
-    pdf.set_xy(x_start, current_y)
+    resume_by_admin(pdf, x_start, border, admin_list, transaction_data["admin_resume"])
 
-    pdf.cell(55, 16,"Administrador" , border=border, align='C', fill=0)
-    current_x = pdf.get_x()
-    pdf.cell(66, 8,"Recargas" , border=border, align='C', fill=0)
-    current_y1 = pdf.get_y() + 8
-    pdf.set_xy(current_x, current_y1)
-    pdf.cell(33, 8,"Transferencias" , border=border, align='C', fill=0)
-    pdf.cell(33, 8,"Saldo" , border=border, align='C', fill=0)
-    current_x = pdf.get_x()
-    pdf.set_xy(current_x, current_y)
-    pdf.cell(33, 16,"Extracciones" , border=border, align='C', fill=0)
-    pdf.cell(40, 16,"Balance" , border=border, align='C', fill=0)
-    current_y = pdf.get_y() + 8
-    pdf.set_xy(x_start, current_y)
-    tfont(pdf, '')
-    color = 'gray2'
-    for row in admin_list:
-        if color == 'gray2':            
-            color = 'gray1'
-        else:
-            color = 'gray2'
-        set_fillcol(pdf,color)
-        current_y = pdf.get_y() + 8
-        pdf.set_xy(x_start, current_y)
-        pdf.cell(55, 8,row , border=border, align='C', fill=1)
-        pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['trans_amount_rl']) , border=border, align='C', fill=1)
-        pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['saldo_amount_rl']) , border=border, align='C', fill=1)
-        pdf.cell(33, 8,str(transaction_data["admin_resume"][row]['total_admin_amount_ext']) , border=border, align='C', fill=1)
-        pdf.cell(40, 8,str(transaction_data["admin_resume"][row]['balance']) , border=border, align='C', fill=1)
-
-    ###########################################################
-    ## Se crea el grafico de recargas y extracciones diarias
-    pdf.add_page()
-    x_start = 10; y_start = 7.5
-
-    pdf.rect(x_start, y_start, width_table, height_table, style='D')
-        
-    height_graph = height_table/2
-    width_graph = width_table-20
-    start_x_graph = x_start + 10
-    start_y_graph = y_start + 10
-    pdf.rect(x_start+10, y_start+10, width_graph, height_graph, style='D')
-        
-    paso = math.ceil(len(transaction_data["graph"]["days"]) / 30)
-    i = 0
-    j = 0
-    count = 0
-    vector_reload = np.array(transaction_data["graph"]["reload"])
-    vector_extraction = np.array(transaction_data["graph"]["extraction"])
-    vector_balance = np.array(transaction_data["graph"]["balance"])
-    max_value1 = max(vector_reload)
-    max_value2 = max(vector_extraction)
-    max_value3 = max(vector_balance)
-    max_value = max(max_value1, max_value2, max_value3)
+    graph_resume(pdf, width_table, height_table, transaction_data["graph"])
     
-    vector_reload = vector_reload / max_value
-    vector_extraction = vector_extraction / max_value
-    vector_balance = vector_balance / max_value
-    
-    value_reload = 0
-    value_extraction= 0
-    value_balance= 0
-    width_graph_cell = width_graph* paso / len(transaction_data["graph"]["days"])
-    height_graph_cell = height_graph
-    
-    for day in transaction_data["graph"]["days"]:
-        value_reload = vector_reload[count] if count< len(vector_reload) else 0
-        value_extraction = vector_extraction[count] if count< len(vector_reload) else 0
-        value_balance = vector_balance[count] if count< len(vector_reload) else 0
-        if count == i:
-            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph - float(value_reload)*(height_graph_cell))
-            set_fillcol(pdf,'blue')
-            pdf.cell(width_graph_cell, float(value_reload)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
-            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph - float(value_balance)*(height_graph_cell))
-            set_fillcol(pdf,'green')
-            pdf.cell(width_graph_cell, float(value_balance)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
-            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph - float(value_extraction)*(height_graph_cell))
-            set_fillcol(pdf,'red')
-            pdf.cell(width_graph_cell, float(value_extraction)*(height_graph_cell), f"{''}", border=border, align='C', fill=1)
-            pdf.set_xy(start_x_graph + width_graph_cell*(j),start_y_graph + height_graph + 1)
-            set_fillcol(pdf,'gray1')
-            pdf.cell(width_graph_cell, 8, f"{transaction_data['graph']['days'][count]}", border=border, align='C', fill=1)
-            i+=paso
-            j+=1
-            value_reload = 0
-            value_extraction= 0
-            value_balance= 0
-        count += 1 
-    j = 0
-    height_graph_cell = height_graph/20
-    for i in range (0, int(max_value)+int(max_value/20), int(max_value/20)):
-        pdf.set_xy(start_x_graph - 10 , start_y_graph - j*(height_graph_cell) + height_graph )
-        j += 1
-        pdf.cell(9, height_graph_cell, f"{i}", border=border, align='C', fill=1)
-    
-    pdf.set_xy(start_x_graph , start_y_graph + height_graph + 20 )
-    set_fillcol(pdf,'blue')
-    pdf.cell(30, 10, f"{'Reload'}", border=border, align='C', fill=1)
-    set_fillcol(pdf,'green')
-    pdf.cell(30, 10, f"{'Balance'}", border=border, align='C', fill=1)
-    set_fillcol(pdf,'red')
-    pdf.cell(30, 10, f"{'Extraction'}", border=border, align='C', fill=1)
-    ################################################################################      
-    
-    print("se termino el pdf")
     return pdf.output(dest='S').encode('latin-1')
+
+def resume_by_admin(pdf: PDF, x_start, border, admin_list, admin_data):
+    # Configuración de columnas
+    COL_CONFIG = {
+        'admin': (47, 'Administrador'),
+        'recargas': [
+            (30, 'Transferencia', 'trans_amount_rl'),
+            (22, 'Saldo', 'saldo_amount_rl'),
+            (15, 'Cant', 'trans_num')
+        ],
+        'extracciones': [
+            (30, 'Monto', 'total_admin_amount_ext'),
+            (15, 'Cant', 'ext_num')
+        ],
+        'balance': (35, 'Balance', 'balance')
+    }
+       
+    # Posición inicial
+    y = pdf.get_y() + 20
+    pdf.set_xy(x_start, y)
+    
+    # Título
+    pdf.cell(190, 8, "Desglose por Administrador", border=0, align='C', fill=0)
+    y += 8
+    pdf.set_xy(x_start, y)
+    
+    # Encabezados principales
+    start_x = x_start
+    pdf.cell(COL_CONFIG['admin'][0], 16, COL_CONFIG['admin'][1], border, align='C', fill=0)
+    
+    # Encabezados de Recargas
+    x = pdf.get_x()
+    pdf.set_xy(x, y)
+    pdf.cell(67, 8, "Recargas", border, align='C', fill=0)
+    pdf.set_xy(x, y + 8)
+    for w, t, _ in COL_CONFIG['recargas']:
+        pdf.cell(w, 8, t, border, align='C', fill=0)
+    
+    # Encabezados de Extracciones
+    x = pdf.get_x()
+    pdf.set_xy(x, y)
+    pdf.cell(45, 8, "Extracciones", border, align='C', fill=0)
+    pdf.set_xy(x, y + 8)
+    for w, t, _ in COL_CONFIG['extracciones']:
+        pdf.cell(w, 8, t, border, align='C', fill=0)
+    
+    # Balance
+    pdf.set_xy(pdf.get_x(), y)
+    pdf.cell(COL_CONFIG['balance'][0], 16, COL_CONFIG['balance'][1], border, align='C', fill=0)
+    
+    # Preparar totales
+    totals = {key: 0 for _, cols in [('recargas', COL_CONFIG['recargas']), 
+                                     ('extracciones', COL_CONFIG['extracciones'])] 
+              for *_, key in cols}
+    totals['balance'] = 0
+    
+    # Dibujar filas de datos
+    y += 16
+    tfont(pdf, '')
+    
+    for i, admin in enumerate(admin_list):
+        color = 'gray1' if i % 2 else 'gray2'
+        set_fillcol(pdf, color)
+        pdf.set_xy(x_start, y)
+        
+        # Administrador
+        pdf.cell(COL_CONFIG['admin'][0], 8, admin, border, align='C', fill=1)
+        
+        # Recargas
+        for w, _, key in COL_CONFIG['recargas']:
+            val = admin_data[admin][key]
+            pdf.cell(w, 8, str(val), border, align='C', fill=1)
+            totals[key] += val
+        
+        # Extracciones
+        for w, _, key in COL_CONFIG['extracciones']:
+            val = admin_data[admin][key]
+            pdf.cell(w, 8, str(val), border, align='C', fill=1)
+            totals[key] += val
+        
+        # Balance
+        balance = admin_data[admin]['balance']
+        pdf.cell(COL_CONFIG['balance'][0], 8, str(balance), border, align='C', fill=1)
+        totals['balance'] += balance
+        
+        y += 8
+    
+    # Fila de totales
+    set_fillcol(pdf, 'green')
+    pdf.set_xy(x_start, y)
+    pdf.cell(COL_CONFIG['admin'][0], 8, "TOTALES", border, align='C', fill=1)
+    
+    for _, cols in [('recargas', COL_CONFIG['recargas']), 
+                   ('extracciones', COL_CONFIG['extracciones'])]:
+        for w, _, key in cols:
+            pdf.cell(w, 8, str(totals[key]), border, align='C', fill=1)
+    
+    pdf.cell(COL_CONFIG['balance'][0], 8, str(totals['balance']), border, align='C', fill=1)
+
+def graph_resume(pdf: PDF, width_table, height_table, graph_data):
+    ###########################################################
+    ## Se crea el grafico de lineas de recargas y extracciones diarias
+    pdf.add_page()
+    x_start = 10
+    y_start = 7.5
+    
+    # Contenedor principal
+    pdf.rect(x_start, y_start, width_table, height_table, style='D')
+    
+    # Área del gráfico
+    height_graph = height_table * 0.6  # 60% para el gráfico
+    width_graph = width_table - 40  # Margen para etiquetas
+    start_x_graph = x_start + 30  # Espacio para etiqueta Y
+    start_y_graph = y_start + 15
+    
+    # Marco del gráfico
+    pdf.rect(start_x_graph - 5, start_y_graph - 5, width_graph + 10, height_graph + 10, style='D')
+    
+    # Preparar datos
+    days = graph_data["days"]
+    n_days = len(days)
+    
+    # Convertir a arrays numpy para mejor manejo
+    reload_data = np.array(graph_data["reload"], dtype=float)
+    extraction_data = np.array(graph_data["extraction"], dtype=float)
+    balance_data = np.array(graph_data["balance"], dtype=float)
+    
+    # Calcular máximo para escalar
+    max_value = max(np.max(reload_data), np.max(extraction_data), np.max(balance_data))
+    if max_value == 0:
+        max_value = 1  # Evitar división por cero
+    
+    # Escalar datos al alto del gráfico
+    reload_scaled = (reload_data / max_value) * height_graph
+    extraction_scaled = (extraction_data / max_value) * height_graph
+    balance_scaled = (balance_data / max_value) * height_graph
+    
+    # Calcular posición X para cada punto
+    step_x = width_graph / (n_days - 1) if n_days > 1 else width_graph
+    
+    # Colores para las líneas
+    colors = {
+        'reload': (0, 0, 255),      # Azul
+        'balance': (0, 255, 0),      # Verde
+        'extraction': (255, 0, 0)    # Rojo
+    }
+    
+    def draw_line(data_scaled, color, label):
+        """Dibuja una línea en el gráfico"""
+        nonlocal start_x_graph, start_y_graph, height_graph, step_x
+        
+        # Configurar color y estilo de línea
+        pdf.set_draw_color(color[0], color[1], color[2])
+        pdf.set_line_width(1.5)
+        
+        # Dibujar puntos y líneas
+        points = []
+        for i, value in enumerate(data_scaled):
+            x = start_x_graph + (i * step_x)
+            y = start_y_graph + height_graph - value
+            points.append((x, y))
+            
+            # Dibujar punto
+            pdf.set_fill_color(color[0], color[1], color[2])
+            pdf.ellipse(x - 1.5, y - 1.5, 3, 3, 'F')
+        
+        # Dibujar líneas entre puntos
+        for i in range(len(points) - 1):
+            pdf.line(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1])
+    
+    def draw_grid():
+        """Dibuja la cuadrícula de fondo"""
+        pdf.set_draw_color(200, 200, 200)  # Gris claro
+        pdf.set_line_width(0.2)
+        
+        # Líneas horizontales (valores)
+        n_horizontal_lines = 5
+        for i in range(n_horizontal_lines + 1):
+            y = start_y_graph + height_graph - (i * height_graph / n_horizontal_lines)
+            pdf.line(start_x_graph - 5, y, start_x_graph + width_graph + 5, y)
+        
+        # Líneas verticales (días)
+        if n_days > 1:
+            for i in range(0, n_days, max(1, n_days // 10)):  # Máximo 10 líneas
+                x = start_x_graph + (i * step_x)
+                pdf.line(x, start_y_graph - 5, x, start_y_graph + height_graph + 5)
+    
+    def draw_axes():
+        """Dibuja los ejes y etiquetas"""
+        # Ejes principales
+        pdf.set_draw_color(0, 0, 0)
+        pdf.set_line_width(1)
+        
+        # Eje X
+        pdf.line(start_x_graph - 5, start_y_graph + height_graph, 
+                start_x_graph + width_graph + 5, start_y_graph + height_graph)
+        
+        # Eje Y
+        pdf.line(start_x_graph - 5, start_y_graph - 5, 
+                start_x_graph - 5, start_y_graph + height_graph + 5)
+    
+    def draw_labels():
+        """Dibuja las etiquetas de los ejes"""
+        pdf.set_font('Arial', '', 8)
+        pdf.set_text_color(0, 0, 0)
+        
+        # Etiquetas del eje X (días)
+        label_step = max(1, n_days // 15)  # Mostrar máximo 15 etiquetas
+        for i in range(0, n_days, label_step):
+            x = start_x_graph + (i * step_x)
+            pdf.set_xy(x - 15, start_y_graph + height_graph + 5)
+            pdf.cell(30, 8, str(days[i]), border=0, align='C')
+        
+        # Etiquetas del eje Y (valores)
+        n_labels = 5
+        for i in range(n_labels + 1):
+            value = int((max_value / n_labels) * i)
+            y = start_y_graph + height_graph - (i * height_graph / n_labels)
+            pdf.set_xy(start_x_graph - 25, y - 4)
+            pdf.cell(15, 8, str(value), border=0, align='R')
+    
+    def draw_legend():
+        """Dibuja la leyenda"""
+        legend_y = start_y_graph + height_graph + 30
+        legend_x = start_x_graph
+        
+        # Recargas (Azul)
+        pdf.set_fill_color(0, 0, 255)
+        pdf.rect(legend_x, legend_y, 10, 10, 'F')
+        pdf.set_xy(legend_x + 15, legend_y)
+        pdf.cell(30, 10, "Recargas", border=0, align='L')
+        
+        # Balance (Verde)
+        pdf.set_fill_color(0, 255, 0)
+        pdf.rect(legend_x + 60, legend_y, 10, 10, 'F')
+        pdf.set_xy(legend_x + 75, legend_y)
+        pdf.cell(30, 10, "Balance", border=0, align='L')
+        
+        # Extracciones (Rojo)
+        pdf.set_fill_color(255, 0, 0)
+        pdf.rect(legend_x + 120, legend_y, 10, 10, 'F')
+        pdf.set_xy(legend_x + 135, legend_y)
+        pdf.cell(30, 10, "Extracciones", border=0, align='L')
+    
+    def add_title():
+        """Añade título al gráfico"""
+        pdf.set_font('Arial', 'B', 12)
+        pdf.set_xy(x_start + 10, y_start)
+        pdf.cell(width_table - 20, 10, "Evolución Diaria de Recargas y Extracciones", 
+                border=0, align='C')
+    
+    # Dibujar todos los elementos
+    add_title()
+    draw_grid()
+    draw_axes()
+    
+    # Dibujar líneas
+    draw_line(reload_scaled, colors['reload'], "Recargas")
+    draw_line(balance_scaled, colors['balance'], "Balance")
+    draw_line(extraction_scaled, colors['extraction'], "Extracciones")
+    
+    # Dibujar etiquetas y leyenda
+    draw_labels()
+    draw_legend()
+    
+    ################################################################################
 
 def create_resume_game_pdf(transaction_data: dict):
     #Se definen las caracteristicas del PDF
