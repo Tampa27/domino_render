@@ -412,11 +412,11 @@ class PlayerService:
             ).order_by(order_by)
         elif order_by in ['data_wins', '-data_wins']:
             queryset = queryset.annotate(
-                data_wins=Sum('summary_player__data_wins', filter=date_filter)
+                data_wins=Coalesce(Sum('summary_player__data_wins', filter=date_filter), Value(0))
             ).order_by(order_by)
         elif order_by in ['match_wins', '-match_wins']:
             queryset = queryset.annotate(
-                match_wins=Sum('summary_player__match_wins', filter=date_filter)
+                match_wins=Coalesce(Sum('summary_player__match_wins', filter=date_filter), Value(0))
             ).order_by(order_by)        
         elif order_by in ['balance_coins', '-balance_coins']:
             earned_subquery = SummaryPlayer.objects.filter(
@@ -453,7 +453,7 @@ class PlayerService:
             ).order_by(order_by)
         elif order_by in ['pass_player', '-pass_player']:
             queryset = queryset.annotate(
-                pass_player=Sum('summary_player__pass_player', filter=date_filter)
+                pass_player=Coalesce(Sum('summary_player__pass_player', filter=date_filter), Value(0))
             ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
