@@ -1,10 +1,14 @@
+import os
 from django.core.management.base import BaseCommand
 from django.utils.timezone import timedelta, now
 from django.db.models import Q, Sum
-from dominoapp.models import PlayerReward, SummaryPlayer
+from dominoapp.models import PlayerReward, SummaryPlayer, Notification
 from dominoapp.utils.transactions import create_reward_transactions
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.utils.whatsapp_help import get_whatsapp_reward_text
+import logging
+logger = logging.getLogger("django")
+
 
 class Command(BaseCommand):
     help = "Find players where some field is win in the SummaryPlayer model."
@@ -37,9 +41,8 @@ class Command(BaseCommand):
                 ).annotate(**annotation).filter(**{f'total_{reward.reward_type}__gt': 0}).order_by(f'-total_{reward.reward_type}')
             
             if summary.exists():
-                firts_summary = summary.first()
-                summary_win = summary.filter(**{f'total_{reward.reward_type}': getattr(firts_summary, f'total_{reward.reward_type}')})
-                for summary in summary_win:
+                summary_win = summary[reward.place - 1]
+                if summary_win:
                     types = "datas ganadas"
                     if reward.reward_type == "matches_win":
                         types = "partidas ganadas"
@@ -60,26 +63,48 @@ class Command(BaseCommand):
                     elif reward.reward_type == "play_without_points":
                         types = "juegos sin puntos jugados"
                     
-                    if summary.player.phone is not None:
+                    if summary_win.player.phone is not None:
                         whatsapp_url = get_whatsapp_reward_text(
-                            player=summary.player,
-                            player_phone=summary.player.phone,
+                            player=summary_win.player,
+                            player_phone=summary_win.player.phone,
                             reward_type=types,
                             period="semana" if reward.date_of_week is not None else "mes"
                         )
                     create_reward_transactions(
-                        to_user=summary.player,
+                        to_user=summary_win.player,
                         reward=reward,
-                        descriptions=f"Premio por {types} con un total de {getattr(summary, f'total_{reward.reward_type}')}",
-                        whatsapp_url=whatsapp_url if summary.player.phone is not None else None
+                        descriptions=f"Premio por {types} con un total de {getattr(summary_win, f'total_{reward.reward_type}')}",
+                        whatsapp_url=whatsapp_url if summary_win.player.phone is not None else None
                     )                   
 
-                    FCMNOTIFICATION.send_fcm_message(
-                        user=summary.player.user,
-                        title="¡Felicidades!",
-                        body=f"Has ganado un premio por ser el jugador con más {types} en la última {'semana' if reward.date_of_week is not None else 'mes'}."
+                    ##################################################
+                    ### Comentar hasta que se terminen las pruebas#####
+                    ###################################################
+                    # FCMNOTIFICATION.send_fcm_message(
+                    #     user=summary_win.player.user,
+                    #     title="¡Felicidades!",
+                    #     body=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en la última {'semana' if reward.date_of_week is not None else 'mes'}."
+                    # )
+                    #############################################################
+                    
+                    ### Agregar notificación para el jugador dentro de la apk (Aun por implementar)
+                    admin_phone = os.environ.get('ADMIN_PHONE', None)
+                    if not admin_phone:
+                        admin_phone = "+53 5 2459418"
+                        logger.critical("ADMIN_PHONE no está configurado en las variables de entorno.")
+                    
+                    whatsapp_url = get_whatsapp_reward_text(
+                        player=summary_win.player,
+                        player_phone=admin_phone,
+                        reward_type=types,
+                        period="semana" if reward.date_of_week is not None else "mes"
                     )
 
-                    ### Agregar notificación para el jugador dentro de la apk (Aun por implementar)
+                    Notification.objects.create(
+                        player=summary_win.player,
+                        title="¡Felicidades!",
+                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en la última {'semana' if reward.date_of_week is not None else 'mes'}.",
+                        whatsapp_url=whatsapp_url
+                    )
 
         return

@@ -9,7 +9,8 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
         MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
-    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward, Status_Transaction
+    BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward, Status_Transaction, \
+    Notification
 from dominoapp.utils.admin_helpers import AdminHelpers
 from dominoapp.utils.players_tools import get_reward_type_choices
 from dominoapp.utils.constants import TransactionStatus
@@ -679,6 +680,8 @@ class PlayerRewardAdmin(admin.ModelAdmin):
         "reward_type",
         "date_week",
         "date_of_month",
+        "amount",
+        "place",
         "created_at"
     ]
     form = RewardForm
@@ -688,7 +691,25 @@ class PlayerRewardAdmin(admin.ModelAdmin):
             return "----"
         days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
         return days[obj.date_of_week]
-    
+
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "player",
+        "title",
+        "message",
+        "created_at",
+        "seen"
+    ]
+    list_filter = [
+        "created_at",
+        "seen"
+    ]
+    search_fields = [
+        "player__alias",
+        "title",
+        "message"
+    ]    
 
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
@@ -712,3 +733,4 @@ admin.site.register(SummaryPlayer, SummaryPlayerAdmin)
 admin.site.register(ChatRoom)
 admin.site.register(ChatMessage)
 admin.site.register(PlayerReward, PlayerRewardAdmin)
+admin.site.register(Notification, NotificationAdmin)

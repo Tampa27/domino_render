@@ -12,8 +12,8 @@ from django.utils import timezone
 from django.shortcuts import redirect
 from datetime import datetime
 from fcm_django.models import FCMDevice
-from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer
-from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer
+from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification
+from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
@@ -460,4 +460,23 @@ class PlayerService:
         serializer = PlayerRankinSerializer(result_page, many=True)
         serializer.context['start_date'] = start_date
         serializer.context['end_date'] = end_date
+        return paginator.get_paginated_response(serializer.data)
+    
+    def process_list_notification(request):
+        paginator = PageNumberPagination()
+        page_size = request.query_params.get("page_size", 100)
+        paginator.page_size = page_size  # Items por página
+
+        try:
+            player = Player.objects.get(user__id = request.user.id)
+        except:
+            return Response({"status":'error',"message":"Este jugador no existe"},status=status.HTTP_404_NOT_FOUND)
+        
+        queryset =  Notification.objects.filter(player__id= player.id).order_by('-created_at')
+
+        queryset.update(seen = True)
+
+        result_page = paginator.paginate_queryset(queryset, request)
+        serializer = PlayerNotificationSerializer(result_page, many=True)
+        serializer.context['player-request'] = player
         return paginator.get_paginated_response(serializer.data)

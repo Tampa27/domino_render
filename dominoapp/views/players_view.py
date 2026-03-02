@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.decorators import action
 from dominoapp.models import Player
-from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer
+from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerNotificationSerializer
 from dominoapp.services.player_service import PlayerService, PlayerRankinSerializer
 from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
@@ -281,3 +281,30 @@ class PlayerView(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="refer")
     def refer_register(self, request):
         return PlayerService.process_refer_register(request)
+    
+    @extend_schema(
+            operation_id="list_notification",
+            request=None,
+            responses={
+                status.HTTP_200_OK:inline_serializer(
+                name="player_notifications",
+                fields={
+                    "count": IntegerField(),
+                    "next": URLField(),
+                    "previous": URLField(),
+                    "results": PlayerNotificationSerializer(many=True)
+                }
+            )
+            }
+            )
+    @action(detail=False, methods=["get"], url_path="notification")
+    def list_notification(self, request):
+        is_valid, message, status_response = PlayerRequest.validate_list_notifications(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PlayerService.process_list_notification(request)

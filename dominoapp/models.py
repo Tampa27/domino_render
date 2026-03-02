@@ -160,6 +160,16 @@ class PlayerReward(models.Model):
     reward_type = models.CharField(max_length=50)
     date_of_week = models.IntegerField(null=True, blank=True)  # 0-6 for Monday-Sunday
     date_of_month = models.IntegerField(null=True, blank=True)  # 1-31 for day of month
+    amount = models.IntegerField(default=0)  # Cantidad de monedas a otorgar
+    place = models.IntegerField(default=1)  # Lugar del ranking para otorgar la recompensa (1, 2, 3, etc.)
+
+class Notification(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    whatsapp_url = models.URLField(max_length=250, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    seen = models.BooleanField(default=False)
 
 class Pair(models.Model):
     player1 = models.ForeignKey(Player,related_name="pair_1",on_delete=models.CASCADE)
