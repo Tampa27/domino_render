@@ -142,6 +142,11 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
         model = Player
         fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player"]
 
+class PlayerNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Player
+        fields = ["id", "title", "message","seen", "created_at", "whatsapp_url"]
+
 class PlayerGameSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
     def get_coins(self, obj: Player) -> int:
