@@ -63,7 +63,8 @@ class PlayerView(viewsets.ModelViewSet):
                     'coins', '-coins',
                     'data_wins', '-data_wins',
                     'match_wins', '-match_wins',
-                    'balance_coins', '-balance_coins'
+                    'balance_coins', '-balance_coins',
+                    'pass_player', '-pass_player'
                     ]),
                 OpenApiParameter(name="start_date", type=str, description="Fecha de inicio con formato `d-m-y`"),
                 OpenApiParameter(name="end_date", type=str, description="Fecha final con formato `d-m-y`"),

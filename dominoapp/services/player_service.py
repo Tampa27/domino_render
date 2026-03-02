@@ -451,6 +451,10 @@ class PlayerService:
             ).annotate(
                 balance_coins=F('win_coins') - F('loss_coins')
             ).order_by(order_by)
+        elif order_by in ['pass_player', '-pass_player']:
+            queryset = queryset.annotate(
+                pass_player=Sum('summary_player__pass_player', filter=date_filter)
+            ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
         serializer = PlayerRankinSerializer(result_page, many=True)
