@@ -153,7 +153,7 @@ def automatic_move_in_game():
                     game.save()
                     
                 ### Enviar notificacion si falta por completar la mesa
-                if game.status == 'wt' and 1<= len(new_players) < 4:
+                if game.status == 'wt' and 1<= len(new_players) < 4 and (not game.password or game.password == ""):
                     players_id = []
                     if game.player3 is not None:
                         diff_time = timezone.now() - game.player3.lastTimeInGame
