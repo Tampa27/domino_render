@@ -41,19 +41,13 @@ class GameService:
         if app_version_obj and app_version_obj.need_update:
             return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version_obj.need_update}, status=200)
                 
-        inGame = DominoGame.objects.filter(
-            Q(player1__id = player.id)|
-            Q(player2__id = player.id)|
-            Q(player3__id = player.id)|
-            Q(player4__id = player.id)
-            ).exists()
-        if inGame:
-            games = DominoGame.objects.filter(
+        games = DominoGame.objects.filter(
             Q(player1__id = player.id)|
             Q(player2__id = player.id)|
             Q(player3__id = player.id)|
             Q(player4__id = player.id)
             )
+        if games.first():
             game_id = games.first().id
             serializer =ListGameSerializer(games,many=True)
             return Response({
@@ -135,6 +129,7 @@ class GameService:
         
         player1.tiles = ""
         player1.lastTimeInSystem = timezone.now()
+        player1.lastTimeInGame = timezone.now()
         player1.inactive_player = False
         player1.save()
 
@@ -169,6 +164,7 @@ class GameService:
         player = Player.objects.get(user__id=request.user.id)
                 
         player.lastTimeInSystem = timezone.now()
+        player.lastTimeInGame = timezone.now()
         player.inactive_player = False
         player.send_delete_email = False
         player.save()
@@ -306,6 +302,7 @@ class GameService:
             if error is None:
                 profile = Player.objects.get(alias = player.alias)
                 profile.lastTimeInSystem = timezone.now()
+                profile.lastTimeInGame = timezone.now()
                 profile.inactive_player = False
                 profile.save()
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)

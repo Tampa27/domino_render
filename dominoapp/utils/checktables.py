@@ -48,7 +48,7 @@ def automatic_move_in_game():
                     restargame = True
                     if game.status == 'fg':
                         for player in players_running:
-                            diff_time = timezone.now() - player.lastTimeInSystem
+                            diff_time = timezone.now() - player.lastTimeInGame
                             start_in_30_min = timezone.now() + timedelta(minutes=30)
                             if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                                 game_tools.exitPlayer(game,player,players,len(players))
@@ -138,7 +138,7 @@ def automatic_move_in_game():
                     logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
             elif (game.status == 'fg' or game.status == 'wt' or game.status == 'ready') and not game.in_tournament:
                 for player in players:
-                    diff_time = timezone.now() - player.lastTimeInSystem
+                    diff_time = timezone.now() - player.lastTimeInGame
                     start_in_30_min = timezone.now() + timedelta(minutes=30)
                     if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                         game_tools.exitPlayer(game,player,players,len(players))
@@ -156,25 +156,31 @@ def automatic_move_in_game():
                 if game.status == 'wt' and 1<= len(new_players) < 4:
                     players_id = []
                     if game.player3 is not None:
-                        diff_time = timezone.now() - game.player3.lastTimeInSystem
+                        diff_time = timezone.now() - game.player3.lastTimeInGame
                         players_id.append(game.player3.id)
                         players_id.append(game.player2.id)
                         players_id.append(game.player1.id)
                     elif game.player2 is not None:
-                        diff_time = timezone.now() - game.player2.lastTimeInSystem
+                        diff_time = timezone.now() - game.player2.lastTimeInGame
                         players_id.append(game.player2.id)
                         players_id.append(game.player1.id)
                     elif game.player1 is not None:
-                        diff_time = timezone.now() - game.player1.lastTimeInSystem
+                        diff_time = timezone.now() - game.player1.lastTimeInGame
                         players_id.append(game.player1.id)
                     
                     if diff_time.seconds > ApiConstants.NOTIFICATION_TIME:
-                        last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)
-                        players_notify = Player.objects.filter(
-                            isPlaying = False,
-                            last_notifications__lte = last_notifications,
-                            send_game_notifications = True
-                            ).exclude(id__in = players_id).order_by("-lastTimeInSystem")[:10]
+                        if game.inPairs:
+                            players_notify = Player.objects.filter(
+                                isPlaying = False,
+                                send_game_notifications = True
+                                ).exclude(id__in = players_id).order_by("last_notifications", "-lastTimeInSystem")[:10]
+                        else:
+                            last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)
+                            players_notify = Player.objects.filter(
+                                isPlaying = False,
+                                last_notifications__lte = last_notifications,
+                                send_game_notifications = True
+                                ).exclude(id__in = players_id).order_by("-lastTimeInSystem")[:10]
                         for player in players_notify:
                             FCMNOTIFICATION.send_fcm_message(
                                 player.user,

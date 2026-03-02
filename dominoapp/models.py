@@ -21,6 +21,7 @@ class Player(models.Model):
     recharged_coins = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
     lastTimeInSystem = models.DateTimeField(default=timezone_dj.now)
+    lastTimeInGame = models.DateTimeField(default=timezone_dj.now)
     email = models.CharField(max_length=250, unique=True, null=True, blank=True)
     photo_url = models.URLField(max_length=250, null=True, blank=True)
     name = models.CharField(max_length=50,null=True, blank=True)
