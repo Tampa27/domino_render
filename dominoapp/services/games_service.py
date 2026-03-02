@@ -41,19 +41,13 @@ class GameService:
         if app_version_obj and app_version_obj.need_update:
             return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version_obj.need_update}, status=200)
                 
-        inGame = DominoGame.objects.filter(
-            Q(player1__id = player.id)|
-            Q(player2__id = player.id)|
-            Q(player3__id = player.id)|
-            Q(player4__id = player.id)
-            ).exists()
-        if inGame:
-            games = DominoGame.objects.filter(
+        games = DominoGame.objects.filter(
             Q(player1__id = player.id)|
             Q(player2__id = player.id)|
             Q(player3__id = player.id)|
             Q(player4__id = player.id)
             )
+        if games.first():
             game_id = games.first().id
             serializer =ListGameSerializer(games,many=True)
             return Response({
