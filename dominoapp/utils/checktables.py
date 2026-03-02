@@ -308,9 +308,10 @@ def automaticMove(game,players):
     player_w = players[next]
     MOVE_TILE_TIME = game.moveTime
     time_diff = timezone.now() - lastMove(game)
+    player_diff_time = timezone.now() - player_w.lastTimeInSystem
     if len(game.board) == 0:
         tile = game_tools.takeRandomTile(player_w.tiles)
-        if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
+        if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
                 error = game_tools.movement(game.id,player_w,players,tile,automatic=True)
@@ -336,7 +337,7 @@ def automaticMove(game,players):
                     logger.critical(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
                 # game_tools.movement(game,player_w,players,tile)
                 # game_tools.updateLastPlayerTime(game,player_w.alias) 
-        elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT):
+        elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
             try:
                 # with transaction.atomic():
                 error = game_tools.movement(game.id,player_w,players,tile,automatic=True)

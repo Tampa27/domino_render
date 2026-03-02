@@ -91,6 +91,13 @@ class GameService:
         
         game = DominoGame.objects.get(id = game_id)
         serializer = GameSerializer(game)
+
+        try:
+            player = Player.objects.get(user__id=request.user.id)
+            player.lastTimeInSystem = timezone.now()
+            player.save(update_fields=["lastTimeInSystem"])
+        except:
+            pass
         
         players = []
         if game.player1 is not None:
