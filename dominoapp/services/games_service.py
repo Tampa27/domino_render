@@ -135,6 +135,7 @@ class GameService:
         
         player1.tiles = ""
         player1.lastTimeInSystem = timezone.now()
+        player1.lastTimeInGame = timezone.now()
         player1.inactive_player = False
         player1.save()
 
@@ -169,6 +170,7 @@ class GameService:
         player = Player.objects.get(user__id=request.user.id)
                 
         player.lastTimeInSystem = timezone.now()
+        player.lastTimeInGame = timezone.now()
         player.inactive_player = False
         player.send_delete_email = False
         player.save()
@@ -306,6 +308,7 @@ class GameService:
             if error is None:
                 profile = Player.objects.get(alias = player.alias)
                 profile.lastTimeInSystem = timezone.now()
+                profile.lastTimeInGame = timezone.now()
                 profile.inactive_player = False
                 profile.save()
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
