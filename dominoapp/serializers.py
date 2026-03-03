@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.db.models import Sum, Q, Value, IntegerField
 from django.db.models.functions import Coalesce
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Round, Match_Game, Pair, BankAccount, PackageCoins, SummaryPlayer, ChatRoom, ChatMessage
+    Round, Match_Game, Pair, BankAccount, PackageCoins, SummaryPlayer, ChatRoom, ChatMessage, Notification
 from geopy.distance import geodesic
 import pytz
 
@@ -144,7 +144,7 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
 
 class PlayerNotificationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Player
+        model = Notification
         fields = ["id", "title", "message","seen", "created_at", "whatsapp_url"]
 
 class PlayerGameSerializer(serializers.ModelSerializer):
