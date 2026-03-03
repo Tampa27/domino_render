@@ -196,6 +196,7 @@ class PlayerRequest:
         
         validators = {
             "ordering": RequestValidator.validate_string,
+            "search": RequestValidator.validate_string,
             "page": RequestValidator.validate_numeric,
             "page_size": RequestValidator.validate_numeric,
             "start_date": RequestValidator.validate_timestamp,
