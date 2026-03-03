@@ -25,9 +25,13 @@ class PlayerSerializer(serializers.ModelSerializer):
     lng = serializers.DecimalField(max_digits=10, decimal_places=7)
     timezone = serializers.CharField()
     send_game_notifications = serializers.BooleanField()
-
+    unread_notification = serializers.SerializerMethodField(read_only = True)
+    
     def get_coins(self, obj: Player) -> int:
         return obj.recharged_coins + obj.earned_coins
+
+    def get_unread_notification(self, obj: Player) -> int:
+        return Notification.objects.filter(player__id = obj.id, seen=False).count()
 
     class Meta:
         model = Player
@@ -143,6 +147,20 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player"]
 
 class PlayerNotificationSerializer(serializers.ModelSerializer):
+    created_at = serializers.SerializerMethodField()
+    
+    def get_time_zone(self):
+        """Helper method to get timezone from player_request in context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and player_request.timezone:
+            return player_request.timezone       
+        return "America/Havana"
+
+    def get_created_at(self, obj: Notification):
+        timezone = self.get_time_zone()
+        return obj.created_at.astimezone(pytz.timezone(timezone))
+
     class Meta:
         model = Notification
         fields = ["id", "title", "message","seen", "created_at", "whatsapp_url"]
@@ -159,7 +177,8 @@ class PlayerGameSerializer(serializers.ModelSerializer):
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
-    
+    unread_notification = serializers.SerializerMethodField(read_only = True)
+
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
     
@@ -167,9 +186,12 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
         BACKEND_URL = os.getenv("BACKEND_URL", "localhost:8000/v2/api")
         return f"{BACKEND_URL}/refer/?refer_code={obj.referral_code}"
     
+    def get_unread_notification(self, obj: Player) -> int:
+        return Notification.objects.filter(player__id = obj.id, seen=False).count()
+
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng", "unread_notification"]
 
 class BankAccountSerializer(serializers.ModelSerializer):
     class Meta:
@@ -689,6 +711,19 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     user = PlayerListSerializer()
     read_by = PlayerListSerializer(many=True)
     is_readed = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    
+    def get_time_zone(self):
+        """Helper method to get timezone from player_request in context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and player_request.timezone:
+            return player_request.timezone       
+        return "America/Havana"
+
+    def get_created_at(self, obj: ChatRoom):
+        timezone = self.get_time_zone()
+        return obj.created_at.astimezone(pytz.timezone(timezone))
     
     def get_is_readed(self, message: ChatMessage)-> bool:
         return message.read()
@@ -705,7 +740,20 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
 
 class ChatMessageRetrieveSerializer(serializers.ModelSerializer):
     is_readed = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    
+    def get_time_zone(self):
+        """Helper method to get timezone from player_request in context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and player_request.timezone:
+            return player_request.timezone       
+        return "America/Havana"
 
+    def get_created_at(self, obj: ChatRoom):
+        timezone = self.get_time_zone()
+        return obj.created_at.astimezone(pytz.timezone(timezone))
+    
     def get_is_readed(self, message: ChatMessage)-> bool:
         return message.read()
     
@@ -717,6 +765,19 @@ class ChatMessageRetrieveSerializer(serializers.ModelSerializer):
 class ChatRoomSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
     count_users = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    
+    def get_time_zone(self):
+        """Helper method to get timezone from player_request in context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and player_request.timezone:
+            return player_request.timezone       
+        return "America/Havana"
+
+    def get_created_at(self, obj: ChatRoom):
+        timezone = self.get_time_zone()
+        return obj.created_at.astimezone(pytz.timezone(timezone))
     
     def get_count_users(self, chatroom: ChatRoom)-> int:
         return chatroom.users_list.all().count()
@@ -742,6 +803,20 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 class ChatRoomRetrieveSerializer(serializers.ModelSerializer):
     messages = ChatMessageSerializer(many=True, read_only=True)
     users_list = PlayerListSerializer(many=True)
+    created_at = serializers.SerializerMethodField()
+    
+    def get_time_zone(self):
+        """Helper method to get timezone from player_request in context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and player_request.timezone:
+            return player_request.timezone       
+        return "America/Havana"
+
+    def get_created_at(self, obj: ChatRoom):
+        timezone = self.get_time_zone()
+        return obj.created_at.astimezone(pytz.timezone(timezone))
+    
     class Meta:
         model = ChatRoom
         fields = [
@@ -755,6 +830,19 @@ class ChatRoomRetrieveSerializer(serializers.ModelSerializer):
             ]
         
 class ChatRoomCreateSerializer(serializers.ModelSerializer):
+    created_at = serializers.SerializerMethodField()
+    
+    def get_time_zone(self):
+        """Helper method to get timezone from player_request in context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and player_request.timezone:
+            return player_request.timezone       
+        return "America/Havana"
+
+    def get_created_at(self, obj: ChatRoom):
+        timezone = self.get_time_zone()
+        return obj.created_at.astimezone(pytz.timezone(timezone))
 
     class Meta:
         model = ChatRoom

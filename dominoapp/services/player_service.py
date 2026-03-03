@@ -326,7 +326,7 @@ class PlayerService:
         return redirect('https://dominoclub.online/')
     
     @staticmethod
-    def process_rankin(request):
+    def process_rankin(request, queryset):
         paginator = PageNumberPagination()
         
         page_size = request.query_params.get("page_size", 100)
@@ -341,7 +341,7 @@ class PlayerService:
 
         paginator.page_size = page_size  # Items por página
         
-        queryset = Player.objects.all().exclude(
+        queryset = queryset.exclude(
             Exists(BlockPlayer.objects.filter(
                     player_blocked__id = OuterRef('id')
                 )
@@ -478,5 +478,5 @@ class PlayerService:
 
         result_page = paginator.paginate_queryset(queryset, request)
         serializer = PlayerNotificationSerializer(result_page, many=True)
-        serializer.context['player-request'] = player
+        serializer.context['player_request'] = player
         return paginator.get_paginated_response(serializer.data)

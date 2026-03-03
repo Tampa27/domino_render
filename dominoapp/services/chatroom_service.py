@@ -12,8 +12,15 @@ class ChatRoomService:
     
     @staticmethod
     def process_list_message(request, chatroom_id, pagination_queryset, pagination_response):
+        try:
+            player = Player.objects.get(user__id = request.user.id)
+        except:
+            player = None
+        
         message_queryset_paginated = pagination_queryset(ChatMessage.objects.filter(chat_room__id = chatroom_id))
-        response_data = ChatMessageSerializer(message_queryset_paginated, many = True).data
+        messages_serializer = ChatMessageSerializer(message_queryset_paginated, many = True)
+        messages_serializer.context['player_request'] = player
+        response_data = messages_serializer.data
         
         response_paginated = pagination_response(data= response_data)
         
@@ -65,6 +72,7 @@ class ChatRoomService:
                 return Response({'status': 'error', "message":"Algo salio mal al crear el chat, vuelve a intentar. Si continua fallando, contacta a los administradores"}, status=status.HTTP_409_CONFLICT)
 
         serializer = ChatRoomRetrieveSerializer(chatroom)
+        serializer.context['player_request'] = player
         return Response({'status': 'success', "data":serializer.data}, status=status.HTTP_200_OK)
 
     @staticmethod
@@ -92,13 +100,13 @@ class ChatRoomService:
         data["user"] = player.id
         data["chat_room"] = chatroom.id
 
-        print("data: ", data)
         serializer_message = ChatMessageCreateSerializer(data=data)
         try:
             serializer_message.is_valid(raise_exception=True)
             message: ChatMessage = serializer_message.save()
 
             response_serializer = ChatMessageRetrieveSerializer(message)
+            response_serializer.context['player_request'] = player
             return Response({'status': 'success', "data":response_serializer.data}, status=status.HTTP_200_OK)
         except serializers.ValidationError as e:
             return Response(
@@ -106,7 +114,6 @@ class ChatRoomService:
                 status=400
             )
         except Exception as error:
-            print("error: ", error)
             logger.error(f"Error al crear el mensaje. Error: {error}")
             return Response({'status': 'error', "message":"Algo salio mal al crear el mensaje, vuelve a intentar. Si continua fallando, contacta a los administradores"}, status=status.HTTP_409_CONFLICT)
 

@@ -68,7 +68,7 @@ class PlayerView(viewsets.ModelViewSet):
                     ]),
                 OpenApiParameter(name="start_date", type=str, description="Fecha de inicio con formato `d-m-y`"),
                 OpenApiParameter(name="end_date", type=str, description="Fecha final con formato `d-m-y`"),
-
+                OpenApiParameter(name="search", type=str, description="A search term.")
                 ],
             request=None,
             responses={
@@ -92,8 +92,9 @@ class PlayerView(viewsets.ModelViewSet):
                 "status":'error',
                 "message": message
             }, status = status_response)
-
-        return PlayerService.process_rankin(request)
+        
+        queryset = self.filter_queryset(self.get_queryset())
+        return PlayerService.process_rankin(request, queryset)
     
     @extend_schema(
             responses={

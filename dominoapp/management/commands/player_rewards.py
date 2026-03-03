@@ -73,6 +73,7 @@ class Command(BaseCommand):
                     create_reward_transactions(
                         to_user=summary_win.player,
                         reward=reward,
+                        amount=reward.amount,
                         descriptions=f"Premio por {types} con un total de {getattr(summary_win, f'total_{reward.reward_type}')}",
                         whatsapp_url=whatsapp_url if summary_win.player.phone is not None else None
                     )                   
