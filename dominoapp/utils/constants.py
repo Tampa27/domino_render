@@ -107,6 +107,15 @@ class PaymentStatus:
         Payment_CANCELED
     ]
 
+class PaymentCURRENCY:
+    CURRENCY_CUP = ("CUP", "Pesos Cubanos")
+    CURRENCY_USD = ("USD", "Dolar")
+    
+    currency_choices = [
+        CURRENCY_CUP,
+        CURRENCY_USD
+    ]
+
 class TransactionPaymentMethod:
     PAYMENT_BY_SALDO = ("saldo", "saldo movil")
     PAYMENT_BY_TRANSFERENCIA = ("transferencia", "transferencia")

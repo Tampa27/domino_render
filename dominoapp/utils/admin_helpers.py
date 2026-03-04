@@ -1,7 +1,8 @@
 import gc
 from django.http import HttpResponse
 from django.contrib import messages
-from django.db.models import Sum, OuterRef, Subquery
+from django.db.models import Sum, OuterRef, Subquery, FloatField
+from django.db.models.functions import Coalesce
 from datetime import timedelta
 from dominoapp.utils.pdf_helpers import create_resume_pdf
 from dominoapp.models import Player, Status_Transaction
@@ -57,8 +58,10 @@ class AdminHelpers:
                 "from_day": queryset.first().time.strftime('%d/%m/%Y'),
                 "to_day": queryset.last().time.strftime('%d/%m/%Y'),
                 "total_amount_rl": 0,
+                "total_amount_rl_USD": 0,
                 "total_amount_ext": 0,
                 "total_rl": 0,
+                "total_rl_USD": 0,
                 "total_ext": 0,
                 "balance_amount": 0,
                 "game_amount": 0,
@@ -73,17 +76,25 @@ class AdminHelpers:
         for i in range(0, queryset_total, chunk_size):
             queryset_chunk = queryset.filter(id__in = queryset_ids[i:i + chunk_size])
         
-            total_amount_rl = queryset_chunk.filter(type ='rl').aggregate(total=Sum('amount'))['total'] or 0
+            total_amount_rl = queryset_chunk.filter(type ='rl').exclude(paymentmethod__in=["paypal", "zelle"]).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
             transaction_data["total_amount_rl"] += total_amount_rl
             del total_amount_rl
             
-            total_amount_ext = queryset_chunk.filter(type ='ex').aggregate(total=Sum('amount'))['total'] or 0
+            total_amount_rl_USD = queryset_chunk.filter(type ='rl', paymentmethod__in=["paypal", "zelle"]).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
+            transaction_data["total_amount_rl_USD"] += total_amount_rl_USD
+            del total_amount_rl_USD
+
+            total_amount_ext = queryset_chunk.filter(type ='ex').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
             transaction_data["total_amount_ext"] += total_amount_ext
             del total_amount_ext
             
-            total_rl = queryset_chunk.filter(type ='rl').count()
+            total_rl = queryset_chunk.filter(type ='rl').exclude(paymentmethod__in=["paypal", "zelle"]).count()
             transaction_data["total_rl"] += total_rl
             del total_rl
+
+            total_rl_USD = queryset_chunk.filter(type ='rl', paymentmethod__in=["paypal", "zelle"]).count()
+            transaction_data["total_rl_USD"] += total_rl_USD
+            del total_rl_USD
             
             total_ext = queryset_chunk.filter(type = 'ex').count()
             transaction_data["total_ext"] += total_ext
@@ -97,22 +108,22 @@ class AdminHelpers:
             del total_amount_win_in_game
             
             for admin in admin_list.iterator():
-                total_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id)
+                total_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id).exclude(paymentmethod__in=["paypal", "zelle"])
                 transaction_data["admin_resume"][str(admin.alias)]["trans_num"] += total_rl.count()
-                trans_amount_rl = total_rl.filter(paymentmethod='transferencia').aggregate(total=Sum('amount'))['total'] or 0
+                trans_amount_rl = total_rl.filter(paymentmethod='transferencia').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["trans_amount_rl"] += round(trans_amount_rl, 2)
                 del trans_amount_rl
                 
-                saldo_amount_rl = total_rl.filter(paymentmethod='saldo').aggregate(total=Sum('amount'))['total'] or 0
+                saldo_amount_rl = total_rl.filter(paymentmethod='saldo').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["saldo_amount_rl"] += round(saldo_amount_rl, 2)
                 del saldo_amount_rl
                                 
                 total_admin_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id)
                 transaction_data["admin_resume"][str(admin.alias)]["ext_num"] += total_admin_ext.count()
-                total_admin_amount_ext = total_admin_ext.aggregate(total=Sum('amount'))['total'] or 0
+                total_admin_amount_ext = total_admin_ext.aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["total_admin_amount_ext"] += round(total_admin_amount_ext, 2)
                 
-                total_admin_amount_rl = total_rl.aggregate(total=Sum('amount'))['total'] or 0
+                total_admin_amount_rl = total_rl.aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
                 transaction_data["admin_resume"][str(admin.alias)]["balance"] += round(total_admin_amount_rl - total_admin_amount_ext, 2)
                 del total_admin_amount_ext
                 del total_admin_amount_rl
@@ -138,8 +149,8 @@ class AdminHelpers:
         from_day = first_day
         for day in transaction_data["graph"]["days"]:
             to_day = first_day + timedelta(days=day)
-            reload = queryset.filter(type="rl").filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum('amount'))['total'] or 0
-            extraction = queryset.filter(type ='ex').filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum('amount'))['total'] or 0
+            reload = queryset.filter(type="rl").exclude(paymentmethod__in=["paypal", "zelle"]).filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
+            extraction = queryset.filter(type ='ex').filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
             transaction_data["graph"]["reload"].append(reload)
             transaction_data["graph"]["extraction"].append(extraction)
             transaction_data["graph"]["balance"].append(reload - extraction)

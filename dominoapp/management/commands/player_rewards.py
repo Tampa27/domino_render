@@ -91,7 +91,7 @@ class Command(BaseCommand):
                     ### Agregar notificación para el jugador dentro de la apk (Aun por implementar)
                     admin_phone = os.environ.get('ADMIN_PHONE', None)
                     if not admin_phone:
-                        admin_phone = "+53 5 2459418"
+                        admin_phone = "+5352459418"
                         logger.critical("ADMIN_PHONE no está configurado en las variables de entorno.")
                     
                     whatsapp_url = get_whatsapp_reward_text(
