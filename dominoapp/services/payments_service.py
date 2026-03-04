@@ -96,20 +96,31 @@ class PaymentService:
         ).filter(latest_status_name='p').order_by('-time').first()
         
         if transaction:
-            transaction.amount = int(request.data["coins"])
+            transaction.amount = recharged_coins
             transaction.admin = admin
             transaction.paymentmethod=request.data.get('paymentmethod', None)
             transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
             new_status = Status_Transaction.objects.create(status = 'cp')
             transaction.status_list.add(new_status)
         else:
-            create_reload_transactions(
-                to_user=player, amount=int(request.data["coins"]), status="cp", 
+            transaction = create_reload_transactions(
+                to_user=player, amount=int(recharged_coins), status="cp", 
                 admin=admin,
                 external_id=request.data.get('external_id', None),
                 paymentmethod=request.data.get('paymentmethod', None)
                 )
-    
+
+        payment = Payment.objects.create(
+            external_id = transaction.external_id,
+            transaction = transaction,
+            user = player,
+            amount = request.data["coins"],
+            paid_time = datetime.now(),
+            currency = "USD" if request.data.get('paymentmethod', None) == "zelle" else "CUP"
+        )
+        payment_status = Status_Payment.objects.create(status = 'paid')
+        payment.status_list.add(payment_status)
+
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Recarga en Domino Club",
@@ -268,7 +279,7 @@ class PaymentService:
 
         check_player = Player.objects.filter(alias=request.data["alias"]).exists()
         if not check_player:
-            return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={'status': 'error', "message":'No se encontró al jugador'}, status=status.HTTP_404_NOT_FOUND)
 
         player = Player.objects.get(alias=request.data["alias"])
 
@@ -278,7 +289,7 @@ class PaymentService:
             admin = None
         
         if player.total_coins < int(request.data["coins"]):
-            return Response(data={'status': 'error', "message":"You don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+            return Response(data={'status': 'error', "message":"No tienes suficientes monedas"}, status=status.HTTP_409_CONFLICT)
         
         player.earned_coins -= int(request.data["coins"])
         if player.earned_coins<0:
@@ -312,14 +323,24 @@ class PaymentService:
             new_status = Status_Transaction.objects.create(status = 'cp')
             transaction.status_list.add(new_status)
         else:
-
-            create_extracted_transactions(
+            transaction = create_extracted_transactions(
                 from_user=player, amount=int(request.data["coins"]), status="cp",
                 admin=admin,
                 external_id=request.data.get('external_id', None),
                 paymentmethod=request.data.get('paymentmethod', None)
                 )
-            
+
+        payment = Payment.objects.create(
+            external_id = transaction.external_id,
+            transaction = transaction,
+            user = admin,
+            amount = request.data["coins"],
+            paid_time = datetime.now()
+        )
+        payment_status = Status_Payment.objects.create(status = 'paid')
+        payment.status_list.add(payment_status)
+
+
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Extracción en Domino Club",
@@ -630,7 +651,7 @@ class PaymentService:
                 
         bank.buy_coins+=transaction.amount
         bank.save(update_fields=['buy_coins'])
-        
+
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Recarga en Domino Club",
@@ -718,18 +739,44 @@ class PaymentService:
             )
         if transaction.type == 'rl':
             recharged_coins = PaymentService.reload_coins(transaction)
+            
+            payment = Payment.objects.create(
+                external_id = transaction.external_id,
+                transaction = transaction,
+                user = transaction.to_user,
+                amount = transaction.amount,
+                paid_time = datetime.now(),
+                currency = "USD" if transaction.paymentmethod == "zelle" else "CUP"
+            )
+            payment_status = Status_Payment.objects.create(status = 'paid')
+            payment.status_list.add(payment_status)
+
+            transaction.amount = recharged_coins
+            transaction.save(update_fields=["amount"])
+
             return Response({
                 'status': 'success',
                 "message":'Reload confirm',
                 "data":{
                     'player': transaction.to_user.alias,
-                    "amount": str(recharged_coins),
-                    "pay": str(transaction.amount),
+                    "amount": str(transaction.amount),
+                    "pay": str(payment.amount),
                     "paymentmethod": transaction.paymentmethod,
                          }                             
                              }, status=status.HTTP_200_OK)
         elif transaction.type == 'ex':
             PaymentService.extractions_coins(transaction)
+
+            payment = Payment.objects.create(
+                external_id = transaction.external_id,
+                transaction = transaction,
+                user = admin,
+                amount = transaction.amount,
+                paid_time = datetime.now()
+            )
+            payment_status = Status_Payment.objects.create(status = 'paid')
+            payment.status_list.add(payment_status)
+
             return Response({'status': 'success', "message":'Extraction confirm'}, status=status.HTTP_200_OK)
         else:
             return Response({'status': 'error', "message":'Not Allowed'}, status=status.HTTP_409_CONFLICT)

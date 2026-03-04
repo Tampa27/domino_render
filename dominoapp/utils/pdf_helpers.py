@@ -114,10 +114,23 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
     pdf.cell(50, 8,"Monto total de ingresos:" , border=border, align='L', fill=0)
     pdf.cell(40, 8, f"{transaction_data['total_amount_rl']} CUP", border=border, align='C', fill=0)
 
+    # Montos en USD
+    current_x_2 = pdf.get_x() + 20
+    pdf.set_xy(current_x_2,current_y)
+    pdf.cell(40, 8,"Ingresos en USD:" , border=border, align='L', fill=0)
+    pdf.cell(30, 8, f"{transaction_data['total_amount_rl_USD']} USD", border=border, align='C', fill=0)
+
+
     current_y = pdf.get_y() + 10
     pdf.set_xy(current_x_1,current_y)
     pdf.cell(55, 8,"Monto total de extracciones:" , border=border, align='L', fill=0)
     pdf.cell(40, 8, f"{transaction_data['total_amount_ext']} CUP", border=border, align='C', fill=0)
+
+    # Cantidades en USD
+    pdf.set_xy(current_x_2,current_y)
+    pdf.cell(55, 8,"Cantidad Recargas USD:" , border=border, align='L', fill=0)
+    pdf.cell(15, 8, f"{transaction_data['total_rl_USD']}", border=border, align='C', fill=0)
+
 
     current_y = pdf.get_y() + 20
     pdf.set_xy(current_x_1,current_y)

@@ -9,7 +9,7 @@ from django.utils import timezone as timezone_dj
 import uuid
 from shortuuid.django_fields import ShortUUIDField
 from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, \
-    TransactionPaymentMethod, PaymentStatus, TournamentStatus, ChatRoomTypes
+    TransactionPaymentMethod, PaymentStatus, PaymentCURRENCY, TournamentStatus, ChatRoomTypes
 # Create your models here.
 
 class Player(models.Model):
@@ -500,6 +500,12 @@ class Payment(models.Model):
     package_coins = models.ForeignKey(PackageCoins, on_delete=models.SET_NULL, related_name="package_payment", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_time = models.DateTimeField(blank=True, null=True)
+    currency = models.CharField(max_length=4,choices=PaymentCURRENCY.currency_choices,default="CUP")
+
+    @property
+    def get_status(self):
+        last_status = self.status_list.all().order_by('-created_at').first()
+        return last_status.status if last_status else 'pending'
  
 class Marketing(models.Model):
     user = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="user_creator")
