@@ -167,7 +167,7 @@ class Notification(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='notifications')
     title = models.CharField(max_length=255)
     message = models.TextField()
-    whatsapp_url = models.URLField(max_length=250, null=True, blank=True)
+    whatsapp_url = models.URLField(max_length=1500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     seen = models.BooleanField(default=False)
 
