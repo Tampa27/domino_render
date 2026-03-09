@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from dominoapp.models import Player, BlockPlayer
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, \
     PlayerNotificationSerializer, PlayerRetrieveSerializer, PlayerConfigSerializer, \
-    PlayerListSerializer
+    PlayerListSerializer, PlayerPersonalRankinSerializer
 from dominoapp.services.player_service import PlayerService, PlayerRankinSerializer
 from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
@@ -123,6 +123,30 @@ class PlayerView(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         return PlayerService.process_rankin(request, queryset)
     
+    @extend_schema(
+            operation_id="personal_rankin",
+            parameters=[
+                OpenApiParameter(name="start_date", type=str, description="Fecha de inicio con formato `d-m-y`"),
+                OpenApiParameter(name="end_date", type=str, description="Fecha final con formato `d-m-y`")
+                ],
+            request=None,
+            responses={
+                status.HTTP_200_OK:PlayerPersonalRankinSerializer()
+            }
+    )
+    @action(detail=False, methods=["get"])
+    def personal_rankin(self, request, *args, **kwargs):
+        is_valid, message, status_response = PlayerRequest.validate_personal_rankin(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PlayerService.process_personal_rankin(request)
+    
+
     @extend_schema(
             responses={
             200: inline_serializer(

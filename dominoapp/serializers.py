@@ -268,6 +268,145 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
         model = Player
         fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player"]
 
+class PlayerPersonalRankinSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField()
+    balance_coins = serializers.SerializerMethodField()
+    dataWins = serializers.SerializerMethodField()
+    dataLoss = serializers.SerializerMethodField()
+    matchWins = serializers.SerializerMethodField()
+    matchLoss = serializers.SerializerMethodField()
+    data_win_percent = serializers.SerializerMethodField()
+    match_win_percent = serializers.SerializerMethodField()
+    pass_player = serializers.SerializerMethodField()
+    tournaments_wins = serializers.SerializerMethodField()
+    
+    def get_date_filter(self):
+        """Helper method to get date filter from context"""
+        start_date = self.context.get('start_date')
+        end_date = self.context.get('end_date')
+        
+        date_filter = Q()
+        if start_date and end_date:
+            try:
+                start = datetime.strptime(start_date, '%d-%m-%Y').date()
+                end = datetime.strptime(end_date, '%d-%m-%Y').date()
+                date_filter = Q(created_at__date__gte=start) & Q(created_at__date__lte=end)
+            except:
+                pass            
+        return date_filter
+
+    def get_coins(self, obj: Player) -> int:
+        return obj.earned_coins + obj.recharged_coins
+    
+    def get_balance_coins(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+    
+        return SummaryPlayer.objects.filter(
+                    player__id=obj.id
+                ).filter(date_filter).aggregate(
+                    balance=Coalesce(
+                        Sum('earned_coins') - Sum('loss_coins'), 
+                        Value(0),
+                        output_field=IntegerField()
+                    )
+                )['balance']
+
+    def get_data_win_percent(self, obj: Player) -> str:
+        data_wins =  SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('data_wins'))['total'] or 0 
+        other_data = SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('data_loss') + Sum('data_tie'))['total'] or 0
+        if data_wins + other_data == 0:
+            return "0.00"
+        else:
+           win_percent = Decimal((data_wins * 100)/(data_wins + other_data))
+           return str(round(win_percent, 2))
+    
+    def get_match_win_percent(self, obj: Player) -> str:
+        match_wins =  SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('match_wins'))['total'] or 0 
+        other_match = SummaryPlayer.objects.filter(player__id=obj.id).aggregate(total=Sum('match_loss'))['total'] or 0
+        
+        if match_wins + other_match == 0:
+            return "0.00"
+        else:
+           win_percent = Decimal((match_wins * 100)/(match_wins + other_match))
+           return str(round(win_percent, 2))
+    
+    def get_dataWins(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+        return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('data_wins'))['total'] or 0 
+
+    def get_dataLoss(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+        return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('data_loss'))['total'] or 0 
+
+    def get_matchWins(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+        return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('match_wins'))['total'] or 0 
+        
+    def get_matchLoss(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+        return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('match_loss'))['total'] or 0 
+    
+    def get_pass_player(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+        return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('pass_player'))['total'] or 0 
+
+    def get_tournaments_wins(self, obj: Player) -> list[dict]:
+        # Subconsulta para victorias individuales
+        player_content_type = ContentType.objects.get_for_model(Player)
+        individual_wins = Q(
+            place_content_type=player_content_type,
+            first_place_object_id=obj.id
+        ) | Q(
+            place_content_type=player_content_type,
+            second_place_object_id=obj.id
+        ) | Q(
+            place_content_type=player_content_type,
+            third_place_object_id=obj.id
+        )
+        
+        # Subconsulta para victorias en pareja usando Exists
+        pair_content_type = ContentType.objects.get_for_model(Pair)
+        pair_wins = Q(
+            place_content_type=pair_content_type
+        ) & (
+            Q(
+                Exists(
+                    Pair.objects.filter(
+                        Q(player1__id=obj.id) | Q(player2__id=obj.id),
+                        id=OuterRef('first_place_object_id')
+                    )
+                )
+            ) |
+            Q(
+                Exists(
+                    Pair.objects.filter(
+                        Q(player1__id=obj.id) | Q(player2__id=obj.id),
+                        id=OuterRef('second_place_object_id')
+                    )
+                )
+            ) |
+            Q(
+                Exists(
+                    Pair.objects.filter(
+                        Q(player1__id=obj.id) | Q(player2__id=obj.id),
+                        id=OuterRef('third_place_object_id')
+                    )
+                )
+            )
+        )
+        
+        tournaments_wins = Tournament.objects.filter(
+            individual_wins | pair_wins
+        ).distinct()        
+        
+        serializer = TournamentWinSerializer(tournaments_wins, many=True)
+        serializer.context['player_request'] = obj
+        return serializer.data
+
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player", "tournaments_wins"]
+
 class PlayerNotificationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     
