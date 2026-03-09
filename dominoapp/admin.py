@@ -394,7 +394,7 @@ class TransactionAdmin(admin.ModelAdmin):
 
         class Meta:
             model = Transaction
-            fields = ['from_user', 'to_user', 'amount', 'type', 'game', 'admin', 'paymentmethod', 'descriptions', 'external_id', 'bank_account', 'whatsapp_url']
+            fields = ['from_user', 'to_user', 'amount', 'type', 'game', 'admin', 'paymentmethod', 'descriptions', 'external_id', 'bank_account', 'whatsapp_url', 'reward']
 
     list_display = [
         "id",
