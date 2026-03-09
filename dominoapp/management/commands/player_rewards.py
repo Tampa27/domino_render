@@ -44,7 +44,7 @@ class Command(BaseCommand):
                 summary_win = summary[reward.place - 1]
                 if summary_win:
                     types = "datas ganadas"
-                    if reward.reward_type == "matches_win":
+                    if reward.reward_type == "match_wins":
                         types = "partidas ganadas"
                     elif reward.reward_type == "pass_player":
                         types = "jugadores pasados"
@@ -56,7 +56,7 @@ class Command(BaseCommand):
                         types = "juegos del 6|6 jugados"
                     elif reward.reward_type == "play_in_pairs":
                         types = "juegos en parejas jugados"
-                    elif reward.reward_type == "play_in_singles":
+                    elif reward.reward_type == "play_in_single":
                         types = "juegos en solitario jugados"
                     elif reward.reward_type == "play_by_points":
                         types = "juegos por puntos jugados"
@@ -104,7 +104,7 @@ class Command(BaseCommand):
                     Notification.objects.create(
                         player=summary_win.player,
                         title="¡Felicidades!",
-                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en la última {'semana' if reward.date_of_week is not None else 'mes'}.",
+                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}.",
                         whatsapp_url=whatsapp_url
                     )
 
