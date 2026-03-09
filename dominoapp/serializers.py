@@ -2,10 +2,10 @@ import os
 from rest_framework import serializers
 from datetime import datetime
 from decimal import Decimal
-from django.db.models import Sum, Q, Value, IntegerField
+from django.db.models import Sum, Q, Value, IntegerField, Exists, OuterRef
 from django.db.models.functions import Coalesce
 from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
-    Round, Match_Game, Pair, BankAccount, PackageCoins, SummaryPlayer, ChatRoom, ChatMessage, Notification
+    Round, Match_Game, Pair, BankAccount, PackageCoins, SummaryPlayer, ChatRoom, ChatMessage, Notification, ContentType
 from geopy.distance import geodesic
 import pytz
 
@@ -25,6 +25,8 @@ class PlayerSerializer(serializers.ModelSerializer):
     lng = serializers.DecimalField(max_digits=10, decimal_places=7)
     timezone = serializers.CharField()
     send_game_notifications = serializers.BooleanField()
+    send_in_pair_notifications = serializers.BooleanField()
+    send_invitation_notifications = serializers.BooleanField()
     unread_notification = serializers.SerializerMethodField(read_only = True)
     
     def get_coins(self, obj: Player) -> int:
@@ -57,8 +59,128 @@ class PlayerSerializer(serializers.ModelSerializer):
         instance.lng = validated_data.get('lng', instance.lng)
         instance.timezone = validated_data.get('timezone', instance.timezone)
         instance.send_game_notifications = validated_data.get('send_game_notifications', instance.send_game_notifications)
+        instance.send_in_pair_notifications = validated_data.get('send_in_pair_notifications', instance.send_in_pair_notifications)
+        instance.send_invitation_notifications = validated_data.get('send_invitation_notifications', instance.send_invitation_notifications)
         instance.save()
         return instance     
+
+class TournamentWinSerializer(serializers.ModelSerializer):
+    place_in_tournament = serializers.SerializerMethodField()
+    
+    def get_player_request(self)-> Player:
+        """Helper method to get the player who made the request from context"""
+        player_request = self.context.get('player_request')
+        
+        if player_request and isinstance(player_request, Player):
+            return player_request
+        return None
+
+    def get_place_in_tournament(self, tournament: Tournament) -> str:
+        player = self.get_player_request()
+        if not player:
+            return None
+        if tournament.place_content_type.model == "player":
+            if tournament.first_place and tournament.first_place.id == player.id:
+                return "1er lugar"
+            elif tournament.second_place and tournament.second_place.id == player.id:
+                return "2do lugar"
+            elif tournament.third_place and tournament.third_place.id == player.id:
+                return "3er lugar"
+        elif tournament.place_content_type.model == "pair":
+            if (tournament.first_place and 
+                (tournament.first_place.player1.id == player.id or 
+                 tournament.first_place.player2.id == player.id)):
+                return "1er lugar"
+            elif (tournament.second_place and 
+                  (tournament.second_place.player1.id == player.id or 
+                   tournament.second_place.player2.id == player.id)):
+                return "2do lugar"
+            elif (tournament.third_place and 
+                  (tournament.third_place.player1.id == player.id or 
+                   tournament.third_place.player2.id == player.id)):
+                return "3er lugar"
+        return None
+
+    class Meta:
+        model = Tournament
+        fields = [
+            "id",
+            "name",
+            "place_in_tournament"
+        ]
+
+class PlayerRetrieveSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField(read_only = True)
+    unread_notification = serializers.SerializerMethodField(read_only = True)
+    tournaments_wins = serializers.SerializerMethodField()
+    
+    def get_coins(self, obj: Player) -> int:
+        return obj.recharged_coins + obj.earned_coins
+
+    def get_unread_notification(self, obj: Player) -> int:
+        return Notification.objects.filter(player__id = obj.id, seen=False).count()
+    
+    def get_tournaments_wins(self, obj: Player) -> list[dict]:
+        # Subconsulta para victorias individuales
+        player_content_type = ContentType.objects.get_for_model(Player)
+        individual_wins = Q(
+            place_content_type=player_content_type,
+            first_place_object_id=obj.id
+        ) | Q(
+            place_content_type=player_content_type,
+            second_place_object_id=obj.id
+        ) | Q(
+            place_content_type=player_content_type,
+            third_place_object_id=obj.id
+        )
+        
+        # Subconsulta para victorias en pareja usando Exists
+        pair_content_type = ContentType.objects.get_for_model(Pair)
+        pair_wins = Q(
+            place_content_type=pair_content_type
+        ) & (
+            Q(
+                Exists(
+                    Pair.objects.filter(
+                        Q(player1__id=obj.id) | Q(player2__id=obj.id),
+                        id=OuterRef('first_place_object_id')
+                    )
+                )
+            ) |
+            Q(
+                Exists(
+                    Pair.objects.filter(
+                        Q(player1__id=obj.id) | Q(player2__id=obj.id),
+                        id=OuterRef('second_place_object_id')
+                    )
+                )
+            ) |
+            Q(
+                Exists(
+                    Pair.objects.filter(
+                        Q(player1__id=obj.id) | Q(player2__id=obj.id),
+                        id=OuterRef('third_place_object_id')
+                    )
+                )
+            )
+        )
+        
+        tournaments_wins = Tournament.objects.filter(
+            individual_wins | pair_wins
+        ).distinct()        
+        
+        serializer = TournamentWinSerializer(tournaments_wins, many=True)
+        serializer.context['player_request'] = obj
+        return serializer.data
+
+    class Meta:
+        model = Player
+        fields = ('__all__')
+
+class PlayerConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Player
+        fields = ["id", "send_game_notifications", "send_in_pair_notifications", "send_invitation_notifications"]
 
 class PlayerRankinSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
@@ -760,7 +882,6 @@ class ChatMessageRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = ["id","message", "user","reply_to", "chat_room", "read_by", "is_readed", "created_at", "updated_at"] 
-
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()

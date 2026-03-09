@@ -44,7 +44,9 @@ class Player(models.Model):
     lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     timezone = models.CharField(max_length=50, default="America/Havana")
     last_notifications = models.DateTimeField(default=timezone_dj.now)
-    send_game_notifications = models.BooleanField(default=True)
+    send_game_notifications = models.BooleanField(default=True)  ## notificacion para cuando hay jugadores esperando en una mesa simple
+    send_in_pair_notifications = models.BooleanField(default=True)  ## notificacion para cuando hay jugadores esperando en una mesa por parejas
+    send_invitation_notifications = models.BooleanField(default=True)  ## notificacion para cuando un jugador invita a otro a jugar
 
     @property
     def total_coins(self):
