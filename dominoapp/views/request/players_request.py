@@ -83,7 +83,9 @@ class PlayerRequest:
             "lat": RequestValidator.validate_decimal,
             "lng": RequestValidator.validate_decimal,
             "timezone": RequestValidator.validate_text,
-            "send_game_notifications": RequestValidator.validate_boolean
+            "send_game_notifications": RequestValidator.validate_boolean,
+            "send_in_pair_notifications": RequestValidator.validate_boolean,
+            "send_invitation_notifications": RequestValidator.validate_boolean
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

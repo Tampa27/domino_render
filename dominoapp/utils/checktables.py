@@ -172,7 +172,7 @@ def automatic_move_in_game():
                         if game.inPairs:
                             players_notify = Player.objects.filter(
                                 isPlaying = False,
-                                send_game_notifications = True
+                                send_in_pair_notifications = True
                                 ).exclude(id__in = players_id).order_by("last_notifications", "-lastTimeInSystem")[:10]
                         else:
                             last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)

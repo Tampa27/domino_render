@@ -3,8 +3,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.decorators import action
-from dominoapp.models import Player
-from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerNotificationSerializer
+from dominoapp.models import Player, BlockPlayer
+from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, \
+    PlayerNotificationSerializer, PlayerRetrieveSerializer, PlayerConfigSerializer, \
+    PlayerListSerializer
 from dominoapp.services.player_service import PlayerService, PlayerRankinSerializer
 from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
@@ -35,6 +37,21 @@ class PlayerView(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
     
+    def get_queryset(self):
+        if self.action in ["list_player_invitations"]:
+            player_bloqued = BlockPlayer.objects.all().values_list("player_blocked__id", flat=True)
+            queryset = Player.objects.filter(send_invitation_notifications=True).exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued)
+        else:
+            queryset = Player.objects.all()
+        return queryset 
+    
+    def get_serializer_class(self):
+        if self.action in ["list_player_invitations"]:
+            serializer_class = PlayerListSerializer
+        else:
+            serializer_class = PlayerSerializer
+        return serializer_class
+
     @extend_schema(
             responses={
             200: inline_serializer(
@@ -50,6 +67,16 @@ class PlayerView(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         response = super().list(request,*args, **kwargs)
         return Response({"status":'success',"player":response.data},status=status.HTTP_200_OK)
+    
+    @extend_schema(
+            responses={
+            200: PlayerListSerializer(many=True)
+        }
+    )
+    @action(detail=False, methods=["get"], url_path="players_invitations")
+    def list_player_invitations(self, request, *args, **kwargs):
+        response = super().list(request,*args, **kwargs)
+        return Response(response.data, status=status.HTTP_200_OK)
     
     @extend_schema(
             operation_id="players_rankin",
@@ -102,7 +129,7 @@ class PlayerView(viewsets.ModelViewSet):
                 name="Retrieve Player",
                 fields={
                     "status": CharField(default="success"),
-                    "player": PlayerSerializer(),
+                    "player": PlayerRetrieveSerializer(),
                     "game_id": IntegerField()
                     },
             ),
@@ -119,6 +146,23 @@ class PlayerView(viewsets.ModelViewSet):
             }, status = status_response)
         
         return PlayerService.process_retrieve(request, pk)
+    
+    @extend_schema(
+            responses={
+            200: PlayerConfigSerializer()
+            },
+    )
+    @action(detail=True, methods=["get"], url_path="config")
+    def config(self, request, pk):
+        is_valid, message, status_response = PlayerRequest.validate_retrieve(pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return PlayerService.process_conf(request, pk)
     
     def create(self, request):        
         is_valid, message, status_response = PlayerRequest.validate_create(request)

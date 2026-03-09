@@ -13,7 +13,8 @@ from django.shortcuts import redirect
 from datetime import datetime
 from fcm_django.models import FCMDevice
 from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification
-from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer
+from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer, \
+    PlayerRetrieveSerializer, PlayerConfigSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
@@ -26,18 +27,20 @@ class PlayerService:
 
     @staticmethod
     def process_retrieve(request, player_id):
-        check_player = Player.objects.filter(id = player_id).exists()
-        if not check_player:
-            return Response({"status":'error',"message":"player not found"},status=status.HTTP_404_NOT_FOUND)    
+        try:
+            player = Player.objects.get(id = player_id, user__id = request.user.id)
+            if player.is_block:
+                return Response({"status":'error',"message":"Este player esta bloqueado. Contacta a los administradores."},status=status.HTTP_401_UNAUTHORIZED)
+        except:
+            return Response({"status":'error',"message":"Este player no se encuentra. Vuelva a actualizar."},status=status.HTTP_404_NOT_FOUND)    
         
-        result = Player.objects.get(id = player_id)
-        serializer = PlayerSerializer(result)
+        serializer = PlayerRetrieveSerializer(player)
 
         game = DominoGame.objects.filter(
-                Q(player1__alias = result.alias)|
-                Q(player2__alias = result.alias)|
-                Q(player3__alias = result.alias)|
-                Q(player4__alias = result.alias)
+                Q(player1__alias = player.alias)|
+                Q(player2__alias = player.alias)|
+                Q(player3__alias = player.alias)|
+                Q(player4__alias = player.alias)
                 )
         game_id = None
         if game.exists():
@@ -45,6 +48,20 @@ class PlayerService:
     
         return Response({'status': 'success', "player":serializer.data,"game_id":game_id}, status=status.HTTP_200_OK)
     
+    @staticmethod
+    def process_conf(request, player_id):
+        try:
+            player = Player.objects.get(id = player_id, user__id = request.user.id)
+            if player.is_block:
+                return Response({"status":'error',"message":"Este player esta bloqueado. Contacta a los administradores."},status=status.HTTP_401_UNAUTHORIZED)
+        except:
+            return Response({"status":'error',"message":"Este player no se encuentra. Vuelva a actualizar."},status=status.HTTP_404_NOT_FOUND)    
+        
+        serializer = PlayerConfigSerializer(player)
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
     @staticmethod
     def process_create(request):
         serializer = PlayerSerializer(data=request.data)  
