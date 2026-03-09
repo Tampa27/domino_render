@@ -78,15 +78,11 @@ class Command(BaseCommand):
                         whatsapp_url=whatsapp_url if summary_win.player.phone is not None else None
                     )                   
 
-                    ##################################################
-                    ### Comentar hasta que se terminen las pruebas#####
-                    ###################################################
-                    # FCMNOTIFICATION.send_fcm_message(
-                    #     user=summary_win.player.user,
-                    #     title="¡Felicidades!",
-                    #     body=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en la última {'semana' if reward.date_of_week is not None else 'mes'}."
-                    # )
-                    #############################################################
+                    FCMNOTIFICATION.send_fcm_message(
+                        user=summary_win.player.user,
+                        title="¡Felicidades!",
+                        body=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 10 días para reclamar tu premio."
+                    )
                     
                     ### Agregar notificación para el jugador dentro de la apk (Aun por implementar)
                     admin_phone = os.environ.get('ADMIN_PHONE', None)
@@ -104,7 +100,7 @@ class Command(BaseCommand):
                     Notification.objects.create(
                         player=summary_win.player,
                         title="¡Felicidades!",
-                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}.",
+                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 10 días para reclamar tu premio.",
                         whatsapp_url=whatsapp_url
                     )
 
