@@ -175,17 +175,9 @@ class PlayerView(viewsets.ModelViewSet):
             200: PlayerConfigSerializer()
             },
     )
-    @action(detail=True, methods=["get"], url_path="config")
-    def config(self, request, pk):
-        is_valid, message, status_response = PlayerRequest.validate_retrieve(pk)
-        
-        if not is_valid:
-            return Response(data ={
-                "status":'error',
-                "message": message
-            }, status = status_response)
-        
-        return PlayerService.process_conf(request, pk)
+    @action(detail=False, methods=["get"], url_path="config")
+    def config(self, request, pk):        
+        return PlayerService.process_conf(request)
     
     def create(self, request):        
         is_valid, message, status_response = PlayerRequest.validate_create(request)
