@@ -146,7 +146,6 @@ class PlayerView(viewsets.ModelViewSet):
         
         return PlayerService.process_personal_rankin(request)
     
-
     @extend_schema(
             responses={
             200: inline_serializer(
