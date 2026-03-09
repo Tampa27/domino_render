@@ -49,9 +49,9 @@ class PlayerService:
         return Response({'status': 'success', "player":serializer.data,"game_id":game_id}, status=status.HTTP_200_OK)
     
     @staticmethod
-    def process_conf(request, player_id):
+    def process_conf(request):
         try:
-            player = Player.objects.get(id = player_id, user__id = request.user.id)
+            player = Player.objects.get(user__id = request.user.id)
             if player.is_block:
                 return Response({"status":'error',"message":"Este player esta bloqueado. Contacta a los administradores."},status=status.HTTP_401_UNAUTHORIZED)
         except:
@@ -484,11 +484,6 @@ class PlayerService:
         
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        date_filter = Q()
-        if start_date and end_date:
-            start = datetime.strptime(start_date, '%d-%m-%Y').date()
-            end = datetime.strptime(end_date, '%d-%m-%Y').date()
-            date_filter = Q(summary_player__created_at__range=[start, end])
         
         try:
             player = Player.objects.get(user__id = request.user.id)
