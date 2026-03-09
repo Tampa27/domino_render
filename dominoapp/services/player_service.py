@@ -14,7 +14,7 @@ from datetime import datetime
 from fcm_django.models import FCMDevice
 from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer, \
-    PlayerRetrieveSerializer, PlayerConfigSerializer
+    PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
@@ -478,6 +478,29 @@ class PlayerService:
         serializer.context['start_date'] = start_date
         serializer.context['end_date'] = end_date
         return paginator.get_paginated_response(serializer.data)
+    
+    @staticmethod
+    def process_personal_rankin(request):
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        date_filter = Q()
+        if start_date and end_date:
+            start = datetime.strptime(start_date, '%d-%m-%Y').date()
+            end = datetime.strptime(end_date, '%d-%m-%Y').date()
+            date_filter = Q(summary_player__created_at__range=[start, end])
+        
+        try:
+            player = Player.objects.get(user__id = request.user.id)
+            if player.is_block:
+                return Response({"status":'error',"message":"Este player esta bloqueado. Contacta a los administradores."},status=status.HTTP_401_UNAUTHORIZED)
+        except:
+            return Response({"status":'error',"message":"Player no encontrado."}, status= status.HTTP_404_NOT_FOUND)
+        
+        serializer = PlayerPersonalRankinSerializer(player)
+        serializer.context['start_date'] = start_date
+        serializer.context['end_date'] = end_date
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     def process_list_notification(request):
         paginator = PageNumberPagination()
