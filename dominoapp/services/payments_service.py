@@ -778,8 +778,21 @@ class PaymentService:
             payment.status_list.add(payment_status)
 
             return Response({'status': 'success', "message":'Extraction confirm'}, status=status.HTTP_200_OK)
+        elif transaction.type == 'rw':
+            if transaction.amount and transaction.amount>0:
+                payment = Payment.objects.create(
+                    external_id = transaction.external_id,
+                    transaction = transaction,
+                    user = admin,
+                    amount = transaction.amount,
+                    paid_time = datetime.now()
+                )
+                payment_status = Status_Payment.objects.create(status = 'paid')
+                payment.status_list.add(payment_status)
+
+            return Response({'status': 'success', "message":'Premio entregado'}, status=status.HTTP_200_OK)
         else:
-            return Response({'status': 'error', "message":'Not Allowed'}, status=status.HTTP_409_CONFLICT)
+            return Response({'status': 'error', "message":'No esta disponible. Contacta algun administrador.'}, status=status.HTTP_409_CONFLICT)
         
     @staticmethod
     def process_cancel(request, transactions_id):
