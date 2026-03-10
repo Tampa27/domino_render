@@ -215,12 +215,23 @@ def automatic_move_in_game():
                         body=f"El torneo se pospuso para el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {tournament.deadline.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')}."
                     )
                 
-                ##### Se va a comentar hasta que Ahmed termine las pruebas de notificaciones ##### 
-                # FCMNOTIFICATION.send_fcm_global_message(
-                #     title="⏰ Últimas horas para inscribirte al torneo",
-                #     body= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
-                # )
+                FCMNOTIFICATION.send_fcm_global_message(
+                    title="⏰ Última oportunidad para inscribirte al torneo",
+                    body= f"⏰ Se corrió el torneo. Ahora puedes unirte al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
+                )
             
+            diff_deadline = tournament.deadline - timedelta(hours=12)
+            if (
+                diff_deadline < now and not tournament.notification_deadline and
+                int(tournament.player_list.count()) < int(tournament.max_player)
+                ):
+                FCMNOTIFICATION.send_fcm_global_message(
+                    title="⏰ Últimas horas para inscribirte al torneo",
+                    body= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
+                )
+                tournament.notification_deadline = True
+                tournament.save(update_fields=['notification_deadline'])
+
             diff_start = tournament.start_at - timedelta(hours=2)
             if  diff_start < now and not tournament.notification_1:
                 for player in tournament.player_list.all():
