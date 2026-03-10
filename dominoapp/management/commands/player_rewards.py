@@ -84,7 +84,6 @@ class Command(BaseCommand):
                         body=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 10 días para reclamar tu premio."
                     )
                     
-                    ### Agregar notificación para el jugador dentro de la apk (Aun por implementar)
                     admin_phone = os.environ.get('ADMIN_PHONE', None)
                     if not admin_phone:
                         admin_phone = "+5352459418"

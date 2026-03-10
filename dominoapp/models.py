@@ -247,6 +247,7 @@ class Tournament(models.Model):
     max_player = models.IntegerField(default=64)
     number_match_win = models.IntegerField(default=2)
     
+    notification_deadline = models.BooleanField(default=False)
     notification_1 = models.BooleanField(default=False)
     notification_30 = models.BooleanField(default=False)
     notification_5 = models.BooleanField(default=False)

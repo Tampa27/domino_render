@@ -76,28 +76,35 @@ class TournamentsView(viewsets.ModelViewSet):
             request= None,
             responses={
             200: inline_serializer(
-                name="Join Tournament",
+                name="Success Response",
                 fields={
                     "status": CharField(default="success"),
                     "message": CharField()
                     },
             ),
             400: inline_serializer(
-                name="Join Tournament Error",
+                name="Error 400 Bad Request",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            401: inline_serializer(
+                name="Error 401 UNAUTHORIZED",
                 fields={
                     "status": CharField(default="error"),
                     "message": CharField()
                     },
             ),
             404: inline_serializer(
-                name="Join Tournament Not Found",
+                name="Error 404 Not Found",
                 fields={
                     "status": CharField(default="error"),
                     "message": CharField()
                     },
             ),
             409: inline_serializer(
-                name="Join Tournament Conflict",
+                name="Error 409 Conflict",
                 fields={
                     "status": CharField(default="error"),
                     "message": CharField()
@@ -117,3 +124,57 @@ class TournamentsView(viewsets.ModelViewSet):
             }, status = status_response)
         
         return TournamentService.process_join(request, pk)
+
+    @extend_schema(
+            operation_id="tournament_leave",
+            request= None,
+            responses={
+            200: inline_serializer(
+                name="Success Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField()
+                    },
+            ),
+            400: inline_serializer(
+                name="Error 400 Bad Request",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            401: inline_serializer(
+                name="Error 401 UNAUTHORIZED",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Error 404 Not Found",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Error 409 Conflict",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            )            
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def leave(self, request, pk):
+
+        is_valid, message, status_response = TournamentRequest.validate_tournament_id(pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return TournamentService.process_leave(request, pk)

@@ -3,7 +3,7 @@ import logging
 from rest_framework import status
 from rest_framework.response import Response
 import pytz
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from django.db import transaction
 from dominoapp.serializers import TournamentCreateSerializer
 from dominoapp.models import Player, BlockPlayer, Tournament, Round, Pair, DominoGame, Match_Game, Bank
@@ -22,8 +22,11 @@ class TournamentService:
         try:
             player = Player.objects.get(user__id = user.id)
             timezone = player.timezone
+            player.lastTimeInSystem = datetime.now()
+            player.save(update_fields=['lastTimeInSystem'])
         except:
             pass
+
         today = datetime.now(pytz.utc)
         try:
             start_date = pytz.timezone(timezone).localize(datetime.strptime(request.data.get('start_at'), "%d-%m-%Y %H:%M:%S")).astimezone(pytz.utc)
@@ -124,28 +127,32 @@ class TournamentService:
         
     @staticmethod
     def process_join(request, tournament_id):
-        player = Player.objects.get(user__id=request.user.id)
+        try:
+            player = Player.objects.get(user__id=request.user.id)
+        except:
+            return Response(data={
+                "status": "error",
+                "message": "Debe iniciar la secion para poder realizar esta acción"
+            }, status=status.HTTP_401_UNAUTHORIZED)
                 
         player.lastTimeInSystem = datetime.now()
-        player.save()
+        player.save(update_fields=['lastTimeInSystem'])
 
-        is_block = BlockPlayer.objects.filter(player_blocked__id=player.id).exists()
-        if is_block:
-            return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
+        if player.is_block:
+            return Response({'status': 'error', "message":"Este player esta bloqueado, contacta a los administradores."}, status=status.HTTP_409_CONFLICT)
 
-        check_game = Tournament.objects.filter(id = tournament_id).exists()
-        if not check_game:
-            return Response({"status":'error',"message":"tournament not found"},status=status.HTTP_404_NOT_FOUND)    
+        try:
+            tournament = Tournament.objects.get(active=True, id=tournament_id)
+        except:
+            return Response({"status":'error',"message":"Este torneo no está disponible."},status=status.HTTP_404_NOT_FOUND)    
 
+        if not tournament.active:
+            return Response({"status":'error',"message":"Este torneo aun no esta activo"},status=status.HTTP_409_CONFLICT)
+        
         check_others_inscriptions = Tournament.objects.filter(active=True, player_list__id = player.id).exists()
 
         if check_others_inscriptions:
             return Response({'status': 'error',"message":"El jugador ya está inscrito en un torneo."}, status=status.HTTP_409_CONFLICT)
-
-        tournament = Tournament.objects.get(id=tournament_id)
-
-        if not tournament.active:
-            return Response({"status":'error',"message":"Este torneo aun no esta activo"},status=status.HTTP_409_CONFLICT)
         
         if player.total_coins < tournament.registration_fee:
             return Response({'status': 'error', "message":"No tienes suficientes monedas para inscribirte en el torneo."}, status=status.HTTP_409_CONFLICT)
@@ -160,20 +167,79 @@ class TournamentService:
             tournament.player_list.add(player)
             tournament.save()
             
-            player.earned_coins -= tournament.registration_fee
-            if player.earned_coins < 0:
-                player.recharged_coins += player.earned_coins  # earned_coins is negative here
-                player.earned_coins = 0            
-            player.save()
+            if tournament.registration_fee >= 0:
+                player.earned_coins -= tournament.registration_fee
+                if player.earned_coins < 0:
+                    player.recharged_coins += player.earned_coins  # earned_coins is negative here
+                    player.earned_coins = 0            
+                player.save(update_fields=['earned_coins', 'recharged_coins'])
 
-            create_transactions(
-                amount = tournament.registration_fee,
-                from_user = player,
-                type='gm',
-                status='cp',
-                descriptions=f"Inscripción al torneo {tournament.id}")
+                create_transactions(
+                    amount = tournament.registration_fee,
+                    from_user = player,
+                    type='gm',
+                    status='cp',
+                    descriptions=f"Inscripción al torneo {tournament.id}")
             
         return Response({'status': 'success', "message":"Te has inscrito correctamente en el torneo."}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def process_leave(request, tournament_id):
+        try:
+            player = Player.objects.get(user__id=request.user.id)
+        except:
+            return Response(data={
+                "status": "error",
+                "message": "Debe iniciar la secion para poder realizar esta acción"
+            }, status=status.HTTP_401_UNAUTHORIZED)
+                
+        player.lastTimeInSystem = datetime.now()
+        player.save(player.save(update_fields=['lastTimeInSystem']))
+
+        if player.is_block:
+            return Response({'status': 'error', "message":"Este player esta bloqueado, contacta a los administradores."}, status=status.HTTP_409_CONFLICT)
+
+        try:
+            tournament = Tournament.objects.get(active=True, id=tournament_id)
+        except:
+            return Response({"status":'error',"message":"Este torneo no esta disponible."},status=status.HTTP_404_NOT_FOUND)    
+
+        if not tournament.active:
+            return Response({"status":'error',"message":"Este torneo aun no esta activo"},status=status.HTTP_409_CONFLICT)
+        
+        if datetime.now(timezone.utc) > tournament.deadline:
+            return Response({'status': 'error', "message":"El plazo de inscripción para este torneo ha finalizado."}, status=status.HTTP_409_CONFLICT)
+
+        diff_deadline = tournament.deadline - timedelta(hours=12)
+        if datetime.now(timezone.utc) > diff_deadline:
+            return Response({'status': 'error', "message":"El plazo para salir del torneo ha finalizado."}, status=status.HTTP_409_CONFLICT)
+
+        try:
+            discount_factor = os.environ.get("TOURNAMENT_LEAVE_FACTOR", None)
+            discount_factor = int(discount_factor)
+        except:
+            return Response({
+                "status": "error",
+                "message": "Algo no esta bien, contacta a los administradores."
+            }, status=status.HTTP_409_CONFLICT)
+        
+        with transaction.atomic():            
+            tournament.player_list.remove(player)
+            tournament.save()
+            
+            restore_coins = int(tournament.registration_fee - tournament.registration_fee*discount_factor/100)
+            if restore_coins >=0:
+                player.earned_coins += restore_coins           
+                player.save(update_fields=['earned_coins'])
+
+                create_transactions(
+                    amount = restore_coins,
+                    to_user= player,
+                    type='gm',
+                    status='cp',
+                    descriptions=f"Por retirarse del torneo {tournament.id}")
+            
+        return Response({'status': 'success', "message":"Has dejado correctamente el torneo."}, status=status.HTTP_200_OK)
 
     @staticmethod
     def process_order_players_rounds(tournament:Tournament, round:Round=None):
