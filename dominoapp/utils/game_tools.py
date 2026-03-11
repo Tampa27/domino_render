@@ -242,17 +242,20 @@ def movement(game_id,player,players,tile, automatic=False):
         game.save()
         game.refresh_from_db()
         logger.info(player.alias+" movio "+tile)
-        PushNotificationConnector.push_notification(
-                channel=f'mesa_{game.id}',
-                event_name='move_tile',
-                data_notification={
-                    'game_status': game.status,
-                    'player': player.id,
-                    'tile': tile,
-                    'next_player': game.next_player,
-                    'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                }
-            )
+        
+        ## Comento las Push pq no se estan usando y se demoran en responder, si se quieren usar hay que optimizar el proceso de envio de notificaciones
+        # PushNotificationConnector.push_notification(
+        #         channel=f'mesa_{game.id}',
+        #         event_name='move_tile',
+        #         data_notification={
+        #             'game_status': game.status,
+        #             'player': player.id,
+        #             'tile': tile,
+        #             'next_player': game.next_player,
+        #             'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+        #         }
+        #     )
+        
         return None        
 
 def CheckPlayerTile(tile:str, player:Player):

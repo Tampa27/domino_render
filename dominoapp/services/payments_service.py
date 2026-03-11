@@ -206,18 +206,19 @@ class PaymentService:
                     'whatsapp_url': whatsapp_url
                 }
             )
-                      
-            PushNotificationConnector.push_notification(
-                channel= f"transaction_{new_transaction.id}",
-                event_name="new_transaction",
-                data_notification={
-                    'status': 'p',
-                    'amount': new_transaction.amount,
-                    'type': 'rl',
-                    'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-                    'admin': None
-                }
-            )
+
+            ## No se estan usando y estan demorando los request       
+            # PushNotificationConnector.push_notification(
+            #     channel= f"transaction_{new_transaction.id}",
+            #     event_name="new_transaction",
+            #     data_notification={
+            #         'status': 'p',
+            #         'amount': new_transaction.amount,
+            #         'type': 'rl',
+            #         'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
+            #         'admin': None
+            #     }
+            # )
         
         if send_request or transactions_exist:
             admins = Player.objects.filter(user__is_staff=True)
@@ -443,17 +444,18 @@ class PaymentService:
                 }
             )
             
-            PushNotificationConnector.push_notification(
-                channel= f"transaction_{new_transaction.id}",
-                event_name="new_transaction",
-                data_notification={
-                    'status': 'p',
-                    'amount': new_transaction.amount,
-                    'type': 'ex',
-                    'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-                    'admin': None
-                }
-            )
+            ## No se estan usando y estan demorando los request       
+            # PushNotificationConnector.push_notification(
+            #     channel= f"transaction_{new_transaction.id}",
+            #     event_name="new_transaction",
+            #     data_notification={
+            #         'status': 'p',
+            #         'amount': new_transaction.amount,
+            #         'type': 'ex',
+            #         'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
+            #         'admin': None
+            #     }
+            # )
         
         if send_request or transactions_exist:
             # player.earned_coins -= int(request.data["coins"])
@@ -581,17 +583,18 @@ class PaymentService:
         new_status = Status_Transaction.objects.create(status = 'ip')
         transaction.status_list.add(new_status)
         
-        PushNotificationConnector.push_notification(
-                channel= f"transaction_{transaction.id}",
-                event_name="update_transaction",
-                data_notification={
-                    'status': 'ip',
-                    'amount': str(transaction.amount),
-                    'type': transaction.type,
-                    'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-                    'admin': admin.alias
-                }
-            )
+        ## No se estan usando y estan demorando los request       
+        # PushNotificationConnector.push_notification(
+        #         channel= f"transaction_{transaction.id}",
+        #         event_name="update_transaction",
+        #         data_notification={
+        #             'status': 'ip',
+        #             'amount': str(transaction.amount),
+        #             'type': transaction.type,
+        #             'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
+        #             'admin': admin.alias
+        #         }
+        #     )
         
         return Response(status=status.HTTP_204_NO_CONTENT)
     
@@ -726,17 +729,19 @@ class PaymentService:
         
         new_status = Status_Transaction.objects.create(status = 'cp')
         transaction.status_list.add(new_status)
-        PushNotificationConnector.push_notification(
-                channel= f"transaction_{transaction.id}",
-                event_name="update_transaction",
-                data_notification={
-                    'status': 'cp',
-                    'amount': str(transaction.amount),
-                    'type': transaction.type,
-                    'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-                    'admin': admin.alias
-                }
-            )
+        
+        ## No se estan usando y estan demorando los request       
+        # PushNotificationConnector.push_notification(
+        #         channel= f"transaction_{transaction.id}",
+        #         event_name="update_transaction",
+        #         data_notification={
+        #             'status': 'cp',
+        #             'amount': str(transaction.amount),
+        #             'type': transaction.type,
+        #             'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
+        #             'admin': admin.alias
+        #         }
+        #     )
         if transaction.type == 'rl':
             recharged_coins = PaymentService.reload_coins(transaction)
             
@@ -815,17 +820,18 @@ class PaymentService:
         new_status = Status_Transaction.objects.create(status = 'cc')
         transaction.status_list.add(new_status)
         
-        PushNotificationConnector.push_notification(
-                channel= f"transaction_{transaction.id}",
-                event_name="update_transaction",
-                data_notification={
-                    'status': 'cc',
-                    'amount': str(transaction.amount),
-                    'type': transaction.type,
-                    'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-                    'cancel_by': cancel_by.alias
-                }
-            )
+        ## No se estan usando y estan demorando los request       
+        # PushNotificationConnector.push_notification(
+        #         channel= f"transaction_{transaction.id}",
+        #         event_name="update_transaction",
+        #         data_notification={
+        #             'status': 'cc',
+        #             'amount': str(transaction.amount),
+        #             'type': transaction.type,
+        #             'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
+        #             'cancel_by': cancel_by.alias
+        #         }
+        #     )
          
         return Response(status=status.HTTP_204_NO_CONTENT)
         
