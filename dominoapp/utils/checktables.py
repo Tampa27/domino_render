@@ -198,17 +198,19 @@ def automatic_move_in_game():
         for tournament in tournaments:
             # analizar si el numero de player es par
             now = timezone.now()
+            player_list = tournament.player_list.all()
+            player_in_tournament = player_list.count()
             if (
                 (tournament.deadline < now < tournament.start_at and 
-                tournament.player_list.count()%2 != 0 and 
-                int(tournament.player_list.count()) < int(tournament.max_player)) or
+                player_in_tournament%2 != 0 and 
+                int(player_in_tournament) < int(tournament.max_player)) or
                 (tournament.deadline < now < tournament.start_at and 
-                int(tournament.player_list.count()) < int(tournament.min_player))
+                int(player_in_tournament) < int(tournament.min_player))
                 ):
                 tournament.deadline += timedelta(days=1)
                 tournament.start_at += timedelta(days=1)
                 tournament.save(update_fields=['deadline', 'start_at'])
-                for player in tournament.player_list.all():
+                for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
                         title= "⏰ Fechas del Torneo Corridas",
@@ -223,7 +225,7 @@ def automatic_move_in_game():
             diff_deadline = tournament.deadline - timedelta(hours=12)
             if (
                 diff_deadline < now and not tournament.notification_deadline and
-                int(tournament.player_list.count()) < int(tournament.max_player)
+                player_in_tournament < int(tournament.max_player)
                 ):
                 FCMNOTIFICATION.send_fcm_global_message(
                     title="⏰ Últimas horas para inscribirte al torneo",
@@ -234,7 +236,7 @@ def automatic_move_in_game():
 
             diff_start = tournament.start_at - timedelta(hours=2)
             if  diff_start < now and not tournament.notification_1:
-                for player in tournament.player_list.all():
+                for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
                         title= "⏰ Recordatorio de inicio",
@@ -245,7 +247,7 @@ def automatic_move_in_game():
             
             diff_start = tournament.start_at - timedelta(minutes=30)
             if  diff_start < now and not tournament.notification_30:
-                for player in tournament.player_list.all():
+                for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
                         title= "⏰ Recordatorio de inicio",
@@ -256,7 +258,7 @@ def automatic_move_in_game():
             
             diff_start = tournament.start_at - timedelta(minutes=5)
             if  diff_start < now and not tournament.notification_5:
-                for player in tournament.player_list.all():
+                for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
                         title= "⏰ Recordatorio de inicio",
