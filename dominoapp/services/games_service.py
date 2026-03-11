@@ -233,15 +233,16 @@ class GameService:
             # game_tools.updateLastPlayerTime(game,alias)
             game.save()    
             serializerGame = GameSerializer(game)
-            PushNotificationConnector.push_notification(
-                channel=f'mesa_{game.id}',
-                event_name='join_player',
-                data_notification={
-                    'game_status': game.status,
-                    'player': player.id,
-                    'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                }
-            )
+            ## No se estan usando y estan demorando los request       
+            # PushNotificationConnector.push_notification(
+            #     channel=f'mesa_{game.id}',
+            #     event_name='join_player',
+            #     data_notification={
+            #         'game_status': game.status,
+            #         'player': player.id,
+            #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+            #     }
+            # )
             playerSerializer = PlayerGameSerializer(players,many=True)
             return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
         else:
@@ -268,16 +269,17 @@ class GameService:
             game_tools.startGame1(game.id,players)    
             serializerGame = GameSerializer(game)
             playerSerializer = PlayerGameSerializer(players,many=True)
-            PushNotificationConnector.push_notification(
-                channel=f'mesa_{game.id}',
-                event_name='start_game',
-                data_notification={
-                    'game_status': game.status,
-                    'starter': game.starter,
-                    'next_player': game.next_player,
-                    'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                }
-            )
+            ## No se estan usando y estan demorando los request       
+            # PushNotificationConnector.push_notification(
+            #     channel=f'mesa_{game.id}',
+            #     event_name='start_game',
+            #     data_notification={
+            #         'game_status': game.status,
+            #         'starter': game.starter,
+            #         'next_player': game.next_player,
+            #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+            #     }
+            # )
             return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
         return Response ({'status': 'error', "message": "game is running"},status=status.HTTP_409_CONFLICT)
     
@@ -335,15 +337,16 @@ class GameService:
         players = game_tools.playersCount(game)
         exited = game_tools.exitPlayer(game,player,players,len(players))
         if exited:
-            PushNotificationConnector.push_notification(
-                channel=f'mesa_{game.id}',
-                event_name='exit_player',
-                data_notification={
-                    'game_status': game.status,
-                    'player': player.id,
-                    'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                }
-            )
+            ## No se estan usando y estan demorando los request       
+            # PushNotificationConnector.push_notification(
+            #     channel=f'mesa_{game.id}',
+            #     event_name='exit_player',
+            #     data_notification={
+            #         'game_status': game.status,
+            #         'player': player.id,
+            #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+            #     }
+            # )
             return Response({'status': 'success'}, status=200)
         return Response({'status': 'error', "message":'Player no found'}, status=404)
     
