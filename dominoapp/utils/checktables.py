@@ -255,7 +255,7 @@ def automatic_move_in_game():
         
 def automaticCoupleStarter(game_id):
     with transaction.atomic():
-        game = DominoGame.objects.select_for_update().get(id=game_id)
+        game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
         next = game.next_player
         lastMoveTime = lastMove(game)
         time_diff1 = timezone.now() - lastMoveTime
