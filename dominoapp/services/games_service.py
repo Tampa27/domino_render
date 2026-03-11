@@ -358,7 +358,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
 
             game_tools.setWinner1(game,request.data["winner"])
             game.save()
@@ -371,7 +371,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
             game.starter = request.data["starter"]
             game.save()
         
@@ -384,7 +384,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
             game.starter = request.data["starter"]
             game.winner = request.data["winner"]
             game.save()
@@ -397,7 +397,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
             select_starter = (game.inPairs and game.startWinner)
             if not select_starter:
                 return Response(data ={
@@ -422,7 +422,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
             
             game_in_round = Round.objects.filter(game_list__id = game.id).exists()
             if game_in_round:

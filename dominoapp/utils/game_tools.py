@@ -48,7 +48,7 @@ def checkPlayerJoined(player,game):
 
 def startGame1(game_id,players):
     with transaction.atomic():
-        game = DominoGame.objects.select_for_update().get(id=game_id)
+        game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
               
         n = len(players)
         if game.starter == -1 or game.starter >= n:
@@ -99,7 +99,7 @@ def startGame1(game_id,players):
 def movement(game_id,player,players,tile, automatic=False):
     with transaction.atomic():
         try:
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
         except:
             return Response({'status': 'error', "message":"Game not found"}, status=404)
         n = len(players)
