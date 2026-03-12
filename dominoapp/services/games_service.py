@@ -8,6 +8,8 @@ from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
+import logging
+logger = logging.getLogger('django')
 
 
 class GameService:
@@ -298,6 +300,7 @@ class GameService:
     
     @staticmethod
     def process_move(request, game_id):
+        start = timezone.now()
         tile = request.data["tile"]
         try:
             check = DominoGame.objects.filter(id=game_id).exists()
@@ -320,8 +323,10 @@ class GameService:
                 profile.lastTimeInGame = timezone.now()
                 profile.inactive_player = False
                 profile.save(update_fields=["lastTimeInSystem","lastTimeInGame","inactive_player"])
+                logger.error(f'tiempo de respuestas: {start - timezone.now()}')
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:
+                logger.error(f'Error al mover una ficha en el game: {game_id}, Error: {error}')
                 return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:        
             return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
