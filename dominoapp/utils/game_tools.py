@@ -25,7 +25,7 @@ def setWinnerStarterNext1(game: DominoGame, winner: int, starter: int, next_play
     game.next_player = next_player
     game.start_time = timezone.now()
 
-def checkPlayerJoined(player,game):
+def checkPlayerJoined(player: Player,game: DominoGame):
     res = False
     players = []
     if game.player1 is not None:
@@ -602,7 +602,7 @@ def updatePassCoins(pos:int,game:DominoGame,players:list[Player],move_register:M
 def move1(game_id: int,alias: str,tile:str):
     try:
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
     
             players = playersCount(game)
             players_ru = list(filter(lambda p: p.isPlaying,players))

@@ -27,7 +27,7 @@ class GameService:
         player.lastTimeInSystem = timezone.now()
         player.inactive_player = False
         player.send_delete_email = False
-        player.save()
+        player.save(update_fields=["lastTimeInSystem","inactive_player","send_delete_email"])
         playerSerializer = PlayerLoginSerializer(player)
         
         game_id = -1
@@ -131,7 +131,7 @@ class GameService:
         player1.lastTimeInSystem = timezone.now()
         player1.lastTimeInGame = timezone.now()
         player1.inactive_player = False
-        player1.save()
+        player1.save(update_fields=["tiles", "lastTimeInSystem", "lastTimeInGame", "inactive_player"])
 
         data = request.data.copy()
         data["lastTime1"] = timezone.now()
@@ -167,7 +167,7 @@ class GameService:
         player.lastTimeInGame = timezone.now()
         player.inactive_player = False
         player.send_delete_email = False
-        player.save()
+        player.save(update_fields=["lastTimeInSystem", "lastTimeInGame", "inactive_player", "send_delete_email"])
 
         check_others_game = DominoGame.objects.filter(
             Q(player1__id = player.id)|
@@ -177,17 +177,17 @@ class GameService:
         ).exclude(id = game_id).exists()
 
         if check_others_game:
-            return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
+            return Response({'status': 'error',"message":"Ya estas jugando en otra mesa."}, status=status.HTTP_409_CONFLICT)
 
         check_game = DominoGame.objects.filter(id = game_id).exists()
         if not check_game:
-            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+            return Response({"status":'error',"message":"Mesa no encontrada."},status=status.HTTP_404_NOT_FOUND)    
         
         game = DominoGame.objects.get(id=game_id)
         
         game_in_round = Round.objects.filter(game_list__id = game.id).exists()
         
-        if not game_in_round and player.registered_in_tournament and player.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now():
+        if not game_in_round and player.registered_in_tournament and player.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now() and timezone.now() < player.registered_in_tournament.start_at + timedelta(minutes=5):
             return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
 
         if player.play_tournament and not game_in_round:
@@ -229,9 +229,9 @@ class GameService:
             if game.status == "wt" or game.status == "ready":
                 for player in players:
                     player.tiles=""
-                    player.save()            
+                    player.save(update_fields=["tiles"])            
             # game_tools.updateLastPlayerTime(game,alias)
-            game.save()    
+            game.save(update_fields=["status", "player1", "player2", "player3", "player4"])    
             serializerGame = GameSerializer(game)
             ## No se estan usando y estan demorando los request       
             # PushNotificationConnector.push_notification(
@@ -256,7 +256,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         try:
             with transaction.atomic():
-                game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+                game = DominoGame.objects.select_for_update().get(id=game_id)
                 if game.status != "wt":
                     players = game_tools.playersCount(game)
                     for player in players:
@@ -361,7 +361,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
 
             game_tools.setWinner1(game,request.data["winner"])
             game.save()
@@ -374,7 +374,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
             game.starter = request.data["starter"]
             game.save()
         
@@ -387,7 +387,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
             game.starter = request.data["starter"]
             game.winner = request.data["winner"]
             game.save()
@@ -400,7 +400,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
             select_starter = (game.inPairs and game.startWinner)
             if not select_starter:
                 return Response(data ={
@@ -425,7 +425,7 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            game = DominoGame.objects.select_for_update().get(id=game_id)
             
             game_in_round = Round.objects.filter(game_list__id = game.id).exists()
             if game_in_round:
