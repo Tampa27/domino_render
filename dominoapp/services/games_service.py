@@ -306,7 +306,7 @@ class GameService:
                 profile.lastTimeInSystem = timezone.now()
                 profile.lastTimeInGame = timezone.now()
                 profile.inactive_player = False
-                profile.save()
+                profile.save(update_fields=["lastTimeInSystem","lastTimeInGame","inactive_player"])
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:
                 return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
