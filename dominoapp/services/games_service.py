@@ -254,34 +254,37 @@ class GameService:
         check_game = DominoGame.objects.filter(id = game_id).exclude(tournament__isnull = False).exists()
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
-        
-        game = DominoGame.objects.get(id=game_id)
-        if game.status != "wt":
-            players = game_tools.playersCount(game)
-            for player in players:
-                if not game_tools.ready_to_play(game, player):
-                        game_tools.exitPlayer(game,player,players,len(players))            
-            
-            ### Actualizo los players por si se saco alguno
-            players = game_tools.playersCount(game)
-            if (game.inPairs and len(players)<4) or len(players)<2:
-                return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
-            game_tools.startGame1(game.id,players)    
-            serializerGame = GameSerializer(game)
-            playerSerializer = PlayerGameSerializer(players,many=True)
-            ## No se estan usando y estan demorando los request       
-            # PushNotificationConnector.push_notification(
-            #     channel=f'mesa_{game.id}',
-            #     event_name='start_game',
-            #     data_notification={
-            #         'game_status': game.status,
-            #         'starter': game.starter,
-            #         'next_player': game.next_player,
-            #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-            #     }
-            # )
-            return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
-        return Response ({'status': 'error', "message": "game is running"},status=status.HTTP_409_CONFLICT)
+        try:
+            with transaction.atomic():
+                game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+                if game.status != "wt":
+                    players = game_tools.playersCount(game)
+                    for player in players:
+                        if not game_tools.ready_to_play(game, player):
+                                game_tools.exitPlayer(game,player,players,len(players))            
+                    
+                    ### Actualizo los players por si se saco alguno
+                    players = game_tools.playersCount(game)
+                    if (game.inPairs and len(players)<4) or len(players)<2:
+                        return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
+                    game_tools.startGame1(game,players)    
+                    serializerGame = GameSerializer(game)
+                    playerSerializer = PlayerGameSerializer(players,many=True)
+                    ## No se estan usando y estan demorando los request       
+                    # PushNotificationConnector.push_notification(
+                    #     channel=f'mesa_{game.id}',
+                    #     event_name='start_game',
+                    #     data_notification={
+                    #         'game_status': game.status,
+                    #         'starter': game.starter,
+                    #         'next_player': game.next_player,
+                    #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+                    #     }
+                    # )
+                    return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+            return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
+        except Exception as e:
+            return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_move(request, game_id):
