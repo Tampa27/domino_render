@@ -93,8 +93,8 @@ class GameService:
 
         # 2. Actualizar el timestamp del jugador de forma eficiente
         # Solo si el usuario está autenticado
-        if request.user.is_authenticated:
-            Player.objects.filter(user_id=request.user.id).update(lastTimeInSystem=timezone.now())
+        # if request.user.is_authenticated:
+        #     Player.objects.filter(user_id=request.user.id).update(lastTimeInSystem=timezone.now())
 
         # 3. Serializar el juego
         serializer = GameSerializer(game)

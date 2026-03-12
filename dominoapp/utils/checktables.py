@@ -308,7 +308,7 @@ def automaticMove(game_id:int):
             player_diff_time = timezone.now() - player_w.lastTimeInSystem
             if len(game.board) == 0:
                 tile = game_tools.takeRandomTile(player_w.tiles)
-                if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
+                if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT): # or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT)
                     try:    
                         error = game_tools.movement(game,player_w,players,tile,automatic=True)
                         if error is not None:
