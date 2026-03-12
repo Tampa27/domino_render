@@ -79,33 +79,35 @@ class GameService:
     @staticmethod
     def process_retrieve(request, game_id):
 
-        check_game = DominoGame.objects.filter(id = game_id).exists()
-        if not check_game:
-            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
-        
-        game = DominoGame.objects.get(id = game_id)
+        # 1. Traemos el juego y sus jugadores en una SOLA consulta usando select_related
+        # Esto evita que al acceder a game.player1 se haga otra consulta a la DB.
+        try:
+            game = DominoGame.objects.select_related(
+                'player1', 'player2', 'player3', 'player4'
+            ).get(id=game_id)
+        except DominoGame.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "game not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 2. Actualizar el timestamp del jugador de forma eficiente
+        # Solo si el usuario está autenticado
+        if request.user.is_authenticated:
+            Player.objects.filter(user_id=request.user.id).update(lastTimeInSystem=timezone.now())
+
+        # 3. Serializar el juego
         serializer = GameSerializer(game)
 
-        try:
-            player = Player.objects.get(user__id=request.user.id)
-            player.lastTimeInSystem = timezone.now()
-            player.save(update_fields=["lastTimeInSystem"])
-        except:
-            pass
-        
-        players = []
-        if game.player1 is not None:
-            players.insert(0,game.player1)
-        if game.player2 is not None:
-            players.insert(1, game.player2)
-        if game.player3 is not None:
-            players.insert(2, game.player3)
-        if game.player4 is not None:
-            players.insert(3, game.player4)
-        
+        # 4. Construir la lista de jugadores filtrando los None de forma elegante
+        players = [p for p in [game.player1, game.player2, game.player3, game.player4] if p is not None]
         players_data = PlayerGameSerializer(players, many=True).data
 
-        return Response({'status': 'success', "game":serializer.data,"players":players_data}, status=status.HTTP_200_OK)
+        return Response({
+            'status': 'success', 
+            "game": serializer.data, 
+            "players": players_data
+        }, status=status.HTTP_200_OK)
     
     @staticmethod
     def process_create(request):
