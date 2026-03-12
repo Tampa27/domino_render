@@ -25,7 +25,7 @@ def automatic_move_in_game():
             'player2',  # Precarga player2
             'player3',  # Precarga player3
             'player4'   # Precarga player4
-        ).iterator()
+        )
         
         for game in games:
             players = game_tools.playersCount(game)
@@ -194,9 +194,8 @@ def automatic_move_in_game():
         logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
     
     try:
-        tournaments = Tournament.objects.filter(active=True).iterator()
+        tournaments = Tournament.objects.filter(active=True)
         for tournament in tournaments:
-            # analizar si el numero de player es par
             now = timezone.now()
             player_list = tournament.player_list.all()            
             diff_start = tournament.start_at - timedelta(minutes=5)
