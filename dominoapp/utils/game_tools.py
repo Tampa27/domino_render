@@ -623,7 +623,7 @@ def move1(game_id: int,alias: str,tile:str):
             #     game.player4.save()            
             return error
     except Exception as error:
-        logger.error(f"Error en move1, game_id: {game_id}, alias: {alias}, tile: {tile}, Detalles del error: {error}")
+        logger_discord.error(f"Error en move1, game_id: {game_id}, alias: {alias}, tile: {tile}, Detalles del error: {error}")
         return "Ocurrio un error al procesar el movimiento, por favor intenta de nuevo"
 
 def shuffleCouples(game,players):
