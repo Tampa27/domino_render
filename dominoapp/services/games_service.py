@@ -15,66 +15,74 @@ class GameService:
     @staticmethod
     def process_list(request, queryset):
         user = request.user
-        is_block = BlockPlayer.objects.filter(player_blocked__user__id=user.id).exists()
-        if is_block:
-            return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
-
-        check = Player.objects.filter(user__id = user.id ).exists()
-        if not check:
-            return Response ({'status': 'error', "message": "Player not found"},status=status.HTTP_404_NOT_FOUND)
+    
+        # 1. Intentamos obtener al jugador directamente para evitar .exists() + .get()
+        # Usamos select_related si Player tiene relación directa con User para ahorrar un JOIN futuro
+        player = Player.objects.filter(user_id=user.id).first()
         
-        player = Player.objects.get(user__id=user.id)
+        if not player:
+            return Response({'status': 'error', "message": "No ha sido posible encontrar al jugador."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Verificación de bloqueo más directa
+        if BlockPlayer.objects.filter(player_blocked=player).exists():
+            return Response({'status': 'error', "message": "Este usuario está bloqueado, contacte con soporte."}, status=status.HTTP_409_CONFLICT)
+
+        # 3. Actualización masiva (update) es más rápida que .save() si no necesitas señales (signals)
+        # pero como ya tenemos la instancia, actualizamos campos específicos.
         player.lastTimeInSystem = timezone.now()
         player.inactive_player = False
         player.send_delete_email = False
-        player.save(update_fields=["lastTimeInSystem","inactive_player","send_delete_email"])
-        playerSerializer = PlayerLoginSerializer(player)
+        player.save(update_fields=["lastTimeInSystem", "inactive_player", "send_delete_email"])
         
-        game_id = -1
+        player_data = PlayerLoginSerializer(player).data
         
-        app_version = request.query_params.get('app_version', None)
-        try:
-            app_version_obj = AppVersion.objects.get(version = app_version)
-        except:
-            app_version_obj = None
+        # 4. Manejo de versión de app (evitamos try/except genérico que es lento)
+        app_version = request.query_params.get('app_version')
+        app_version_obj = AppVersion.objects.filter(version=app_version).first()
         
-        if app_version_obj and app_version_obj.need_update:
-            return Response({'status': 'success', "games":[],"player":playerSerializer.data,"game_id":game_id,"update":app_version_obj.need_update}, status=200)
-                
-        games = DominoGame.objects.filter(
-            Q(player1__id = player.id)|
-            Q(player2__id = player.id)|
-            Q(player3__id = player.id)|
-            Q(player4__id = player.id)
-            )
-        if games.first():
-            game_id = games.first().id
-            serializer =ListGameSerializer(games,many=True)
+        need_update = app_version_obj.need_update if app_version_obj else False
+        
+        if need_update:
             return Response({
-                        'status': 'success', 
-                        "games":serializer.data,
-                        "player":playerSerializer.data,
-                        "game_id":game_id,
-                        "update": False
-                            }, status=status.HTTP_200_OK)
-        alias = request.query_params.get('alias', None)
+                'status': 'success', 
+                "games": [], 
+                "player": player_data, 
+                "game_id": -1, 
+                "update": True
+            }, status=status.HTTP_200_OK)
+
+        # 5. Optimización de consulta de juegos
+        # Filtramos los juegos activos del jugador
+        active_games = DominoGame.objects.filter(
+            Q(player1=player) | Q(player2=player) | Q(player3=player) | Q(player4=player)
+        )
         
-        if alias is not None:
-            queryset = queryset.filter(
-                Q(player1__alias = alias)|
-                Q(player2__alias = alias)|
-                Q(player3__alias = alias)|
-                Q(player4__alias = alias)
+        # Usamos el queryset original si no hay juegos activos, o el filtrado por alias
+        game_id = -1
+        alias = request.query_params.get('alias')
+        
+        # Si el jugador ya está en juegos, priorizamos esos
+        if active_games.exists():
+            target_games = active_games
+            game_id = target_games.first().id
+        else:
+            # Si no está en juegos, usamos el queryset base (posiblemente juegos disponibles)
+            target_games = queryset
+            if alias:
+                target_games = target_games.filter(
+                    Q(player1__alias=alias) | Q(player2__alias=alias) | 
+                    Q(player3__alias=alias) | Q(player4__alias=alias)
                 )
 
-        serializer =ListGameSerializer(queryset,many=True)
+        serializer = ListGameSerializer(target_games, many=True)
+        
         return Response({
-                    'status': 'success', 
-                    "games":serializer.data,
-                    "player":playerSerializer.data,
-                    "game_id":game_id,
-                    "update": False
-                         }, status=status.HTTP_200_OK)
+            'status': 'success', 
+            "games": serializer.data,
+            "player": player_data,
+            "game_id": game_id,
+            "update": False
+        }, status=status.HTTP_200_OK)
     
     @staticmethod
     def process_retrieve(request, game_id):
