@@ -12,7 +12,7 @@ class Command(BaseCommand):
     help = "Check the tournaments that are active and check the number of players and send some notifications to the players."
 
     def handle(self, *args, **options):
-        tournaments = Tournament.objects.filter(active=True).iterator()
+        tournaments = Tournament.objects.filter(active=True)
         for tournament in tournaments:
             # analizar si el numero de player es par
             now = timezone.now()
