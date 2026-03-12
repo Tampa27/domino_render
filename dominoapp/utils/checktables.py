@@ -21,10 +21,13 @@ def automatic_move_in_game():
         logger_api.info(f"Automatic Move Tile")
         
         games = DominoGame.objects.filter(player1__isnull=False).select_related(
-            'player1',  # Precarga player1
-            'player2',  # Precarga player2
-            'player3',  # Precarga player3
-            'player4'   # Precarga player4
+            'player1__user',  # Optimiza el acceso a player.user para FCM
+            'player2__user', 
+            'player3__user', 
+            'player4__user',
+            'tournament'      # Es una ForeignKey directa en DominoGame
+        ).prefetch_related(
+            'match_game'      # Relación inversa con Match_Game
         )
         
         for game in games:
@@ -213,7 +216,13 @@ def automatic_move_in_game():
         logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
     
     try:
-        tournaments = Tournament.objects.filter(active=True)
+        tournaments = Tournament.objects.filter(active=True).prefetch_related(
+            'player_list__user',           # Para notificaciones a todos los inscritos
+            'round_in_tournament',         # Preload de Rondas (related_name en Round)
+            'round_in_tournament__game_list', # Preload de juegos dentro de cada ronda
+            'round_in_tournament__winner_pair_list__player1__user', # Para premios
+            'round_in_tournament__winner_pair_list__player2__user'
+        )
         for tournament in tournaments:
             now = timezone.now()
             player_list = tournament.player_list.all()            
