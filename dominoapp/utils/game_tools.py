@@ -610,7 +610,7 @@ def move1(game_id: int,alias: str,tile:str):
                 if p.alias == alias:
                     player = p
         
-            error = movement(game_id,player,players_ru,tile)
+            error = movement(game,player,players_ru,tile)
             
             updateLastPlayerTime(game,alias)
             # if game.player1 and game.player1.id:
