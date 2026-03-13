@@ -279,10 +279,10 @@ class GameService:
                     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
                 else:
                     return Response({'status': 'error', "message":"Mesa llena"}, status=status.HTTP_409_CONFLICT)
-        except DatabaseError:
+        except DatabaseError as error:
             # Si alguien más tiene el candado y usamos nowait=True (opcional) 
             # o hay un error de colisión de DB.
-            logger.error("La mesa está ocupada en este momento.")
+            logger.error(f"La mesa {game_id} está ocupada en este momento. Error: {error}")
             return Response({'status': 'error', "message": "La mesa está ocupada en este momento."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             logger.error(f"Erro al intentar unirse a la mesa {game_id}, Error: {e}")
