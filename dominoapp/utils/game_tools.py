@@ -2,6 +2,7 @@ from rest_framework.response import Response
 from dominoapp.models import Player, DominoGame, MoveRegister,Bank, Match_Game
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.utils import DatabaseError
 import random
 from django.db import transaction
 import logging
@@ -25,7 +26,7 @@ def setWinnerStarterNext1(game: DominoGame, winner: int, starter: int, next_play
     game.next_player = next_player
     game.start_time = timezone.now()
 
-def checkPlayerJoined(player: Player,game: DominoGame):
+def checkPlayerJoined(player: Player,game: DominoGame) -> tuple[bool, list[Player]]:
     res = False
     players = []
     if game.player1 is not None:
@@ -599,32 +600,44 @@ def updatePassCoins(pos:int,game:DominoGame,players:list[Player],move_register:M
                         summary_player_passed.save(update_fields=['pass_player', 'earned_coins'])
                 break                            
 
-def move1(game_id: int,alias: str,tile:str):
+def move1(game_id: int,player_id: str,tile:str):
     try:
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            # 1. Usamos select_related para traer a los jugadores en el mismo JOIN
+            # 2. Usamos select_for_update(of=...) para bloquear las filas de esas tablas
+            game = (DominoGame.objects
+                    .select_related('player1', 'player2', 'player3', 'player4')
+                    .select_for_update(
+                        of=('self', 'player1', 'player2', 'player3', 'player4'), 
+                        nowait=True
+                    )
+                    .get(id=game_id))
     
+            # Al haber usado select_related, estos objetos ya están "bloqueados"
             players = playersCount(game)
-            players_ru = list(filter(lambda p: p.isPlaying,players))
-            for p in players:
-                if p.alias == alias:
-                    player = p
-        
-            error = movement(game,player,players_ru,tile)
+            players_ru = list(filter(lambda p: p.isPlaying, players))
             
-            updateLastPlayerTime(game,alias)
-            # if game.player1 and game.player1.id:
-            #     game.player1.save() 
-            # if game.player2 and game.player2.id:
-            #     game.player2.save() 
-            # if game.player3 and game.player3.id:
-            #     game.player3.save()
-            # if game.player4 and game.player4.id:
-            #     game.player4.save()            
+            # Buscamos al jugador que mueve (ya está bloqueado por el select_for_update de arriba)
+            player = next((p for p in players if p.id == player_id), None)
+            
+            if not player:
+                return "Jugador no encontrado en esta partida"
+        
+            # Ejecutamos la lógica de movimiento
+            error = movement(game, player, players_ru, tile)
+            
+            # Actualizamos tiempos (game.save ya ocurre dentro de movement y aquí)
+            updateLastPlayerTime(game, player.alias)
+            
             return error
+
+    except DatabaseError:
+        # Este error salta si nowait=True detecta que alguien más tiene el candado
+        return "La partida está procesando otro movimiento. Intenta de nuevo en un segundo."
+        
     except Exception as error:
-        logger_discord.error(f"Error en move1, game_id: {game_id}, alias: {alias}, tile: {tile}, Detalles del error: {error}")
-        return "Ocurrio un error al procesar el movimiento, por favor intenta de nuevo"
+        logger_discord.error(f"Error en move1, game_id: {game_id}, player_id: {player_id}, error: {error}")
+        return "Ocurrió un error al procesar el movimiento."
 
 def shuffleCouples(game,players):
     random.shuffle(players)
@@ -975,9 +988,15 @@ def shuffle(game:DominoGame, players:list[Player]):
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
             player.points = 0  
         for j in range(max):
-            player.tiles+=tiles[i*max+j]
-            if j < (max-1):
-                player.tiles+=","
+            if game.perPoints or game.status not in ["ready", "fg"]:
+                if game.status=="fi" and player.isPlaying == True:
+                    player.tiles+=tiles[i*max+j]
+                    if j < (max-1):
+                        player.tiles+=","
+            else:
+                player.tiles+=tiles[i*max+j]
+                if j < (max-1):
+                    player.tiles+=","
         player.save(update_fields=['tiles','isPlaying','points'])    
 
 def checkCapicua(game,tile):

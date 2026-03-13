@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q
+from django.db.utils import DatabaseError
 from django.db import transaction
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
@@ -88,7 +89,6 @@ class GameService:
     
     @staticmethod
     def process_retrieve(request, game_id):
-
         # 1. Traemos el juego y sus jugadores en una SOLA consulta usando select_related
         # Esto evita que al acceder a game.player1 se haga otra consulta a la DB.
         try:
@@ -97,14 +97,26 @@ class GameService:
             ).get(id=game_id)
         except DominoGame.DoesNotExist:
             return Response(
+            
                 {"status": "error", "message": "game not found"}, 
                 status=status.HTTP_404_NOT_FOUND
             )
 
         # 2. Actualizar el timestamp del jugador de forma eficiente
         # Solo si el usuario está autenticado
-        # if request.user.is_authenticated:
-        #     Player.objects.filter(user_id=request.user.id).update(lastTimeInSystem=timezone.now())
+        if request.user.is_authenticated:
+            try:
+                # Usamos select_for_update con nowait=True en un bloque atómico pequeño
+                # para intentar "marcar" al jugador. Si está bloqueado, saltamos al except.
+                with transaction.atomic():
+                    Player.objects.filter(
+                        user_id=request.user.id
+                    ).select_for_update(nowait=True).update(lastTimeInSystem=timezone.now())
+            except DatabaseError:
+                # Si el jugador está bloqueado (moviendo ficha), ignoramos la actualización
+                # del timestamp para esta petición de "retrieve". 
+                # No pasa nada, porque la transacción del movimiento actualizará el tiempo después.
+                pass
 
         # 3. Serializar el juego
         serializer = GameSerializer(game)
@@ -172,116 +184,155 @@ class GameService:
     
     @staticmethod
     def process_join(request, game_id):
-        
-        player = Player.objects.get(user__id=request.user.id)
+        try:
+            with transaction.atomic():
+                # 1. Bloqueamos al jugador que intenta unirse (el "peticionario")
+                player = Player.objects.select_for_update().get(user__id=request.user.id)
                 
-        player.lastTimeInSystem = timezone.now()
-        player.lastTimeInGame = timezone.now()
-        player.inactive_player = False
-        player.send_delete_email = False
-        player.save(update_fields=["lastTimeInSystem", "lastTimeInGame", "inactive_player", "send_delete_email"])
+                # Actualizamos sus datos de presencia
+                player.lastTimeInSystem = timezone.now()
+                player.lastTimeInGame = timezone.now()
+                player.inactive_player = False
+                player.send_delete_email = False
+                player.save(update_fields=["lastTimeInSystem", "lastTimeInGame", "inactive_player", "send_delete_email"])
 
-        check_others_game = DominoGame.objects.filter(
-            Q(player1__id = player.id)|
-            Q(player2__id = player.id)|
-            Q(player3__id = player.id)|
-            Q(player4__id = player.id)
-        ).exclude(id = game_id).exists()
+                # 2. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
+                # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
+                try:
+                    game = (DominoGame.objects
+                            .select_related('player1', 'player2', 'player3', 'player4')
+                            .select_for_update(of=('self', 'player1', 'player2', 'player3', 'player4'))
+                            .get(id=game_id))
+                except DominoGame.DoesNotExist:
+                    return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
-        if check_others_game:
-            return Response({'status': 'error',"message":"Ya estas jugando en otra mesa."}, status=status.HTTP_409_CONFLICT)
-
-        check_game = DominoGame.objects.filter(id = game_id).exists()
-        if not check_game:
-            return Response({"status":'error',"message":"Mesa no encontrada."},status=status.HTTP_404_NOT_FOUND)    
+                # 3. Validaciones de negocio (Ahora son seguras porque nadie puede cambiar al player ni a la mesa)
+                check_others_game = DominoGame.objects.filter(
+                    Q(player1__id=player.id) |
+                    Q(player2__id=player.id) |
+                    Q(player3__id=player.id) |
+                    Q(player4__id=player.id)
+                ).exclude(id=game_id).exists()
+                if check_others_game:
+                    return Response({'status': 'error', "message": "Ya estas jugando en otra mesa."}, status=status.HTTP_409_CONFLICT)
         
-        game = DominoGame.objects.get(id=game_id)
-        
-        game_in_round = Round.objects.filter(game_list__id = game.id).exists()
-        
-        if not game_in_round and player.registered_in_tournament and player.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now() and timezone.now() < player.registered_in_tournament.start_at + timedelta(minutes=5):
-            return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
+                game_in_round = Round.objects.filter(game_list__id = game.id).exists()
+                if not game_in_round and player.registered_in_tournament and player.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now() and timezone.now() < player.registered_in_tournament.start_at + timedelta(minutes=5):
+                    return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
 
-        if player.play_tournament and not game_in_round:
-            return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
-                
-        if not game_tools.ready_to_play(game, player):
-            return Response({"status":'error',"message":"you don't have enough coins"},status=status.HTTP_409_CONFLICT)
+                if player.play_tournament and not game_in_round:
+                    return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+                        
+                if not game_tools.ready_to_play(game, player):
+                    return Response({"status":'error',"message":"No tienes suficientes monedas para jugar en esta mesa."},status=status.HTTP_409_CONFLICT)
         
-        joined,players = game_tools.checkPlayerJoined(player,game)
-        if joined != True:
-            if game.player1 is None:
-                game.player1 = player
-                joined = True
-                players.insert(0,player)
-            elif game.player2 is None:
-                game.player2 = player
-                joined = True
-                players.insert(1,player)
-            elif game.player3 is None :
-                game.player3 = player
-                joined = True
-                players.insert(2,player)
-            elif game.player4 is None:
-                game.player4 = player
-                joined = True
-                players.insert(3,player)
+                joined,players = game_tools.checkPlayerJoined(player,game)
+                if joined != True:
+                    if game.player1 is None:
+                        game.player1 = player
+                        joined = True
+                        players.insert(0,player)
+                    elif game.player2 is None:
+                        game.player2 = player
+                        joined = True
+                        players.insert(1,player)
+                    elif game.player3 is None :
+                        game.player3 = player
+                        joined = True
+                        players.insert(2,player)
+                    elif game.player4 is None:
+                        game.player4 = player
+                        joined = True
+                        players.insert(3,player)
 
-        if joined == True:
-            if game.inPairs:
-                if len(players) == 4 and game.status == "wt":
-                    game.status = "ready"
-                elif len(players) != 4:
-                    game.status = "wt"
-            else:                
-                if len(players) >= 2 and game.status != "ru" and game.status != "fi":
-                    game.status = "ready"
-                elif game.status != "ru" and game.status != "fi":
-                    game.status = "wt"
-            if game.status == "wt" or game.status == "ready":
-                for player in players:
-                    player.tiles=""
-                    player.save(update_fields=["tiles"])            
-            # game_tools.updateLastPlayerTime(game,alias)
-            game.save(update_fields=["status", "player1", "player2", "player3", "player4"])    
-            serializerGame = GameSerializer(game)
-            ## No se estan usando y estan demorando los request       
-            # PushNotificationConnector.push_notification(
-            #     channel=f'mesa_{game.id}',
-            #     event_name='join_player',
-            #     data_notification={
-            #         'game_status': game.status,
-            #         'player': player.id,
-            #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-            #     }
-            # )
-            playerSerializer = PlayerGameSerializer(players,many=True)
-            return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
-        else:
-            return Response({'status': 'error', "message":"Full players"}, status=status.HTTP_409_CONFLICT)
+                if joined == True:
+                    if game.inPairs:
+                        if len(players) == 4 and game.status == "wt":
+                            game.status = "ready"
+                        elif len(players) != 4:
+                            game.status = "wt"
+                    else:                
+                        if len(players) >= 2 and game.status not in ["ru", "fi"]:
+                            game.status = "ready"
+                        elif game.status not in ["ru", "fi"]:
+                            game.status = "wt"
+                    # 5. Limpieza de fichas (Seguro porque todos en current_players están bloqueados)
+                    if game.status in ["wt", "ready"]:
+                        for p in players:
+                            if p.tiles != "": # Optimización: solo guardar si es necesario
+                                p.tiles = ""
+                                p.save(update_fields=["tiles"])          
+                    # game_tools.updateLastPlayerTime(game,alias)
+                    game.save(update_fields=["status", "player1", "player2", "player3", "player4"])    
+                    serializerGame = GameSerializer(game)
+                    ## No se estan usando y estan demorando los request       
+                    # PushNotificationConnector.push_notification(
+                    #     channel=f'mesa_{game.id}',
+                    #     event_name='join_player',
+                    #     data_notification={
+                    #         'game_status': game.status,
+                    #         'player': player.id,
+                    #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
+                    #     }
+                    # )
+                    playerSerializer = PlayerGameSerializer(players,many=True)
+                    return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+                else:
+                    return Response({'status': 'error', "message":"Mesa llena"}, status=status.HTTP_409_CONFLICT)
+        except DatabaseError:
+            # Si alguien más tiene el candado y usamos nowait=True (opcional) 
+            # o hay un error de colisión de DB.
+            return Response({'status': 'error', "message": "La mesa está ocupada en este momento."}, status=status.HTTP_409_CONFLICT)
+        except Exception as e:
+            logger.error(f"Erro al intentar unirse a la mesa {game_id}, Error: {e}")
+            return Response({'status': 'error', "message": "Algo salio mal, vuelva a intentar."}, status=500)
         
     @staticmethod
     def process_start(game_id):
-
-        check_game = DominoGame.objects.filter(id = game_id).exclude(tournament__isnull = False).exists()
+        # 1. Validación rápida fuera de la transacción (opcional, para liberar carga)
+        check_game = DominoGame.objects.filter(id=game_id).exclude(tournament__isnull=False).exists()
         if not check_game:
-            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+            return Response({"status": 'error', "message": "game not found"}, status=status.HTTP_404_NOT_FOUND)
+
         try:
             with transaction.atomic():
-                game = DominoGame.objects.select_for_update().get(id=game_id)
+                # 2. Bloqueamos la mesa y a los 4 jugadores relacionados
+                # Usamos select_related para traerlos de una vez y 'of' para fijar sus filas
+                game = (DominoGame.objects
+                        .select_related('player1', 'player2', 'player3', 'player4')
+                        .select_for_update(
+                            of=('self', 'player1', 'player2', 'player3', 'player4'), 
+                            nowait=True
+                        )
+                        .get(id=game_id))
+
+                # IMPORTANTE: Según tu lógica, el juego solo arranca si NO está en "wt" (waiting)
                 if game.status != "wt":
+                    # 3. Obtenemos los jugadores bloqueados directamente desde la instancia 'game'
                     players = game_tools.playersCount(game)
+                    
+                    # 4. Verificación de "Ready to Play" y limpieza
+                    # Como los jugadores están bloqueados, nadie puede "gastar sus monedas" 
+                    # en otra mesa mientras hacemos este bucle.
                     for player in players:
                         if not game_tools.ready_to_play(game, player):
-                                game_tools.exitPlayer(game,player,players,len(players))            
+                            # Esta función debe actualizar game.playerX = None
+                            game_tools.exitPlayer(game, player, players, len(players))
                     
-                    ### Actualizo los players por si se saco alguno
+                    # 5. Re-validamos la cantidad de jugadores después de las posibles salidas
                     players = game_tools.playersCount(game)
-                    if (game.inPairs and len(players)<4) or len(players)<2:
-                        return Response({"status":'error',"message":"not enough players"},status=status.HTTP_409_CONFLICT)
-                    game_tools.startGame1(game,players)    
+                    
+                    if (game.inPairs and len(players) < 4) or len(players) < 2:
+                        return Response({"status": 'error', "message": "not enough players"}, status=status.HTTP_409_CONFLICT)
+                    
+                    # 6. Comenzar el juego (repartir fichas, cambiar status a 'ru')
+                    # startGame1 ahora es seguro porque tiene el candado de los 4 players y la mesa
+                    game_tools.startGame1(game, players)
+                    
+                    # Serialización
                     serializerGame = GameSerializer(game)
-                    playerSerializer = PlayerGameSerializer(players,many=True)
+                    playerSerializer = PlayerGameSerializer(players, many=True)
+
                     ## No se estan usando y estan demorando los request       
                     # PushNotificationConnector.push_notification(
                     #     channel=f'mesa_{game.id}',
@@ -294,13 +345,16 @@ class GameService:
                     #     }
                     # )
                     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+            # Si el status es "wt", significa que aún no cumple requisitos para iniciar
             return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
+        except DatabaseError:
+            # Si alguien más está intentando iniciar el juego o uniéndose justo ahora
+            return Response({'status': 'error', "message": "La mesa está ocupada procesando otra acción."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_move(request, game_id):
-        start = timezone.now()
         tile = request.data["tile"]
         try:
             check = DominoGame.objects.filter(id=game_id).exists()
@@ -316,7 +370,7 @@ class GameService:
             if not check:
                 return Response({'status': 'error', 'message': "These Player are not in this game"}, status=400)
             
-            error = game_tools.move1(game_id,player.alias,tile)
+            error = game_tools.move1(game_id,player.id,tile)
             if error is None:
                 profile = Player.objects.get(alias = player.alias)
                 profile.lastTimeInSystem = timezone.now()
