@@ -282,6 +282,7 @@ class GameService:
         except DatabaseError:
             # Si alguien más tiene el candado y usamos nowait=True (opcional) 
             # o hay un error de colisión de DB.
+            logger.error("La mesa está ocupada en este momento.")
             return Response({'status': 'error', "message": "La mesa está ocupada en este momento."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             logger.error(f"Erro al intentar unirse a la mesa {game_id}, Error: {e}")
