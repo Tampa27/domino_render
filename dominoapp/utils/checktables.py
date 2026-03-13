@@ -300,13 +300,8 @@ def automaticMove(game_id:int):
         with transaction.atomic():
             # 1. Bloqueamos el juego y sus 4 posibles jugadores relacionados
             # Usamos skip_locked=True para que si alguien ya está moviendo, este proceso lo ignore
-            game = (DominoGame.objects
-                    .select_related('player1', 'player2', 'player3', 'player4')
-                    .select_for_update(
-                        skip_locked=True
-                    )
-                    .get(id=game_id))
-            # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+            game = DominoGame.objects.select_for_update(skip_locked=True).get(id=game_id)
+            # 1.2. Bloqueamos a los jugadores que YA están sentados de forma independiente
             # Esto evita el error de PostgreSQL
             player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
             if player_ids:
@@ -387,15 +382,10 @@ def automaticStart(game:DominoGame):
                 # 1. Bloqueamos el juego y a los 4 jugadores potenciales vinculados
                 # Usamos select_related para que los objetos 'player' que pasemos a 
                 # startGame1 sean los mismos que están bajo el candado de la DB.
-                game_selected = (DominoGame.objects
-                                 .select_related('player1', 'player2', 'player3', 'player4')
-                                 .select_for_update(
-                                    skip_locked=True  # Si alguien está jugando, ignoramos este ciclo
-                                 )
-                                 .get(id=game.id))
+                game_selected = DominoGame.objects.select_for_update(skip_locked=True).get(id=game.id)
                 # 1.2 Bloqueamos a los jugadores que YA están sentados de forma independiente
                 # Esto evita el error de PostgreSQL
-                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+                player_ids = [pid for pid in [game_selected.player1_id, game_selected.player2_id, game_selected.player3_id, game_selected.player4_id] if pid]
                 if player_ids:
                     # Al hacer list() forzamos la ejecución del select_for_update en la DB
                     list(Player.objects.select_for_update().filter(id__in=player_ids))
@@ -403,7 +393,7 @@ def automaticStart(game:DominoGame):
                 
                 # 2. Obtenemos la lista de jugadores bloqueados desde el objeto game_selected
                 # No uses la lista 'players' que viene por parámetro, ya que son objetos viejos.
-                blocked_players = game_tools.playersCount(game)
+                blocked_players = game_tools.playersCount(game_selected)
             
                 # 3. Ejecutamos el inicio del juego
                 game_tools.startGame1(game_selected, blocked_players)
