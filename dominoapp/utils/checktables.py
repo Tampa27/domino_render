@@ -141,7 +141,7 @@ def automatic_move_in_game():
                                             )
                                         
                     if restargame:
-                        automaticStart(game,players)
+                        automaticStart(game)
                 except Exception as e:
                     logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
             elif (game.status == 'fg' or game.status == 'wt' or game.status == 'ready') and not game.in_tournament:
@@ -242,7 +242,7 @@ def automatic_move_in_game():
             if tournament.start_at < now and tournament.status == 'ready':
                 for game in DominoGame.objects.filter(tournament__id=tournament.id):
                     players = game_tools.playersCount(game)
-                    automaticStart(game,players)
+                    automaticStart(game)
                     for player in players:
                         FCMNOTIFICATION.send_fcm_message(
                             user= player.user,
@@ -259,7 +259,7 @@ def automatic_move_in_game():
                     for game in last_round.game_list.all():
                         if game.status == 'ready':
                             players = game_tools.playersCount(game)
-                            automaticStart(game,players)
+                            automaticStart(game)
                             for player in players:
                                 FCMNOTIFICATION.send_fcm_message(
                                     user= player.user,
@@ -298,55 +298,67 @@ def automaticCoupleStarter(game_id:int):
 def automaticMove(game_id:int):
     try:
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update(skip_locked=True).get(id=game_id)
+            # 1. Bloqueamos el juego y sus 4 posibles jugadores relacionados
+            # Usamos skip_locked=True para que si alguien ya está moviendo, este proceso lo ignore
+            game = (DominoGame.objects
+                    .select_related('player1', 'player2', 'player3', 'player4')
+                    .select_for_update(
+                        of=('self', 'player1', 'player2', 'player3', 'player4'), 
+                        skip_locked=True
+                    )
+                    .get(id=game_id))
+
+            # 2. Obtenemos las instancias de jugadores BLOQUEADAS
             players_in_game = game_tools.playersCount(game)
             players = list(filter(lambda p: p.isPlaying, players_in_game))
-            next = game.next_player
-            player_w = players[next]
+            
+            # 3. Identificamos al jugador que le toca mover (ahora es una instancia segura)
+            next_idx = game.next_player
+            player_w = players[next_idx]
+            
             MOVE_TILE_TIME = game.moveTime
             time_diff = timezone.now() - lastMove(game)
             player_diff_time = timezone.now() - player_w.lastTimeInSystem
+            
+            # Lógica de selección de ficha...
             if len(game.board) == 0:
                 tile = game_tools.takeRandomTile(player_w.tiles)
-                if time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT): # or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT)
+                if time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT):
                     try:    
-                        error = game_tools.movement(game,player_w,players,tile,automatic=True)
+                        # Al pasar 'player_w' (que viene de select_related), movement()
+                        # actualizará la fila bloqueada correctamente.
+                        error = game_tools.movement(game, player_w, players, tile, automatic=True)
                         if error is not None:
-                            logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
-                        game_tools.updateLastPlayerTime(game,player_w.alias)  
-                        # game_tools.move1(game.id,player_w.alias,tile)
+                            logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
+                        
+                        game_tools.updateLastPlayerTime(game, player_w.alias)  
                     except Exception as e:
-                        logger.critical(f"Error critico en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
-                    # game_tools.updateLastPlayerTime(game,player_w.alias)
+                        logger.critical(f"Error crítico en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
             else:
-                tile = game_tools.takeRandomCorrectTile(player_w.tiles,game.leftValue,game.rightValue)
+                tile = game_tools.takeRandomCorrectTile(player_w.tiles, game.leftValue, game.rightValue)
                 if game_tools.isPass(tile):
                     if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
                         try:
-                            error = game_tools.movement(game,player_w,players,tile,automatic=True)
+                            error = game_tools.movement(game, player_w, players, tile, automatic=True)
                             if error is not None:
-                                logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
-                            game_tools.updateLastPlayerTime(game,player_w.alias)  
-                            # game_tools.move1(game.id,player_w.alias,tile)
+                                logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
+                            game_tools.updateLastPlayerTime(game, player_w.alias)  
                         except Exception as e:
-                            logger.critical(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
-                        # game_tools.movement(game,player_w,players,tile)
-                        # game_tools.updateLastPlayerTime(game,player_w.alias) 
-                elif time_diff.seconds > (MOVE_TILE_TIME+ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
+                            logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
+                elif time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
                     try:
-                        error = game_tools.movement(game,player_w,players,tile,automatic=True)
+                        error = game_tools.movement(game, player_w, players, tile, automatic=True)
                         if error is not None:
-                            logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
-                        game_tools.updateLastPlayerTime(game,player_w.alias)  
-                        # game_tools.move1(game.id,player_w.alias,tile)
+                            logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
+                        game_tools.updateLastPlayerTime(game, player_w.alias)  
                     except Exception as e:
-                        logger.error(f"Error en el movimiento automatico del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
-                    # game_tools.movement(game,player_w,players,tile)
-                    # game_tools.updateLastPlayerTime(game,player_w.alias)        
-            # game.save()
-    except Exception as e:
-        logger.critical(f"Error en el movimiento automatico de los jugadores en la mesa {game_id}, error: {str(e)}")
+                        logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
 
+    except DominoGame.DoesNotExist:
+        # Si skip_locked=True está activo y la mesa está bloqueada, .get() no encontrará nada
+        pass
+    except Exception as e:
+        logger.critical(f"Error en el movimiento automático de los jugadores en la mesa {game_id}, error: {str(e)}")
 
 def lastMove(game):
     res = game.start_time
@@ -360,13 +372,33 @@ def lastMove(game):
         res = game.lastTime4
     return res                
 
-def automaticStart(game:DominoGame,players: list[Player]):
+def automaticStart(game:DominoGame):
     lastMoveTime = lastMove(game)
     time_diff = timezone.now() - lastMoveTime
+    
     if time_diff.seconds > ApiConstants.AUTO_START_WAIT:
         try:
             with transaction.atomic():
-                game_selected = DominoGame.objects.select_for_update(skip_locked=True).get(id=game.id)
-                game_tools.startGame1(game_selected,players)
+                # 1. Bloqueamos el juego y a los 4 jugadores potenciales vinculados
+                # Usamos select_related para que los objetos 'player' que pasemos a 
+                # startGame1 sean los mismos que están bajo el candado de la DB.
+                game_selected = (DominoGame.objects
+                                 .select_related('player1', 'player2', 'player3', 'player4')
+                                 .select_for_update(
+                                     of=('self', 'player1', 'player2', 'player3', 'player4'),
+                                     skip_locked=True  # Si alguien está jugando, ignoramos este ciclo
+                                 )
+                                 .get(id=game.id))
+                
+                # 2. Obtenemos la lista de jugadores bloqueados desde el objeto game_selected
+                # No uses la lista 'players' que viene por parámetro, ya que son objetos viejos.
+                blocked_players = game_tools.playersCount(game)
+            
+                # 3. Ejecutamos el inicio del juego
+                game_tools.startGame1(game_selected, blocked_players)
+                
+        except DominoGame.DoesNotExist:
+            # Si skip_locked=True hace que no se encuentre la fila, simplemente salimos
+            pass
         except Exception as error:
-            logger.critical(f"Error en el reinicio automatico de la mesa {game.id}, error: {str(error)}")
+            logger.critical(f"Error en el reinicio automático de la mesa {game.id}, error: {str(error)}")
