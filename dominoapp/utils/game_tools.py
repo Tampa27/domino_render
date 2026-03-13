@@ -605,13 +605,17 @@ def move1(game_id: int,player_id: str,tile:str):
         with transaction.atomic():
             # 1. Usamos select_related para traer a los jugadores en el mismo JOIN
             # 2. Usamos select_for_update(of=...) para bloquear las filas de esas tablas
-            game = (DominoGame.objects
-                    .select_related('player1', 'player2', 'player3', 'player4')
-                    .select_for_update(
-                        of=('self', 'player1', 'player2', 'player3', 'player4'), 
-                        nowait=True
-                    )
-                    .get(id=game_id))
+            try:
+                game = DominoGame.objects.select_for_update().get(id=game_id)
+            except DominoGame.DoesNotExist:
+                return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+            # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+            # Esto evita el error de PostgreSQL
+            player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+            if player_ids:
+                # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                list(Player.objects.select_for_update().filter(id__in=player_ids))
     
             # Al haber usado select_related, estos objetos ya están "bloqueados"
             players = playersCount(game)

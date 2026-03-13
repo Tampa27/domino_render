@@ -303,14 +303,18 @@ class GameService:
             with transaction.atomic():
                 # 2. Bloqueamos la mesa y a los 4 jugadores relacionados
                 # Usamos select_related para traerlos de una vez y 'of' para fijar sus filas
-                game = (DominoGame.objects
-                        .select_related('player1', 'player2', 'player3', 'player4')
-                        .select_for_update(
-                            of=('self', 'player1', 'player2', 'player3', 'player4'), 
-                            nowait=True
-                        )
-                        .get(id=game_id))
+                try:
+                    game = DominoGame.objects.select_for_update().get(id=game_id)
+                except DominoGame.DoesNotExist:
+                    return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+                # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                # Esto evita el error de PostgreSQL
+                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+                if player_ids:
+                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                    list(Player.objects.select_for_update().filter(id__in=player_ids))
+                
                 # IMPORTANTE: Según tu lógica, el juego solo arranca si NO está en "wt" (waiting)
                 if game.status != "wt":
                     # 3. Obtenemos los jugadores bloqueados directamente desde la instancia 'game'
@@ -352,8 +356,9 @@ class GameService:
                     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
             # Si el status es "wt", significa que aún no cumple requisitos para iniciar
             return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
-        except DatabaseError:
+        except DatabaseError as error:
             # Si alguien más está intentando iniciar el juego o uniéndose justo ahora
+            ogger.error(f"La mesa {game_id} está ocupada en este momento. Error: {error}")
             return Response({'status': 'error', "message": "La mesa está ocupada procesando otra acción."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
