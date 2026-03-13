@@ -323,7 +323,6 @@ class GameService:
                 profile.lastTimeInGame = timezone.now()
                 profile.inactive_player = False
                 profile.save(update_fields=["lastTimeInSystem","lastTimeInGame","inactive_player"])
-                logger.error(f'tiempo de respuestas: {timezone.now()- start}')
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:
                 logger.error(f'Error al mover una ficha en el game: {game_id}, Error: {error}')
