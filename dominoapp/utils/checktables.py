@@ -303,11 +303,16 @@ def automaticMove(game_id:int):
             game = (DominoGame.objects
                     .select_related('player1', 'player2', 'player3', 'player4')
                     .select_for_update(
-                        of=('self', 'player1', 'player2', 'player3', 'player4'), 
                         skip_locked=True
                     )
                     .get(id=game_id))
-
+            # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+            # Esto evita el error de PostgreSQL
+            player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+            if player_ids:
+                # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                list(Player.objects.select_for_update().filter(id__in=player_ids))
+            
             # 2. Obtenemos las instancias de jugadores BLOQUEADAS
             players_in_game = game_tools.playersCount(game)
             players = list(filter(lambda p: p.isPlaying, players_in_game))
@@ -385,10 +390,16 @@ def automaticStart(game:DominoGame):
                 game_selected = (DominoGame.objects
                                  .select_related('player1', 'player2', 'player3', 'player4')
                                  .select_for_update(
-                                     of=('self', 'player1', 'player2', 'player3', 'player4'),
-                                     skip_locked=True  # Si alguien está jugando, ignoramos este ciclo
+                                    skip_locked=True  # Si alguien está jugando, ignoramos este ciclo
                                  )
                                  .get(id=game.id))
+                # 1.2 Bloqueamos a los jugadores que YA están sentados de forma independiente
+                # Esto evita el error de PostgreSQL
+                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+                if player_ids:
+                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                    list(Player.objects.select_for_update().filter(id__in=player_ids))
+                
                 
                 # 2. Obtenemos la lista de jugadores bloqueados desde el objeto game_selected
                 # No uses la lista 'players' que viene por parámetro, ya que son objetos viejos.
