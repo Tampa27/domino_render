@@ -199,13 +199,17 @@ class GameService:
                 # 2. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
                 # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
                 try:
-                    game = (DominoGame.objects
-                            .select_related('player1', 'player2', 'player3', 'player4')
-                            .select_for_update(of=('self', 'player1', 'player2', 'player3', 'player4'))
-                            .get(id=game_id))
+                    game = DominoGame.objects.select_for_update().get(id=game_id)
                 except DominoGame.DoesNotExist:
                     return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+                # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                # Esto evita el error de PostgreSQL
+                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+                if player_ids:
+                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                    list(Player.objects.select_for_update().filter(id__in=player_ids))
+                
                 # 3. Validaciones de negocio (Ahora son seguras porque nadie puede cambiar al player ni a la mesa)
                 check_others_game = DominoGame.objects.filter(
                     Q(player1__id=player.id) |
