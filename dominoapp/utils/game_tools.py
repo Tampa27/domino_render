@@ -992,19 +992,11 @@ def shuffle(game:DominoGame, players:list[Player]):
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
             player.points = 0  
         for j in range(max):
-            if game.perPoints or game.status not in ["ready", "fg"]:
-                if game.status=="fi" and player.isPlaying == True:
-                    player.tiles+=tiles[i*max+j]
-                    if j < (max-1):
-                        player.tiles+=","
-            else:
-                player.tiles+=tiles[i*max+j]
-                if j < (max-1):
-                    player.tiles+=","
+            player.tiles+=tiles[i*max+j]
+            if j < (max-1):
+                player.tiles+=","
         player.save(update_fields=['tiles','isPlaying','points'])    
-        if player.tiles == "":
-            logger_discord.info(f"En la mesa {game.id}, no se guardaron las fichas del player {player.alias}, tiles: {player.tiles}, is_playing: {player.isPlaying}")
-
+    
 def checkCapicua(game,tile):
     if game.leftValue == game.rightValue:
         return False
