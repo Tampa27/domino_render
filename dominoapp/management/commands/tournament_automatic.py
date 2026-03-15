@@ -15,9 +15,9 @@ class Command(BaseCommand):
         tournaments = Tournament.objects.filter(active=True).prefetch_related(
             'player_list__user'           # Para notificaciones a todos los inscritos
         )
+        now = timezone.now()
         for tournament in tournaments:
-            # analizar si el numero de player es par
-            now = timezone.now()
+            # analizar si el numero de player es par            
             player_list = tournament.player_list.all()
             player_in_tournament = player_list.count()
             if (
@@ -55,7 +55,7 @@ class Command(BaseCommand):
                 tournament.save(update_fields=['notification_deadline'])
 
             diff_start = tournament.start_at - timedelta(hours=2)
-            if  diff_start < now and not tournament.notification_1:
+            if  diff_start < now and not tournament.notification_1 and int(player_in_tournament) == int(tournament.max_player):
                 for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
@@ -66,7 +66,7 @@ class Command(BaseCommand):
                 tournament.save(update_fields=['notification_1'])
             
             diff_start = tournament.start_at - timedelta(minutes=30)
-            if  diff_start < now and not tournament.notification_30:
+            if  diff_start < now and not tournament.notification_30 and int(player_in_tournament) == int(tournament.max_player):
                 for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
