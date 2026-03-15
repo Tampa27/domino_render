@@ -958,7 +958,7 @@ def isPass(tile):
     values = tile.split('|')
     return values[0] == "-1"
 
-def playersCount(game: DominoGame):
+def playersCount(game: DominoGame)-> list[Player]:
     players = []
     if game.player1 is not None:
         players.append(game.player1)
