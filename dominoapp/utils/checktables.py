@@ -30,18 +30,29 @@ def automatic_move_in_game():
                 locking_targets = ['self', 'player1', 'player2', 'player3', 'player4']
                 
                 game = (DominoGame.objects
-                        .select_for_update(of=locking_targets, skip_locked=True)
+                        .select_for_update(of=('self',), skip_locked=True)
                         .select_related(
                             'player1__user', 'player2__user', 
                             'player3__user', 'player4__user', 
                             'tournament'
                         )
-                        .filter(id=game_id)
-                        .first())
+                        .filter(id=game_id).first())
 
                 if not game:
                     # Si el juego ya está bloqueado por otro proceso, skip_locked lo saltará
                     continue
+                
+                # Bloquear a los jugadores que SÍ existen
+                # Extraemos los IDs de los jugadores que no son nulos
+                player_ids = [
+                    p.id for p in [game.player1, game.player2, game.player3, game.player4] 
+                    if p is not None
+                ]
+                
+                if player_ids:
+                    # Bloqueamos las filas de la tabla Player. 
+                    # list() fuerza a que la consulta se ejecute en este momento.
+                    list(Player.objects.select_for_update().filter(id__in=player_ids))
 
                 # 3. Mapeo seguro de jugadores (ignora Nones para evitar errores)
                 # Esta lista contiene los objetos ya bloqueados por el select_for_update
