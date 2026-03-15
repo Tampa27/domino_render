@@ -17,13 +17,13 @@ class GameService:
 
     @staticmethod
     def process_list(request, queryset):
-        user = request.user
     
         # 1. Intentamos obtener al jugador directamente para evitar .exists() + .get()
         # Usamos select_related si Player tiene relación directa con User para ahorrar un JOIN futuro
         try:
-            player = Player.objects.select_for_update().get(user__id=user.id)        
-        except:
+            player = Player.objects.select_for_update().get(user__id=request.user.id)        
+        except Exception as error:
+            logger.error(f"error al listar las mesas, Error: {error}")
             return Response({'status': 'error', "message": "No ha sido posible encontrar al jugador."}, status=status.HTTP_404_NOT_FOUND)
 
         # 2. Verificación de bloqueo más directa
