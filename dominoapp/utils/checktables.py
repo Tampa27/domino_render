@@ -398,7 +398,7 @@ def automaticStart(game:DominoGame):
                 blocked_players = game_tools.playersCount(game_selected)
                 # 3. Ejecutamos el inicio del juego
                 if len(blocked_players) < 2 or (game.perPoints and len(blocked_players) < 4):
-                    logger.error(f"Error en el reinicio automático de la mesa {game.id}, player_len: {len(blocked_players)}, error: {str(error)}")
+                    logger.error(f"Error en el reinicio automático de la mesa {game.id}, player_len: {len(blocked_players)}")
                 else:
                     game_tools.startGame1(game_selected, blocked_players)
                 

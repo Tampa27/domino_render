@@ -298,7 +298,7 @@ class GameService:
         # 1. Validación rápida fuera de la transacción (opcional, para liberar carga)
         check_game = DominoGame.objects.filter(id=game_id).exclude(tournament__isnull=False).exists()
         if not check_game:
-            return Response({"status": 'error', "message": "game not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"status": 'error', "message": "Mesa no disponible."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             with transaction.atomic():
@@ -333,7 +333,7 @@ class GameService:
                     players = game_tools.playersCount(game)
                     
                     if (game.inPairs and len(players) < 4) or len(players) < 2:
-                        return Response({"status": 'error', "message": "not enough players"}, status=status.HTTP_409_CONFLICT)
+                        return Response({"status": 'error', "message": "No hay players suficientes para jugar esta partida."}, status=status.HTTP_409_CONFLICT)
                     
                     # 6. Comenzar el juego (repartir fichas, cambiar status a 'ru')
                     # startGame1 ahora es seguro porque tiene el candado de los 4 players y la mesa
