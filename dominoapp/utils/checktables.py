@@ -227,9 +227,10 @@ def automatic_move_in_game():
         )
         now = timezone.now()
         for tournament in tournaments:            
-            player_list = tournament.player_list.all()            
+            player_list = tournament.player_list.all()
+            player_in_tournament = player_list.count()
             diff_start = tournament.start_at - timedelta(minutes=5)
-            if  diff_start < now and not tournament.notification_5:
+            if  diff_start < now and not tournament.notification_5 and int(player_in_tournament) == int(tournament.max_player):
                 for player in player_list:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
