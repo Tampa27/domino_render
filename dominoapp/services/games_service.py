@@ -21,9 +21,9 @@ class GameService:
     
         # 1. Intentamos obtener al jugador directamente para evitar .exists() + .get()
         # Usamos select_related si Player tiene relación directa con User para ahorrar un JOIN futuro
-        player = Player.objects.filter(user_id=user.id).first()
-        
-        if not player:
+        try:
+            player = Player.objects.select_for_update().get(user_id=user.id)        
+        except:
             return Response({'status': 'error', "message": "No ha sido posible encontrar al jugador."}, status=status.HTTP_404_NOT_FOUND)
 
         # 2. Verificación de bloqueo más directa
@@ -358,7 +358,7 @@ class GameService:
             return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
         except DatabaseError as error:
             # Si alguien más está intentando iniciar el juego o uniéndose justo ahora
-            ogger.error(f"La mesa {game_id} está ocupada en este momento. Error: {error}")
+            logger.error(f"La mesa {game_id} está ocupada en este momento. Error: {error}")
             return Response({'status': 'error', "message": "La mesa está ocupada procesando otra acción."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
@@ -389,7 +389,6 @@ class GameService:
                 profile.save(update_fields=["lastTimeInSystem","lastTimeInGame","inactive_player"])
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:
-                logger.error(f'Error al mover una ficha en el game: {game_id}, Error: {error}')
                 return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:        
             return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

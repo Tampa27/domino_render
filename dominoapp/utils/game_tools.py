@@ -603,12 +603,10 @@ def updatePassCoins(pos:int,game:DominoGame,players:list[Player],move_register:M
 def move1(game_id: int,player_id: str,tile:str):
     try:
         with transaction.atomic():
-            # 1. Usamos select_related para traer a los jugadores en el mismo JOIN
-            # 2. Usamos select_for_update(of=...) para bloquear las filas de esas tablas
             try:
                 game = DominoGame.objects.select_for_update().get(id=game_id)
             except DominoGame.DoesNotExist:
-                return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+                return "Mesa no encontrada."
 
             # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
             # Esto evita el error de PostgreSQL
@@ -734,6 +732,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1
+                game.board = ""
             elif (totalPlayers > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
                 game.status = "ready"
                 game.starter = -1
@@ -750,9 +749,10 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
             if totalPlayers <= 2 or game.inPairs:
                 game.status = "wt"
                 game.starter = -1
+                game.board = ""
         reorderPlayers(game,player,players,starter)                                                       
         player.save(update_fields=['points','tiles','isPlaying','earned_coins','recharged_coins'])
-        game.save(update_fields=['player1','player2','player3','player4','status','starter','winner'])    
+        game.save(update_fields=['player1','player2','player3','player4','status','starter','winner','board'])    
     return exited    
 
 def reorderPlayers(game:DominoGame, player:Player, players:list, starter:int):

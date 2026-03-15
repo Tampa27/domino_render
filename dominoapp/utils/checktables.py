@@ -53,7 +53,7 @@ def automatic_move_in_game():
                         for player in players_running:
                             diff_time = timezone.now() - player.lastTimeInGame
                             start_in_30_min = timezone.now() + timedelta(minutes=30)
-                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
+                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and timezone.now() < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                 try:
                                     with transaction.atomic():
                                         game_selected = DominoGame.objects.select_for_update(skip_locked=True).get(id=game.id)
@@ -382,7 +382,7 @@ def automaticStart(game:DominoGame):
                 # 1. Bloqueamos el juego y a los 4 jugadores potenciales vinculados
                 # Usamos select_related para que los objetos 'player' que pasemos a 
                 # startGame1 sean los mismos que están bajo el candado de la DB.
-                game_selected = DominoGame.objects.select_for_update(skip_locked=True).get(id=game.id)
+                game_selected = DominoGame.objects.select_for_update().get(id=game.id)
                 # 1.2 Bloqueamos a los jugadores que YA están sentados de forma independiente
                 # Esto evita el error de PostgreSQL
                 player_ids = [pid for pid in [game_selected.player1_id, game_selected.player2_id, game_selected.player3_id, game_selected.player4_id] if pid]
