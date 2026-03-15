@@ -50,10 +50,11 @@ def automatic_move_in_game():
                 try:
                     restargame = True
                     if game.status == 'fg':
+                        now_time = timezone.now()
+                        start_in_30_min = now_time + timedelta(minutes=30)
                         for player in players_running:
-                            diff_time = timezone.now() - player.lastTimeInGame
-                            start_in_30_min = timezone.now() + timedelta(minutes=30)
-                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and timezone.now() < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
+                            diff_time = now_time - player.lastTimeInGame                            
+                            if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                 try:
                                     with transaction.atomic():
                                         game_selected = DominoGame.objects.select_for_update(skip_locked=True).get(id=game.id)
@@ -145,9 +146,10 @@ def automatic_move_in_game():
                 except Exception as e:
                     logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
             elif (game.status == 'fg' or game.status == 'wt' or game.status == 'ready') and not game.in_tournament:
+                now_time = timezone.now()
+                start_in_30_min = now_time + timedelta(minutes=30)
                 for player in players:
-                    diff_time = timezone.now() - player.lastTimeInGame
-                    start_in_30_min = timezone.now() + timedelta(minutes=30)
+                    diff_time = now_time - player.lastTimeInGame
                     if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                         try:
                             with transaction.atomic():
@@ -223,8 +225,8 @@ def automatic_move_in_game():
             'round_in_tournament__winner_pair_list__player1__user', # Para premios
             'round_in_tournament__winner_pair_list__player2__user'
         )
-        for tournament in tournaments:
-            now = timezone.now()
+        now = timezone.now()
+        for tournament in tournaments:            
             player_list = tournament.player_list.all()            
             diff_start = tournament.start_at - timedelta(minutes=5)
             if  diff_start < now and not tournament.notification_5:
@@ -394,9 +396,11 @@ def automaticStart(game:DominoGame):
                 # 2. Obtenemos la lista de jugadores bloqueados desde el objeto game_selected
                 # No uses la lista 'players' que viene por parámetro, ya que son objetos viejos.
                 blocked_players = game_tools.playersCount(game_selected)
-            
                 # 3. Ejecutamos el inicio del juego
-                game_tools.startGame1(game_selected, blocked_players)
+                if len(blocked_players) < 2 or (game.perPoints and len(blocked_players) < 4):
+                    logger.error(f"Error en el reinicio automático de la mesa {game.id}, player_len: {len(blocked_players)}, error: {str(error)}")
+                else:
+                    game_tools.startGame1(game_selected, blocked_players)
                 
         except DominoGame.DoesNotExist:
             # Si skip_locked=True hace que no se encuentre la fila, simplemente salimos
