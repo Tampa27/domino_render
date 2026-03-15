@@ -1002,6 +1002,8 @@ def shuffle(game:DominoGame, players:list[Player]):
                 if j < (max-1):
                     player.tiles+=","
         player.save(update_fields=['tiles','isPlaying','points'])    
+        if player.tiles == "":
+            logger_discord.info(f"En la mesa {game.id}, no se guardaron las fichas del player {player.alias}, tiles: {player.tiles}, is_playing: {player.isPlaying}")
 
 def checkCapicua(game,tile):
     if game.leftValue == game.rightValue:
