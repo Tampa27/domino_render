@@ -22,7 +22,7 @@ class GameService:
         # 1. Intentamos obtener al jugador directamente para evitar .exists() + .get()
         # Usamos select_related si Player tiene relación directa con User para ahorrar un JOIN futuro
         try:
-            player = Player.objects.select_for_update().get(user_id=user.id)        
+            player = Player.objects.select_for_update().get(user__id=user.id)        
         except:
             return Response({'status': 'error', "message": "No ha sido posible encontrar al jugador."}, status=status.HTTP_404_NOT_FOUND)
 
