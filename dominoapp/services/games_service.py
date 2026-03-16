@@ -18,22 +18,22 @@ class GameService:
     @staticmethod
     def process_list(request, queryset):
     
-        # 1. Intentamos obtener al jugador directamente para evitar .exists() + .get()
-        # Usamos select_related si Player tiene relación directa con User para ahorrar un JOIN futuro
-        try:
-            with transaction.atomic():
-                player = Player.objects.select_for_update().get(user__id=request.user.id)
-                
-                # 2. Actualización masiva (update) es más rápida que .save() si no necesitas señales (signals)
-                # pero como ya tenemos la instancia, actualizamos campos específicos.
-                player.lastTimeInSystem = timezone.now()
-                player.inactive_player = False
-                player.send_delete_email = False
-                player.save(update_fields=["lastTimeInSystem", "inactive_player", "send_delete_email"])       
-        except Exception as error:
-            logger.error(f"error al listar las mesas, Error: {error}")
-            return Response({'status': 'error', "message": "No ha sido posible encontrar al jugador."}, status=status.HTTP_404_NOT_FOUND)
+        # 1. Usar select_related para traer al User de una vez si el Serializer lo necesita
+        # NO usar select_for_update aquí.
+        player = Player.objects.filter(user_id=request.user.id).first()
+        
+        if not player:
+            return Response({'status': 'error', "message": "Jugador no encontrado."}, status=404)
 
+        # 2. ACTUALIZACIÓN ASÍNCRONA O ATÓMICA SIN BLOQUEO
+        # Solo actualizamos si ha pasado un tiempo prudencial (ej. 1 minuto) 
+        # o usamos .update() directamente para evitar el overhead de .save()
+        Player.objects.filter(id=player.id).update(
+            lastTimeInSystem=timezone.now(),
+            inactive_player=False,
+            send_delete_email=False
+        )
+        
         # 3. Verificación de bloqueo más directa
         if BlockPlayer.objects.filter(player_blocked=player).exists():
             return Response({'status': 'error', "message": "Este usuario está bloqueado, contacte con soporte."}, status=status.HTTP_409_CONFLICT)
