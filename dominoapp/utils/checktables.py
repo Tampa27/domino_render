@@ -26,9 +26,7 @@ def automatic_move_in_game():
         try:
             with transaction.atomic():
                 # 2. Definir qué tablas queremos bloquear (self = DominoGame)
-                # Bloqueamos la mesa y las 4 posibles relaciones de jugadores
-                locking_targets = ['self', 'player1', 'player2', 'player3', 'player4']
-                
+                # Bloqueamos la mesa y las 4 posibles relaciones de jugadores                
                 game = (DominoGame.objects
                         .select_for_update(of=('self',), skip_locked=True)
                         .select_related(
