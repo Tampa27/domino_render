@@ -33,7 +33,7 @@ class GameService:
             inactive_player=False,
             send_delete_email=False
         )
-        
+
         # 3. Verificación de bloqueo más directa
         if BlockPlayer.objects.filter(player_blocked=player).exists():
             return Response({'status': 'error', "message": "Este usuario está bloqueado, contacte con soporte."}, status=status.HTTP_409_CONFLICT)
@@ -109,10 +109,14 @@ class GameService:
             try:
                 # Usamos select_for_update con nowait=True en un bloque atómico pequeño
                 # para intentar "marcar" al jugador. Si está bloqueado, saltamos al except.
-                with transaction.atomic():
-                    Player.objects.filter(
+                player_request = Player.objects.get(
                         user_id=request.user.id
-                    ).select_for_update(nowait=True).update(lastTimeInSystem=timezone.now())
+                    )
+                if player_request.lastTimeInSystem + timedelta(seconds = 20) < timezone.now():
+                    with transaction.atomic():
+                        Player.objects.filter(
+                            user_id=request.user.id
+                        ).select_for_update(nowait=True).update(lastTimeInSystem=timezone.now())
             except DatabaseError:
                 # Si el jugador está bloqueado (moviendo ficha), ignoramos la actualización
                 # del timestamp para esta petición de "retrieve". 
