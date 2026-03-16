@@ -54,14 +54,15 @@ class Player(models.Model):
     
     @property
     def elo_factor(self):
-        total_data = SummaryPlayer.objects.filter(player__id=self.id).aggregate(total=Sum('data_wins') + Sum('data_loss') + Sum('data_tie'))['total'] or 0
+        # total_data = SummaryPlayer.objects.filter(player__id=self.id).aggregate(total=Sum('data_wins') + Sum('data_loss') + Sum('data_tie'))['total'] or 0
         
-        if (total_data) < 100:
-            return 10  # 40
-        elif (total_data) >= 100 and self.elo < 2400:
-            return 10 # 20
-        else:
-            return 10
+        # if (total_data) < 100:
+        #     return 10  # 40
+        # elif (total_data) >= 100 and self.elo < 2400:
+        #     return 10 # 20
+        # else:
+        #     return 10
+        return 10
 
     @property
     def is_block(self):
@@ -86,24 +87,22 @@ class Player(models.Model):
                     Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
             ).order_by('-created_at').values('status')[:1])
             ).filter(latest_status_name='cp').exists()
-    
-    
+        
     @property
     def play_tournament(self):
-        tournaments_list = Tournament.objects.filter(Q(status='ready')|Q(status='ru'), player_list=self)
-        if tournaments_list.exists():
-            for tournament in tournaments_list:
-                round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
-                
-                if round.winner_pair_list.filter(Q(player1__id = self.id)| Q(player2__id=self.id)).exists():
+        tournament = Tournament.objects.filter(Q(status='ready')|Q(status='ru'), player_list=self).first()
+        if tournament:        
+            round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
+            
+            if round.winner_pair_list.filter(Q(player1__id = self.id)| Q(player2__id=self.id)).exists():
+                return True
+            elif round.game_list.filter(
+                    Q(player1__id=self.id)|
+                    Q(player2__id=self.id)|
+                    Q(player3__id=self.id)|
+                    Q(player4__id=self.id)
+                ).exists():
                     return True
-                elif round.game_list.filter(
-                        Q(player1__id=self.id)|
-                        Q(player2__id=self.id)|
-                        Q(player3__id=self.id)|
-                        Q(player4__id=self.id)
-                    ).exists():
-                        return True
         return False
     
     @property
@@ -324,9 +323,9 @@ class DominoGame(models.Model):
     tournament = models.ForeignKey(Tournament, related_name="game_in_tournament", on_delete=models.SET_NULL, null=True, blank=True)    
         
     def save(self, *args, **kwargs):
-        if not self.table_no:            
+        if not self.table_no:
             numbers = DominoGame.objects.all().order_by('table_no').values_list('table_no',flat=True)
-            print(numbers)
+            
             no = 1
             for number in numbers:
                 if no != int(number):
