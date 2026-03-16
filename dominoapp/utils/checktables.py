@@ -52,7 +52,11 @@ def automatic_move_in_game():
                 if player_ids:
                     # Bloqueamos las filas de la tabla Player. 
                     # list() fuerza a que la consulta se ejecute en este momento.
-                    list(Player.objects.select_for_update().filter(id__in=player_ids))
+                   locked_players =  list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+
+                   if len(locked_players) < len(player_ids):
+                        # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                        raise Exception("No se pudieron bloquear a todos los jugadores")
 
                 # 3. Mapeo seguro de jugadores (ignora Nones para evitar errores)
                 # Esta lista contiene los objetos ya bloqueados por el select_for_update
