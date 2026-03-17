@@ -28,11 +28,12 @@ class GameService:
         # 2. ACTUALIZACIÓN ASÍNCRONA O ATÓMICA SIN BLOQUEO
         # Solo actualizamos si ha pasado un tiempo prudencial (ej. 1 minuto) 
         # o usamos .update() directamente para evitar el overhead de .save()
-        Player.objects.filter(id=player.id).update(
-            lastTimeInSystem=timezone.now(),
-            inactive_player=False,
-            send_delete_email=False
-        )
+        if player.lastTimeInSystem + timedelta(seconds = 20) < timezone.now():
+            Player.objects.filter(id=player.id).update(
+                lastTimeInSystem=timezone.now(),
+                inactive_player=False,
+                send_delete_email=False
+            )
 
         # 3. Verificación de bloqueo más directa
         if BlockPlayer.objects.filter(player_blocked=player).exists():
