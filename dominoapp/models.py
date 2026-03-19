@@ -115,6 +115,13 @@ class Player(models.Model):
     
     class Meta:
         ordering = ['alias']
+
+        indexes = [
+            # Optimiza la búsqueda de jugadores que no están en partida para notificaciones
+            models.Index(fields=['isPlaying'], name='idx_player_is_playing'),
+            # Optimiza la limpieza de jugadores inactivos: lastTimeInSystem
+            models.Index(fields=['lastTimeInSystem'], name='idx_player_last_system'),
+        ]
     
     def save(self, *args, **kwargs):
         if self.elo<0:
@@ -273,7 +280,16 @@ class Tournament(models.Model):
         return super().save(*args, **kwargs)
     
     class Meta:
-        ordering = ["-deadline"]    
+        ordering = ["-deadline"] 
+
+        indexes = [
+            # Optimiza: Tournament.objects.filter(active=True)
+            models.Index(fields=['active'], name='idx_tournament_active'),
+            # Optimiza: .filter(active=True, status='ready') y .filter(active=True, status='ru')
+            models.Index(fields=['active', 'status'], name='idx_tourn_active_status'),
+            # Optimiza la comparación de tiempos: start_at < now
+            models.Index(fields=['start_at'], name='idx_tournament_start_at'),
+        ]   
     
 class DominoGame(models.Model):
     Winner_Player_1 = 0
@@ -342,6 +358,21 @@ class DominoGame(models.Model):
         if self.tournament is not None:
             return True
         return False
+    
+    class Meta:
+        indexes = [
+            # Optimiza DominoGame.objects.filter(player1__isnull=False)
+            models.Index(fields=['player1'], name='idx_game_player1_notnull'),
+            
+            # Optimiza las búsquedas por estado (ru, fg, wt, ready)
+            models.Index(fields=['status'], name='idx_game_status'),
+            
+            # Índice compuesto para el worker: busca juegos activos por ID
+            models.Index(fields=['status', 'id'], name='idx_game_status_id'),
+            
+            # Si filtras mucho por torneo
+            models.Index(fields=['tournament'], name='idx_game_tournament'),
+        ]
    
 class Round(models.Model):
     tournament = models.ForeignKey(Tournament, related_name="round_in_tournament", on_delete=models.CASCADE)
@@ -397,6 +428,12 @@ class Round(models.Model):
         else:
             return 'fg'
 
+    class Meta:
+        indexes = [
+            # Optimiza: Round.objects.filter(tournament__id=tournament.id).order_by("-round_no")
+            models.Index(fields=['tournament', '-round_no'], name='idx_round_tourn_no'),
+        ]
+    
 class Match_Game(models.Model):
     game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
     round = models.ForeignKey(Round, related_name="match_round", on_delete=models.CASCADE, null=True, blank=True)
