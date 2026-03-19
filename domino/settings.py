@@ -260,9 +260,20 @@ SITE_ID = 1
 
 CELERY_BROKER_URL = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0')
 CELERY_BEAT_SCHEDULE = {
+    # Los movimientos deben ser rápidos para que el usuario no espere
     'ejecutar_movimiento_automatico': {
-        'task': 'dominoapp.tasks.automatic_move',
-        'schedule': 7.0,
+        'task': 'task_movimientos_juego',
+        'schedule': 7.0, 
+    },
+    # La lógica de torneos (rondas, premios) puede correr cada 30 segundos
+    'gestionar_torneos': {
+        'task': 'task_logica_torneos',
+        'schedule': 30.0,
+    },
+    # La limpieza de jugadores inactivos puede ser cada minuto
+    'limpiar_jugadores_inactivos': {
+        'task': 'task_limpieza_jugadores',
+        'schedule': 60.0,
     },
 }
 
