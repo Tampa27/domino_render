@@ -277,6 +277,17 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+## Configurar Redis para usar en Cache
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0'), # Cambia por tu URL de Redis en producción
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
 try:
     firebase_config = os.environ.get('FCM_SERVER_KEY')
     if firebase_config is not None:
