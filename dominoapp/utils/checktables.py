@@ -204,7 +204,7 @@ def automatic_exit_player():
                             'player1__user', 'player2__user', 
                             'player3__user', 'player4__user', 
                             'tournament'
-                        ).filter(player1__isnull=False, status__in = ['fg', 'wt', 'ready']).exclude(tournament__isnull = True)
+                        ).filter(player1__isnull=False, status__in = ['fg', 'wt', 'ready']).exclude(tournament__isnull = False)
         now_time = timezone.now()
         start_in_30_min = now_time + timedelta(minutes=30)
         for game in games:
