@@ -273,7 +273,7 @@ CELERY_BEAT_SCHEDULE = {
     # La limpieza de jugadores inactivos puede ser cada minuto
     'limpiar_jugadores_inactivos': {
         'task': 'task_limpieza_jugadores',
-        'schedule': 60.0,
+        'schedule': 7.0,
     },
 }
 
