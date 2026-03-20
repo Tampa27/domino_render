@@ -8,6 +8,7 @@ from django.db import transaction
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
+from dominoapp.utils.cache_tools import update_player_presence_cache, get_player_presence
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 import logging
 logger = logging.getLogger('django')
@@ -28,12 +29,16 @@ class GameService:
         # 2. ACTUALIZACIÓN ASÍNCRONA O ATÓMICA SIN BLOQUEO
         # Solo actualizamos si ha pasado un tiempo prudencial (ej. 1 minuto) 
         # o usamos .update() directamente para evitar el overhead de .save()
-        if player.lastTimeInSystem + timedelta(seconds = 20) < timezone.now():
+        presence = get_player_presence(player)
+        if presence['lastTimeInSystem'] + timedelta(seconds = 20) < timezone.now():
             Player.objects.filter(id=player.id).update(
-                lastTimeInSystem=timezone.now(),
                 inactive_player=False,
                 send_delete_email=False
             )
+            data={
+                'lastTimeInSystem': timezone.now()
+            }
+            update_player_presence_cache(player.id, data)
 
         # 3. Verificación de bloqueo más directa
         if BlockPlayer.objects.filter(player_blocked=player).exists():
@@ -113,11 +118,10 @@ class GameService:
                 player_request = Player.objects.get(
                         user_id=request.user.id
                     )
-                if player_request.lastTimeInSystem + timedelta(seconds = 20) < timezone.now():
-                    with transaction.atomic():
-                        Player.objects.filter(
-                            user_id=request.user.id
-                        ).select_for_update(nowait=True).update(lastTimeInSystem=timezone.now())
+                data = {
+                    'lastTimeInSystem': timezone.now()
+                }
+                update_player_presence_cache(player_request, data)
             except DatabaseError:
                 # Si el jugador está bloqueado (moviendo ficha), ignoramos la actualización
                 # del timestamp para esta petición de "retrieve". 
@@ -158,10 +162,14 @@ class GameService:
             return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
         
         player1.tiles = ""
-        player1.lastTimeInSystem = timezone.now()
-        player1.lastTimeInGame = timezone.now()
         player1.inactive_player = False
-        player1.save(update_fields=["tiles", "lastTimeInSystem", "lastTimeInGame", "inactive_player"])
+        player1.save(update_fields=["tiles", "inactive_player"])
+        now = timezone.now()
+        data={
+                'lastTimeInSystem': now,
+                'lastTimeInGame' : now
+            }
+        update_player_presence_cache(player1.id, data)
 
         data = request.data.copy()
         data["lastTime1"] = timezone.now()
@@ -196,11 +204,16 @@ class GameService:
                 player = Player.objects.select_for_update().get(user__id=request.user.id)
                 
                 # Actualizamos sus datos de presencia
-                player.lastTimeInSystem = timezone.now()
-                player.lastTimeInGame = timezone.now()
                 player.inactive_player = False
                 player.send_delete_email = False
-                player.save(update_fields=["lastTimeInSystem", "lastTimeInGame", "inactive_player", "send_delete_email"])
+                player.save(update_fields=["inactive_player", "send_delete_email"])
+                now = timezone.now()
+                data={
+                        'lastTimeInSystem': now,
+                        'lastTimeInGame' : now
+                    }
+                update_player_presence_cache(player.id, data)
+
 
                 # 2. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
                 # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
@@ -389,10 +402,16 @@ class GameService:
             error = game_tools.move1(game_id,player.id,tile)
             if error is None:
                 profile = Player.objects.get(alias = player.alias)
-                profile.lastTimeInSystem = timezone.now()
-                profile.lastTimeInGame = timezone.now()
+                
                 profile.inactive_player = False
-                profile.save(update_fields=["lastTimeInSystem","lastTimeInGame","inactive_player"])
+                profile.save(update_fields=["inactive_player"])
+                now = timezone.now()
+                data={
+                        'lastTimeInSystem': now,
+                        'lastTimeInGame' : now
+                    }
+                update_player_presence_cache(player.id, data)
+
                 return Response({'status': 'success'}, status=status.HTTP_200_OK)
             else:
                 return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)

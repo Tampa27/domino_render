@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.timezone import timedelta
 from django.db import connection, transaction
 from dominoapp.utils.constants import ApiConstants
+from dominoapp.utils.cache_tools import get_player_presence
 from dominoapp.services.tournament_service import TournamentService
 import logging
 import pytz
@@ -82,7 +83,8 @@ def automatic_move_in_game():
                                 now_time = timezone.now()
                                 start_in_30_min = now_time + timedelta(minutes=30)
                                 for player in players_running:
-                                    diff_time = now_time - player.lastTimeInGame                            
+                                    presence = get_player_presence(player)
+                                    diff_time = now_time - presence['lastTimeInGame']
                                     if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                         try:
                                             game_tools.exitPlayer(game,player,active_players,len(active_players))
@@ -211,7 +213,8 @@ def automatic_exit_player():
             try:
                 active_players = game_tools.playersCount(game)
                 for player in active_players:
-                    diff_time = now_time - player.lastTimeInGame
+                    presence = get_player_presence(player)
+                    diff_time = now_time - presence['lastTimeInGame']
                     if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                         try:
                             game_tools.exitPlayer(game,player,active_players,len(active_players))
@@ -331,8 +334,9 @@ def automaticMove(game: DominoGame, players:list[Player]):
         
         MOVE_TILE_TIME = game.moveTime
         time_diff = timezone.now() - lastMove(game)
-        player_diff_time = timezone.now() - player_w.lastTimeInSystem
-        
+        presence = get_player_presence(player_w)
+        player_diff_time = timezone.now() - presence['lastTimeInSystem']
+
         # Lógica de selección de ficha...
         if len(game.board) == 0:
             tile = game_tools.takeRandomTile(player_w.tiles)

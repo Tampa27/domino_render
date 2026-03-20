@@ -751,7 +751,10 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
                 game.starter = -1
                 game.board = ""
         reorderPlayers(game,player,players,starter)                                                       
-        player.save(update_fields=['points','tiles','isPlaying','earned_coins','recharged_coins'])
+        now = timezone.now()
+        player.lastTimeInGame = now
+        player.lastTimeInSystem = now
+        player.save(update_fields=['points','tiles','isPlaying','earned_coins','recharged_coins','lastTimeInGame','lastTimeInSystem'])
         game.save(update_fields=['player1','player2','player3','player4','status','starter','winner','board'])    
     return exited    
 
