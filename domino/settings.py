@@ -265,15 +265,20 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'task_movimientos_juego',
         'schedule': 7.0, 
     },
+    # Los reinicios deben ser rápidos para que el usuario no espere
+    'ejecutar_reinicio_automatico': {
+        'task': 'task_reiniciar_juego',
+        'schedule': 10.0, 
+    },
     # La lógica de torneos (rondas, premios) puede correr cada 30 segundos
     'gestionar_torneos': {
         'task': 'task_logica_torneos',
         'schedule': 30.0,
     },
-    # La limpieza de jugadores inactivos puede ser cada minuto
+    # La limpieza de jugadores inactivos tiene que revisarse rapido para evitar que se acumulen, pero no es tan urgente como los movimientos o reinicios, por eso cada 9 segundos.
     'limpiar_jugadores_inactivos': {
         'task': 'task_limpieza_jugadores',
-        'schedule': 7.0,
+        'schedule': 9.0,
     },
 }
 

@@ -21,161 +21,155 @@ def automatic_move_in_game():
     try:
         logger_api.info(f"Automatic Move Tile")
         # 1. Obtener IDs de juegos candidatos
-        games_id = DominoGame.objects.filter(player1__isnull=False).values_list('id', flat=True)
-        for game_id in games_id:
+        games = DominoGame.objects.select_related(
+                            'player1__user', 'player2__user', 
+                            'player3__user', 'player4__user'
+                            ).filter(
+                                player1__isnull=False, 
+                                player2__isnull=False,
+                                status = 'ru'
+                                )
+        for game in games:
+            try:
+                is_pair_start = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
+                if is_pair_start:
+                    logger_api.info('Esperando al salidor')
+                    try:
+                        automaticCoupleStarter(game)
+                    except Exception as e:
+                        logger.critical(f'Ocurrio una excepcion escogiendo el salidor en el juego {str(game.id)}, error: {str(e)}')        
+                else:
+                    try:
+                        automaticMove(game)
+                    except Exception as e:
+                        logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)},\n Data:(player_index: {game.next_player}),\n error: {str(e)}')
+                    
+            except Exception as error:
+                logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id}, error: {str(error)}')
+    except Exception as error:
+            logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
+
+
+def automatic_restar_game():
+    try:
+        logger_api.info(f"Automatic Restar Game")
+        # 1. Obtener IDs de juegos candidatos
+        games = DominoGame.objects.select_related(
+                            'player1__user', 'player2__user', 
+                            'player3__user', 'player4__user', 
+                            'tournament'
+                            ).filter(
+                                player1__isnull=False, 
+                                player2__isnull=False,
+                                status__in = ['fg', 'fi']
+                                )
+        for game in games:
             # Lista para recolectar notificaciones y enviarlas fuera del bloqueo
             notifications_queue = []
             try:
-                with transaction.atomic():
-                    # 2. Definir qué tablas queremos bloquear (self = DominoGame)
-                    # Bloqueamos la mesa y las 4 posibles relaciones de jugadores                
-                    game = (DominoGame.objects
-                            .select_for_update(of=('self',), skip_locked=True)
-                            .select_related(
-                                'player1__user', 'player2__user', 
-                                'player3__user', 'player4__user', 
-                                'tournament'
-                            )
-                            .filter(id=game_id).first())
-
-                    if not game:
-                        # Si el juego ya está bloqueado por otro proceso, skip_locked lo saltará
-                        continue
-                    
-                    # Bloquear a los jugadores que SÍ existen
-                    # Extraemos los IDs de los jugadores que no son nulos
-                    player_ids = [
-                        p.id for p in [game.player1, game.player2, game.player3, game.player4] 
-                        if p is not None
-                    ]
-                    
-                    if player_ids:
-                        # Bloqueamos las filas de la tabla Player. 
-                        # list() fuerza a que la consulta se ejecute en este momento.
-                        locked_players =  list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
-
-                        if len(locked_players) < len(player_ids):
-                            # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                            raise Exception("No se pudieron bloquear a todos los jugadores")
-
-                    # 3. Mapeo seguro de jugadores (ignora Nones para evitar errores)
-                    # Esta lista contiene los objetos ya bloqueados por el select_for_update
-                    active_players = game_tools.playersCount(game)
-                    players_running = [p for p in active_players if p.isPlaying]
-                    
-                    if game.status == 'ru':
-                        is_pair_start = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
-                        if is_pair_start:
-                            logger_api.info('Esperando al salidor')
-                            try:
-                                automaticCoupleStarter(game)
-                            except Exception as e:
-                                logger.critical(f'Ocurrio una excepcion escogiendo el salidor en el juego {str(game.id)}, error: {str(e)}')        
-                        else:
-                            try:
-                                automaticMove(game, players_running)
-                            except Exception as e:
-                                logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)},\n Data:(player_index: {game.next_player}, playes_in: {len(players_running)} ),\n error: {str(e)}')
-                    elif (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
-                        try:
-                            restargame = True
-                            if game.status == 'fg':
-                                now_time = timezone.now()
-                                start_in_30_min = now_time + timedelta(minutes=30)
-                                for player in players_running:
-                                    presence = get_player_presence(player)
-                                    diff_time = now_time - presence['lastTimeInGame']
-                                    if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
-                                        try:
-                                            game_tools.exitPlayer(game,player,active_players,len(active_players))
-                                        except Exception as e:
-                                            logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
-                                active_players = game_tools.playersCount(game)
-                                if len(active_players)<2:
+                if (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
+                    try:
+                        restargame = True
+                        active_players = game_tools.playersCount(game)
+                        players_running = [p for p in active_players if p.isPlaying]
+    
+                        if game.status == 'fg':
+                            now_time = timezone.now()
+                            start_in_30_min = now_time + timedelta(minutes=30)
+                            for player in players_running:
+                                presence = get_player_presence(player)
+                                diff_time = now_time - presence['lastTimeInGame']
+                                if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
+                                    try:
+                                        game_tools.exitPlayer(game,player,active_players,len(active_players))
+                                    except Exception as e:
+                                        logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
+                            active_players = game_tools.playersCount(game)
+                            if len(active_players)<2:
+                                restargame = False
+                            if game.in_tournament:
+                                match = Match_Game.objects.get(game__id = game.id)
+                                if match.is_final_match:
                                     restargame = False
-                                if game.in_tournament:
-                                    match = Match_Game.objects.get(game__id = game.id)
-                                    if match.is_final_match:
-                                        restargame = False
-                                        round = Round.objects.get(tournament__id=game.tournament.id, game_list = game)
-                                        if match.winner_pair_1:                                    
-                                            round.winner_pair_list.add(match.pair_list.first())
-                                            if not round.end_round:
-                                                notifications_queue.append({
-                                                    'user': match.pair_list.first().player1.user,
-                                                    'title': "✅ Partido Completado",
-                                                    'body': "Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
-                                                })
-                                                
-                                                notifications_queue.append({
-                                                    'user': match.pair_list.first().player2.user,
-                                                    'title': "✅ Partido Completado",
-                                                    'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
-                                                })
+                                    round = Round.objects.get(tournament__id=game.tournament.id, game_list = game)
+                                    if match.winner_pair_1:                                    
+                                        round.winner_pair_list.add(match.pair_list.first())
+                                        if not round.end_round:
+                                            notifications_queue.append({
+                                                'user': match.pair_list.first().player1.user,
+                                                'title': "✅ Partido Completado",
+                                                'body': "Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                            })
+                                            
+                                            notifications_queue.append({
+                                                'user': match.pair_list.first().player2.user,
+                                                'title': "✅ Partido Completado",
+                                                'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                            })
+                                    
+                                    if match.winner_pair_2:
+                                        round.winner_pair_list.add(match.pair_list.last())
+                                        if not round.final_round:
+                                            notifications_queue.append({
+                                                'user': match.pair_list.last().player1.user,
+                                                'title': "✅ Partido Completado",
+                                                'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                            })
+                                            notifications_queue.append({
+                                                'user': match.pair_list.last().player2.user,
+                                                'title': "✅ Partido Completado",
+                                                'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                            })
                                         
-                                        if match.winner_pair_2:
-                                            round.winner_pair_list.add(match.pair_list.last())
-                                            if not round.final_round:
+                                    for player in active_players:
+                                        game_tools.exitPlayer(game,player,active_players,len(active_players))
+                                        active_players = game_tools.playersCount(game)
+                                    
+                                    match.end_at = timezone.now()
+                                    match.save(update_fields=["end_at"])
+                                    
+                                    if round.end_round:
+                                        
+                                        round.end_at = timezone.now()
+                                        round.save(update_fields=["end_at"])
+                                        
+                                        if round.final_round:
+                                            game.tournament.active = False
+                                            game.tournament.end_at = timezone.now()
+                                            game.tournament.status = 'tf'
+                                            game.tournament.save(update_fields=['active','end_at', 'status'])
+                                            
+                                            winner_pair = round.winner_pair_list.first()
+                                            ###### Notificar a los jugadores del torneo
+                                            for player in game.tournament.player_list.all():
                                                 notifications_queue.append({
-                                                    'user': match.pair_list.last().player1.user,
-                                                    'title': "✅ Partido Completado",
-                                                    'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                                    'user': player.user,
+                                                    'title': "🏆 Torneo Finalizado",
+                                                    'body':"El torneo ha finalizado. ¡Felicidades a los ganadores de este torneo!"
+                                                })
+                                                                                    
+                                            ##### asignar premios a los ganadores ############
+                                            second_pair = round.pair_list.exclude(id=winner_pair.id).first()
+                                            TournamentService.process_pay_winners(game.tournament,winner_pair, second_pair)
+                                            ##################################################
+                                        else:
+                                            for pair in round.winner_pair_list.all():
+                                                notifications_queue.append({
+                                                    'user': pair.player1.user,
+                                                    'title': "⏰ Recordatorio de inicio",
+                                                    'body':"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
                                                 })
                                                 notifications_queue.append({
-                                                    'user': match.pair_list.last().player2.user,
-                                                    'title': "✅ Partido Completado",
-                                                    'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                                    'user': pair.player2.user,
+                                                    'title': "⏰ Recordatorio de inicio",
+                                                    'body':f"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
                                                 })
                                             
-                                        for player in active_players:
-                                            game_tools.exitPlayer(game,player,active_players,len(active_players))
-                                            active_players = game_tools.playersCount(game)
-                                        
-                                        match.end_at = timezone.now()
-                                        match.save(update_fields=["end_at"])
-                                        
-                                        if round.end_round:
-                                            
-                                            round.end_at = timezone.now()
-                                            round.save(update_fields=["end_at"])
-                                            
-                                            if round.final_round:
-                                                game.tournament.active = False
-                                                game.tournament.end_at = timezone.now()
-                                                game.tournament.status = 'tf'
-                                                game.tournament.save(update_fields=['active','end_at', 'status'])
-                                                
-                                                winner_pair = round.winner_pair_list.first()
-                                                ###### Notificar a los jugadores del torneo
-                                                for player in game.tournament.player_list.all():
-                                                    notifications_queue.append({
-                                                        'user': player.user,
-                                                        'title': "🏆 Torneo Finalizado",
-                                                        'body':"El torneo ha finalizado. ¡Felicidades a los ganadores de este torneo!"
-                                                    })
-                                                                                        
-                                                ##### asignar premios a los ganadores ############
-                                                second_pair = round.pair_list.exclude(id=winner_pair.id).first()
-                                                TournamentService.process_pay_winners(game.tournament,winner_pair, second_pair)
-                                                ##################################################
-                                            else:
-                                                for pair in round.winner_pair_list.all():
-                                                    notifications_queue.append({
-                                                        'user': pair.player1.user,
-                                                        'title': "⏰ Recordatorio de inicio",
-                                                        'body':"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
-                                                    })
-                                                    notifications_queue.append({
-                                                        'user': pair.player2.user,
-                                                        'title': "⏰ Recordatorio de inicio",
-                                                        'body':f"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
-                                                    })
-                                                
-                            if restargame:
-                                automaticStart(game, active_players)
-                        except Exception as e:
-                            logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
-                    
+                        if restargame:
+                            automaticStart(game, active_players)
+                    except Exception as e:
+                        logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
+                
                 # --- FUERA DEL ATOMIC ---
                 # Solo se ejecuta si la transacción hizo commit sin errores
                 for msg in notifications_queue:
@@ -189,13 +183,9 @@ def automatic_move_in_game():
                         logger.error(f"Error enviando FCM diferido: {str(e)}")
 
             except Exception as error:
-                logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game_id}, error: {str(error)}')
+                logger.critical(f'Ocurrio una excepcion dentro del restar automatico de la mesa {game.id}, error: {str(error)}')
     except Exception as error:
-            logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
-                 
-    finally:
-        import gc
-        gc.collect()  # Fuerza liberación de memoria.
+            logger.critical(f'Ocurrio una excepcion dentro del restar automatico de las mesas, error: {str(error)}')
 
 def automatic_exit_player():
     """Expulsar de las mesas los players que esten inactivos."""
@@ -204,8 +194,7 @@ def automatic_exit_player():
         # 1. Obtener IDs de juegos candidatos
         games = DominoGame.objects.select_related(
                             'player1__user', 'player2__user', 
-                            'player3__user', 'player4__user', 
-                            'tournament'
+                            'player3__user', 'player4__user'
                         ).filter(player1__isnull=False, status__in = ['fg', 'wt', 'ready']).exclude(tournament__isnull = False)
         now_time = timezone.now()
         start_in_30_min = now_time + timedelta(minutes=30)
@@ -237,10 +226,6 @@ def automatic_exit_player():
         
     except Exception as error:
         logger.critical(f'Ocurrio una excepcion dentro del automatico de expulsar los players inactivos, error: {str(error)}')         
-            
-    finally:
-        import gc
-        gc.collect()  # Fuerza liberación de memoria.
 
 def automatic_tournament():
     try:
@@ -302,10 +287,6 @@ def automatic_tournament():
             
     except Exception as error:
         logger.critical(f'Ocurrio una excepcion dentro del automatico de los torneos, error: {str(error)}')         
-            
-    finally:
-        import gc
-        gc.collect()  # Fuerza liberación de memoria.
 
 ##################################################
 
@@ -322,54 +303,132 @@ def automaticCoupleStarter(game:DominoGame):
     except Exception as e:
         logger.critical(f"Error en el inicio del compañero automatico en la mesa {game.id}, error: {str(e)}")
 
-def automaticMove(game: DominoGame, players:list[Player]):
-    try:        
-        # Identificamos al jugador que le toca mover (ahora es una instancia segura)
-        next_idx = game.next_player
-        next_idx = game.next_player
-        if next_idx >= len(players):
-            logger.error(f"Índice {next_idx} fuera de rango para mesa {game.id}")
-            return
-        player_w = players[next_idx]
-        
+def automaticMove(game: DominoGame):
+    try:
         MOVE_TILE_TIME = game.moveTime
         time_diff = timezone.now() - lastMove(game)
-        presence = get_player_presence(player_w)
-        player_diff_time = timezone.now() - presence['lastTimeInSystem']
-
-        # Lógica de selección de ficha...
         if len(game.board) == 0:
-            tile = game_tools.takeRandomTile(player_w.tiles)
             if time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT):
-                try:    
-                    # Al pasar 'player_w' (que viene de select_related), movement()
-                    # actualizará la fila bloqueada correctamente.
-                    error = game_tools.movement(game, player_w, players, tile, automatic=True)
-                    if error is not None:
-                        logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
-                    
-                    game_tools.updateLastPlayerTime(game, player_w.alias)  
+                try:
+                    with transaction.atomic():
+                        try:
+                            game_block = (DominoGame.objects
+                            .select_for_update(of=('self',), skip_locked=True)
+                            .select_related(
+                                'player1__user', 'player2__user', 
+                                'player3__user', 'player4__user'
+                            ).get(id=game.id))
+                        except Exception as error:
+                            raise f"No se pudo bloquear la mesa {game.id} para realizar la salida. Error: {error}"
+
+                        # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                        # Esto evita el error de PostgreSQL
+                        player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                        if player_ids:
+                            # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                            locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                            
+                            if len(locked_players) < len(player_ids):
+                                # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                                raise "No se pudieron bloquear a todos los jugadores"
+
+                        next_idx = game_block.next_player
+                        active_players = game_tools.playersCount(game_block)
+                        players = [p for p in active_players if p.isPlaying]
+
+                        if next_idx >= len(players):
+                            raise f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos."
+                        
+                        # Identificamos al jugador que le toca mover (ahora es una instancia segura)
+                        player_w = players[next_idx]
+
+                        tile = game_tools.takeRandomTile(player_w.tiles)
+
+                        error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
+                        if error is not None:
+                            raise f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game_block.id} al intentar realizar la salida. Error: {error}"
+                        
+                        game_tools.updateLastPlayerTime(game_block, player_w.alias)  
                 except Exception as e:
-                    logger.critical(f"Error crítico en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")            
+                    logger.critical(f"Error crítico en el movimiento automático en la mesa {game.id} al intentar realizar la salida, error: {str(e)}")            
         else:
+            next_idx = game.next_player
+            active_players = game_tools.playersCount(game)
+            players = [p for p in active_players if p.isPlaying]
+
+            # Identificamos al jugador que le toca mover
+            player_w = players[next_idx]
+            presence = get_player_presence(player_w)
+            player_diff_time = timezone.now() - presence['lastTimeInSystem']
+
             tile = game_tools.takeRandomCorrectTile(player_w.tiles, game.leftValue, game.rightValue)
             if game_tools.isPass(tile):
                 if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
                     try:
-                        error = game_tools.movement(game, player_w, players, tile, automatic=True)
-                        if error is not None:
-                            logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
-                        game_tools.updateLastPlayerTime(game, player_w.alias)  
+                        with transaction.atomic():
+                            try:
+                                game_block = (DominoGame.objects
+                                .select_for_update(of=('self',), skip_locked=True)
+                                .select_related(
+                                    'player1__user', 'player2__user', 
+                                    'player3__user', 'player4__user'
+                                ).get(id=game.id))
+                            except Exception as error:
+                                raise f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}"
+
+                            # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                            # Esto evita el error de PostgreSQL
+                            player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                            if player_ids:
+                                # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                                locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                                
+                                if len(locked_players) < len(player_ids):
+                                    # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                                    raise "No se pudieron bloquear a todos los jugadores"
+
+                            if next_idx >= len(players):
+                                raise f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos."
+
+                            error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
+                            if error is not None:
+                                raise f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}"
+                            game_tools.updateLastPlayerTime(game, player_w.alias)  
                     except Exception as e:
                         logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
             elif time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
                 try:
-                    error = game_tools.movement(game, player_w, players, tile, automatic=True)
-                    if error is not None:
-                        logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
-                    game_tools.updateLastPlayerTime(game, player_w.alias)  
+                    with transaction.atomic():
+                        try:
+                            game_block = (DominoGame.objects
+                            .select_for_update(of=('self',), skip_locked=True)
+                            .select_related(
+                                'player1__user', 'player2__user', 
+                                'player3__user', 'player4__user'
+                            ).get(id=game.id))
+                        except Exception as error:
+                            raise f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}"
+
+                        # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                        # Esto evita el error de PostgreSQL
+                        player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                        if player_ids:
+                            # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                            locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                            
+                            if len(locked_players) < len(player_ids):
+                                # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                                raise "No se pudieron bloquear a todos los jugadores"
+
+                        if next_idx >= len(players):
+                            raise f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos."
+
+                        error = game_tools.movement(game, player_w, players, tile, automatic=True)
+                        if error is not None:
+                            raise f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}"
+                        game_tools.updateLastPlayerTime(game, player_w.alias)  
                 except Exception as e:
-                    logger.error(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
+                    logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
     except Exception as e:
         logger.critical(f"Error en el movimiento automático de los jugadores en la mesa {game.id}, error: {str(e)}")
 
