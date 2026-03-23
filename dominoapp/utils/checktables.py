@@ -319,7 +319,7 @@ def automaticMove(game: DominoGame):
                                 'player3__user', 'player4__user'
                             ).get(id=game.id))
                         except Exception as error:
-                            raise f"No se pudo bloquear la mesa {game.id} para realizar la salida. Error: {error}"
+                            raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar la salida. Error: {error}")
 
                         # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
                         # Esto evita el error de PostgreSQL
@@ -330,14 +330,14 @@ def automaticMove(game: DominoGame):
                             
                             if len(locked_players) < len(player_ids):
                                 # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                raise "No se pudieron bloquear a todos los jugadores"
+                                raise Exception("No se pudieron bloquear a todos los jugadores")
 
                         next_idx = game_block.next_player
                         active_players = game_tools.playersCount(game_block)
                         players = [p for p in active_players if p.isPlaying]
 
                         if next_idx >= len(players):
-                            raise f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos."
+                            raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
                         
                         # Identificamos al jugador que le toca mover (ahora es una instancia segura)
                         player_w = players[next_idx]
@@ -346,7 +346,7 @@ def automaticMove(game: DominoGame):
 
                         error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
                         if error is not None:
-                            raise f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game_block.id} al intentar realizar la salida. Error: {error}"
+                            raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game_block.id} al intentar realizar la salida. Error: {error}")
                         
                         game_tools.updateLastPlayerTime(game_block, player_w.alias)  
                 except Exception as e:
@@ -374,7 +374,7 @@ def automaticMove(game: DominoGame):
                                     'player3__user', 'player4__user'
                                 ).get(id=game.id))
                             except Exception as error:
-                                raise f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}"
+                                raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
 
                             # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
                             # Esto evita el error de PostgreSQL
@@ -418,14 +418,14 @@ def automaticMove(game: DominoGame):
                             
                             if len(locked_players) < len(player_ids):
                                 # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                raise "No se pudieron bloquear a todos los jugadores"
+                                raise Exception("No se pudieron bloquear a todos los jugadores")
 
                         if next_idx >= len(players):
-                            raise f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos."
+                            raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
 
                         error = game_tools.movement(game, player_w, players, tile, automatic=True)
                         if error is not None:
-                            raise f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}"
+                            raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
                         game_tools.updateLastPlayerTime(game, player_w.alias)  
                 except Exception as e:
                     logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
