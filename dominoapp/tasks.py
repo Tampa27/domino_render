@@ -1,12 +1,18 @@
 from celery import shared_task
 import logging
-from dominoapp.utils.checktables import automatic_move_in_game, automatic_tournament, automatic_exit_player
+from dominoapp.utils.checktables import automatic_move_in_game, automatic_restar_game, automatic_tournament, automatic_exit_player
 logger = logging.getLogger(__name__)
 
 @shared_task(name="task_movimientos_juego")
 def task_movimientos_juego():
-    """Ejecuta solo la lógica de movimientos y jugadas automáticas."""
+    """Ejecuta solo la lógica de movimientos automáticas."""
     automatic_move_in_game()
+
+@shared_task(name="task_reiniciar_juego")
+def task_reiniciar_juego():
+    """Ejecuta solo la lógica de reinicio de juegos."""
+    automatic_restar_game()
+
 
 @shared_task(name="task_logica_torneos")
 def task_logica_torneos():
