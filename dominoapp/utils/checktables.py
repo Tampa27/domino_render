@@ -195,11 +195,12 @@ def automatic_exit_player():
         games = DominoGame.objects.select_related(
                             'player1__user', 'player2__user', 
                             'player3__user', 'player4__user'
-                        ).filter(player1__isnull=False, status__in = ['fg', 'wt', 'ready']).exclude(tournament__isnull = False)
+                        ).filter(player1__isnull=False, status__in = ['fg']).exclude(tournament__isnull = False)
         now_time = timezone.now()
         start_in_30_min = now_time + timedelta(minutes=30)
         for game in games:
             try:
+                needs_update = False
                 active_players = game_tools.playersCount(game)
                 for player in active_players:
                     presence = get_player_presence(player)
@@ -207,19 +208,58 @@ def automatic_exit_player():
                     if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                         try:
                             game_tools.exitPlayer(game,player,active_players,len(active_players))
+                            needs_update = True
                         except Exception as e:
                             logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
-                    elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min):
+
+                # Solo guardamos si realmente hubo un cambio
+                if needs_update:
+                    # Actualizar estado de la mesa si quedó vacía/sola
+                    active_players = game_tools.playersCount(game)
+                    if game.status == 'wt' and len(active_players)<2:
+                        game.starter=-1
+                        game.board = ""
+                        game.save(update_fields=['starter','board'])
+                    
+            except Exception as error:
+                logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
+        
+    except Exception as error:
+        logger.critical(f'Ocurrio una excepcion dentro del automatico de expulsar los players inactivos, error: {str(error)}')         
+
+def automatic_clear_game():
+    """Expulsar de las mesas los players que esten inactivos esperando mucho tiempo."""
+    try:
+        logger_api.info(f"Automatic Exit Inactive Player")
+        # 1. Obtener IDs de juegos candidatos
+        games = DominoGame.objects.select_related(
+                            'player1__user', 'player2__user', 
+                            'player3__user', 'player4__user'
+                        ).filter(player1__isnull=False, status__in = ['wt', 'ready']).exclude(tournament__isnull = False)
+        now_time = timezone.now()
+        start_in_30_min = now_time + timedelta(minutes=30)
+        for game in games:
+            try:
+                needs_update = False
+                active_players = game_tools.playersCount(game)
+                for player in active_players:
+                    presence = get_player_presence(player)
+                    diff_time = now_time - presence['lastTimeInGame']
+                    if (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min):
                         try:
                             game_tools.exitPlayer(game,player,active_players,len(active_players))
+                            needs_update = True
                         except Exception as e:
                             logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
                 
-                active_players = game_tools.playersCount(game)
-                if game.status == 'wt' and len(active_players)<2:
-                    game.starter=-1
-                    game.board = ""
-                    game.save(update_fields=['starter','board'])
+                # Solo guardamos si realmente hubo un cambio
+                if needs_update:
+                    # Actualizar estado de la mesa si quedó vacía/sola
+                    active_players = game_tools.playersCount(game)
+                    if game.status == 'wt' and len(active_players)<2:
+                        game.starter=-1
+                        game.board = ""
+                        game.save(update_fields=['starter','board'])
                     
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
