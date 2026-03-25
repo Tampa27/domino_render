@@ -275,10 +275,15 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'task_logica_torneos',
         'schedule': 30.0,
     },
-    # La limpieza de jugadores inactivos tiene que revisarse rapido para evitar que se acumulen, pero no es tan urgente como los movimientos o reinicios, por eso cada 9 segundos.
+    # La expulsion de jugadores sin dinero sufiente tiene que revisarse rapido para evitar que se acumulen, pero no es tan urgente como los movimientos o reinicios, por eso cada 9 segundos.
+    'expulsar_jugadores_sin_dinero': {
+        'task': 'task_expulsar_jugadores',
+        'schedule': 9.0,
+    },
+    # La limpieza de jugadores inactivos no tiene que revisarse con tanta frecuencia.
     'limpiar_jugadores_inactivos': {
         'task': 'task_limpieza_jugadores',
-        'schedule': 9.0,
+        'schedule': 40.0,
     },
 }
 
