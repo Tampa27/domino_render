@@ -17,54 +17,25 @@ import pytz
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
-def automatic_move_in_game():
+def procesar_logica_de_mesa(game_id: int):
     try:
-        logger_api.info(f"Automatic Move Tile")
-        # 1. Obtener IDs de juegos candidatos
-        games = DominoGame.objects.select_related(
-                            'player1__user', 'player2__user', 
-                            'player3__user', 'player4__user'
-                            ).filter(
-                                player1__isnull=False, 
-                                player2__isnull=False,
-                                status = 'ru'
-                                )
-        for game in games:
-            try:
-                is_pair_start = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
-                if is_pair_start:
-                    logger_api.info('Esperando al salidor')
-                    try:
-                        automaticCoupleStarter(game)
-                    except Exception as e:
-                        logger.critical(f'Ocurrio una excepcion escogiendo el salidor en el juego {str(game.id)}, error: {str(e)}')        
-                else:
-                    try:
-                        automaticMove(game)
-                    except Exception as e:
-                        logger.critical(f'Ocurrio una excepcion moviendo una ficha en el juego {str(game.id)},\n Data:(player_index: {game.next_player}),\n error: {str(e)}')
-                    
-            except Exception as error:
-                logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id}, error: {str(error)}')
-    except Exception as error:
-            logger.critical(f'Ocurrio una excepcion dentro del automatico de las mesas, error: {str(error)}')
+        # Obtenemos la mesa con select_related para evitar múltiples queries
+        game = DominoGame.objects.select_related(
+            'player1__user', 'player2__user', 'player3__user', 'player4__user', 'tournament'
+        ).get(id=game_id)
 
+        # 1. Lógica de Movimientos (Antiguo automatic_move_in_game)
+        if game.status == 'ru':
+            is_pair_start = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
+            if is_pair_start:
+                automaticCoupleStarter(game)
+            else:
+                automaticMove(game)
 
-def automatic_restar_game():
-    try:
-        logger_api.info(f"Automatic Restar Game")
-        # 1. Obtener IDs de juegos candidatos
-        games = DominoGame.objects.select_related(
-                            'player1__user', 'player2__user', 
-                            'player3__user', 'player4__user', 
-                            'tournament'
-                            ).filter(
-                                player1__isnull=False, 
-                                player2__isnull=False,
-                                status__in = ['fg', 'fi']
-                                )
-        for game in games:
-            # Lista para recolectar notificaciones y enviarlas fuera del bloqueo
+        # 2. Lógica de Reinicio/Finalización (Antiguo automatic_restar_game)
+        elif game.status in ['fg', 'fi']:
+            # Aquí pegas la lógica de tu función automatic_restar_game 
+            # pero usando la instancia 'game' que ya tenemos
             notifications_queue = []
             try:
                 if (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
@@ -184,21 +155,11 @@ def automatic_restar_game():
 
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del restar automatico de la mesa {game.id}, error: {str(error)}')
-    except Exception as error:
-            logger.critical(f'Ocurrio una excepcion dentro del restar automatico de las mesas, error: {str(error)}')
 
-def automatic_exit_player():
-    """Expulsar de las mesas los players que esten inactivos."""
-    try:
-        logger_api.info(f"Automatic Exit Inactive Player")
-        # 1. Obtener IDs de juegos candidatos
-        games = DominoGame.objects.select_related(
-                            'player1__user', 'player2__user', 
-                            'player3__user', 'player4__user'
-                        ).filter(player1__isnull=False, status__in = ['fg']).exclude(tournament__isnull = False)
-        now_time = timezone.now()
-        start_in_30_min = now_time + timedelta(minutes=30)
-        for game in games:
+        # 3. Lógica de Limpieza/Expulsión (Antiguo automatic_exit_player / clear_game)
+        if game.status in ['fg', 'wt', 'ready'] and not game.in_tournament:
+            now_time = timezone.now()
+            start_in_30_min = now_time + timedelta(minutes=30)
             try:
                 needs_update = False
                 active_players = game_tools.playersCount(game)
@@ -211,47 +172,13 @@ def automatic_exit_player():
                             needs_update = True
                         except Exception as e:
                             logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
-
-                # Solo guardamos si realmente hubo un cambio
-                if needs_update:
-                    # Actualizar estado de la mesa si quedó vacía/sola
-                    active_players = game_tools.playersCount(game)
-                    if game.status == 'wt' and len(active_players)<2:
-                        game.starter=-1
-                        game.board = ""
-                        game.save(update_fields=['starter','board'])
-                    
-            except Exception as error:
-                logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
-        
-    except Exception as error:
-        logger.critical(f'Ocurrio una excepcion dentro del automatico de expulsar los players inactivos, error: {str(error)}')         
-
-def automatic_clear_game():
-    """Expulsar de las mesas los players que esten inactivos esperando mucho tiempo."""
-    try:
-        logger_api.info(f"Automatic Exit Inactive Player")
-        # 1. Obtener IDs de juegos candidatos
-        games = DominoGame.objects.select_related(
-                            'player1__user', 'player2__user', 
-                            'player3__user', 'player4__user'
-                        ).filter(player1__isnull=False, status__in = ['wt', 'ready']).exclude(tournament__isnull = False)
-        now_time = timezone.now()
-        start_in_30_min = now_time + timedelta(minutes=30)
-        for game in games:
-            try:
-                needs_update = False
-                active_players = game_tools.playersCount(game)
-                for player in active_players:
-                    presence = get_player_presence(player)
-                    diff_time = now_time - presence['lastTimeInGame']
-                    if (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min):
+                    elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min):
                         try:
                             game_tools.exitPlayer(game,player,active_players,len(active_players))
                             needs_update = True
                         except Exception as e:
                             logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
-                
+
                 # Solo guardamos si realmente hubo un cambio
                 if needs_update:
                     # Actualizar estado de la mesa si quedó vacía/sola
@@ -263,67 +190,69 @@ def automatic_clear_game():
                     
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
-        
-    except Exception as error:
-        logger.critical(f'Ocurrio una excepcion dentro del automatico de expulsar los players inactivos, error: {str(error)}')         
 
-def automatic_tournament():
+    except DominoGame.DoesNotExist:
+        pass 
+    except Exception as e:
+        logger.critical(f"Error procesando mesa {game_id}: {str(e)}")
+
+def automatic_tournament(tournament_id: int):
     try:
-        tournaments = Tournament.objects.filter(active=True).prefetch_related(
+        tournament = Tournament.objects.prefetch_related(
             'player_list__user',           # Para notificaciones a todos los inscritos
             'round_in_tournament',         # Preload de Rondas (related_name en Round)
             'round_in_tournament__game_list', # Preload de juegos dentro de cada ronda
             'round_in_tournament__winner_pair_list__player1__user', # Para premios
             'round_in_tournament__winner_pair_list__player2__user'
-        )
+        ).get(id=tournament_id)
         now = timezone.now()
-        for tournament in tournaments:
-            player_list = tournament.player_list.all()
-            player_in_tournament = player_list.count()
-            diff_start = tournament.start_at - timedelta(minutes=5)
-            if  diff_start < now and not tournament.notification_5 and int(player_in_tournament) == int(tournament.max_player):
-                for player in player_list:
+        
+        player_list = tournament.player_list.all()
+        player_in_tournament = player_list.count()
+        diff_start = tournament.start_at - timedelta(minutes=5)
+        if  diff_start < now and not tournament.notification_5 and int(player_in_tournament) == int(tournament.max_player):
+            for player in player_list:
+                FCMNOTIFICATION.send_fcm_message(
+                    user= player.user,
+                    title= "⏰ Recordatorio de inicio",
+                    body=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
+                )
+            tournament.notification_5 = True
+            tournament.save(update_fields=['notification_5'])
+            
+            TournamentService.process_order_players_rounds(tournament)
+
+        if tournament.start_at < now and tournament.status == 'ready':
+            for game in DominoGame.objects.filter(tournament__id=tournament.id):
+                players = game_tools.playersCount(game)
+                automaticStart(game, players)
+                for player in players:
                     FCMNOTIFICATION.send_fcm_message(
                         user= player.user,
-                        title= "⏰ Recordatorio de inicio",
-                        body=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
+                        title= "🏆 Torneo Iniciado",
+                        body= "Entra ya, no te lo pierdas"
                     )
-                tournament.notification_5 = True
-                tournament.save(update_fields=['notification_5'])
-                
-                TournamentService.process_order_players_rounds(tournament)
+            
+            tournament.status = "ru"
+            tournament.save(update_fields=["status"])
 
-            if tournament.start_at < now and tournament.status == 'ready':
-                for game in DominoGame.objects.filter(tournament__id=tournament.id):
-                    players = game_tools.playersCount(game)
-                    automaticStart(game, players)
-                    for player in players:
-                        FCMNOTIFICATION.send_fcm_message(
-                            user= player.user,
-                            title= "🏆 Torneo Iniciado",
-                            body= "Entra ya, no te lo pierdas"
-                        )
-                
-                tournament.status = "ru"
-                tournament.save(update_fields=["status"])
-
-            if tournament.status == 'ru':
-                last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
-                if last_round.status == 'ready' and last_round.start_at + timedelta(seconds=30) < now:
-                    for game in last_round.game_list.all():
-                        if game.status == 'ready':
-                            players = game_tools.playersCount(game)
-                            automaticStart(game, players)
-                            for player in players:
-                                FCMNOTIFICATION.send_fcm_message(
-                                    user= player.user,
-                                    title= "🚨 Ronda Activa 🚨",
-                                    body= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
-                                )
-                
-                last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
-                if last_round.end_at is not None and last_round.end_at + timedelta(minutes=5) < now:
-                    TournamentService.process_order_players_rounds(tournament, last_round)
+        if tournament.status == 'ru':
+            last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
+            if last_round.status == 'ready' and last_round.start_at + timedelta(seconds=30) < now:
+                for game in last_round.game_list.all():
+                    if game.status == 'ready':
+                        players = game_tools.playersCount(game)
+                        automaticStart(game, players)
+                        for player in players:
+                            FCMNOTIFICATION.send_fcm_message(
+                                user= player.user,
+                                title= "🚨 Ronda Activa 🚨",
+                                body= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
+                            )
+            
+            last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
+            if last_round.end_at is not None and last_round.end_at + timedelta(minutes=5) < now:
+                TournamentService.process_order_players_rounds(tournament, last_round)
             
     except Exception as error:
         logger.critical(f'Ocurrio una excepcion dentro del automatico de los torneos, error: {str(error)}')         
