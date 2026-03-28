@@ -858,7 +858,7 @@ def updateAllPoints(game:DominoGame,players:list[Player],winner:int,move_registe
                 game.status = "fi"
                 updatePlayersData(game,players,winner,"fi", move_register)    
 
-def getPlayerIndex(players,player):
+def getPlayerIndex(players: list[Player],player: Player):
     for i in range(len(players)):
         if player.id == players[i].id:
             return i

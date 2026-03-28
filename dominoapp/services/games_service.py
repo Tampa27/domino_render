@@ -5,14 +5,18 @@ from datetime import timedelta
 from django.db.models import Q
 from django.db.utils import DatabaseError
 from django.db import transaction
+from django.conf import settings
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
 from dominoapp.utils.cache_tools import update_player_presence_cache, get_player_presence
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
+import redis
 import logging
 logger = logging.getLogger('django')
 
+# Conexion a Redis
+redis_client = redis.from_url(settings.CACHES['default']['LOCATION'])
 
 class GameService:
 
@@ -384,38 +388,59 @@ class GameService:
     
     @staticmethod
     def process_move(request, game_id):
+        start_time = timezone.now()
         tile = request.data["tile"]
         try:
-            check = DominoGame.objects.filter(id=game_id).exists()
-            if not check:
-                return Response({'status': 'error', 'message': "Game not found"}, status=404)
-            check = Player.objects.filter(user__id=request.user.id).exists()
-            if not check:
-                return Response({'status': 'error', 'message': "Player not found"}, status=404)
-            
             player = Player.objects.get(user__id=request.user.id)
-            filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
-            check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
-            if not check:
-                return Response({'status': 'error', 'message': "These Player are not in this game"}, status=400)
-            
-            error = game_tools.move1(game_id,player.id,tile)
-            if error is None:
-                profile = Player.objects.get(alias = player.alias)
+        except:
+            return Response({'status': 'error', 'message': "Debe autenticarse para realizar esta acción"}, status=status.HTTP_401_UNAUTHORIZED)
                 
-                profile.inactive_player = False
-                profile.save(update_fields=["inactive_player"])
-                now = timezone.now()
-                data={
-                        'lastTimeInSystem': now,
-                        'lastTimeInGame' : now
-                    }
-                update_player_presence_cache(player.id, data)
-
-                return Response({'status': 'success'}, status=status.HTTP_200_OK)
+        try:
+            games = DominoGame.objects.filter(id=game_id)
+            if not games.exists():
+                return Response({'status': 'error', 'message': "Game not found"}, status=404)
+            game = games.first()
+            players = game_tools.playersCount(game)
+            players_ru = list(filter(lambda p: p.isPlaying, players))
+            my_position = game_tools.getPlayerIndex(players_ru,player)
+            if my_position != game.next_player:
+                return Response({'status': 'error', 'message': "No es tu turno"}, status=status.HTTP_409_CONFLICT)
+            
+            ## Se usa un lock de Redis para evitar que dos movimientos del mismo jugador o de jugadores diferentes en la misma mesa se procesen al mismo tiempo, lo que podría causar inconsistencias.
+            lock_key = f"game_{game.id}_player_{game.next_player}"
+            lock = redis_client.lock(lock_key, timeout=10)
+            if lock.acquire(blocking=False):
+                filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
+                check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
+                if not check:
+                    # Se libera el bloqueo de la mesa
+                    lock.release()
+                    return Response({'status': 'error', 'message': "No esta en el juego"}, status=status.HTTP_409_CONFLICT)
+                
+                error = game_tools.move1(game_id,player.id,tile)
+                if error is None:
+                    player.inactive_player = False
+                    player.save(update_fields=["inactive_player"])
+                    now = timezone.now()
+                    data={
+                            'lastTimeInSystem': now,
+                            'lastTimeInGame' : now
+                        }
+                    update_player_presence_cache(player.id, data)
+                    logger.error(f"Tiempo de procesamiento del movimiento para la mesa {game.id} del player {player.alias}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+                    # Se libera el bloqueo de la mesa
+                    lock.release()
+                    return Response({'status': 'success'}, status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Error procesando el movimiento en la mesa {game_id} para el tile {tile} y el player {player.alias}, error: {error}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+                    # Se libera el bloqueo de la mesa
+                    lock.release()
+                    return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
+                logger.error(f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+                return Response({'status':'error', "message": f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}"}, status=status.HTTP_409_CONFLICT)
         except Exception as e:        
+            logger.error(f"Error procesando el movimiento en la mesa {game_id} para el tile {tile}, error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
             return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     @staticmethod
