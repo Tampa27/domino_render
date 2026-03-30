@@ -31,8 +31,7 @@ class GameService:
         # 2. ACTUALIZACIÓN ASÍNCRONA O ATÓMICA SIN BLOQUEO
         # Solo actualizamos si ha pasado un tiempo prudencial (ej. 1 minuto) 
         # o usamos .update() directamente para evitar el overhead de .save()
-        presence = get_player_presence(player)
-        if presence['lastTimeInSystem'] + timedelta(seconds = 20) < timezone.now():
+        if player.lastTimeInSystem + timedelta(seconds = 10) < timezone.now():
             Player.objects.filter(id=player.id).update(
                 inactive_player=False,
                 send_delete_email=False,
@@ -121,7 +120,7 @@ class GameService:
                 player_request = Player.objects.get(
                         user_id=request.user.id
                     )
-                if player_request.lastTimeInSystem + timedelta(seconds = 20) < timezone.now():
+                if player_request.lastTimeInSystem + timedelta(seconds = 10) < timezone.now():
                     Player.objects.filter(id=player_request.id).update(
                         lastTimeInSystem= timezone.now()
                     )
@@ -421,9 +420,8 @@ class GameService:
                 
                 error = game_tools.move1(game_id,player.id,tile)
                 if error is None:
-                    now = timezone.now()                                        
-                    presence = get_player_presence(player)
-                    if presence['lastTimeInSystem'] + timedelta(seconds = 20) < now:
+                    now = timezone.now()
+                    if player.lastTimeInSystem + timedelta(seconds = 10) < now:
                         player.inactive_player = False
                         player.lastTimeInSystem = now
                         player.lastTimeInGame = now
