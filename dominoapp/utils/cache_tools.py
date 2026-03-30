@@ -1,6 +1,7 @@
 from django.core.cache import cache
 from django.utils import timezone
 from dominoapp.models import Player
+import json
 import logging
 logger = logging.getLogger('django')
 
@@ -9,19 +10,20 @@ def update_player_presence_cache(player_id: int, data: dict):
     cache_key = f"p_{player_id}"
     timeout = 600 # 10 minutos
     
-    # Obtenemos el cliente nativo de Redis desde el backend de Django
-    # Esto asume que usas django-redis como backend
     try:
         backend = cache.client.get_client()
+        # Convertimos el diccionario a una cadena JSON
+        serialized_data = json.dumps(data) 
+        
         with backend.pipeline() as pipe:
-            # Seteamos el valor y el tiempo de expiración en una sola transacción de red
-            pipe.set(cache_key, data)
+            pipe.set(cache_key, serialized_data) # <--- Ahora es un string, no un dict
             pipe.expire(cache_key, timeout)
             pipe.execute()
     except AttributeError:
         logger.error("El backend de cache no soporta cliente directo. Usando método de fallback.")
-        # Fallback por si el backend no soporta el cliente directo o no es Redis
         cache.set(cache_key, data, timeout=timeout)
+    except Exception as e:
+        logger.error(f"Error guardando en cache: {e}")
     return data
 
 def get_player_presence(player_db_instance: Player):
