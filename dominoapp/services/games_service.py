@@ -125,7 +125,7 @@ class GameService:
                     data = {
                         'lastTimeInSystem': timezone.now()
                     }
-                    update_player_presence_cache(player_request, data)
+                    update_player_presence_cache(player_request.id, data)
             except DatabaseError:
                 # Si el jugador está bloqueado (moviendo ficha), ignoramos la actualización
                 # del timestamp para esta petición de "retrieve". 
