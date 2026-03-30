@@ -11,7 +11,7 @@ from django.utils.timezone import timedelta
 from django.db import connection, transaction
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
-from dominoapp.utils.cache_tools import get_player_presence
+from dominoapp.utils.cache_tools import get_player_presence, get_list_player_presence, lock_game_player
 from dominoapp.services.tournament_service import TournamentService
 import logging
 import pytz
@@ -19,10 +19,9 @@ import redis
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
-# Conexion a Redis
-redis_client = redis.from_url(settings.CACHES['default']['LOCATION'])
 
 def procesar_logica_de_mesa(game_id: int):
+    start_time = timezone.now()
     try:
         # Obtenemos la mesa con select_related para evitar múltiples queries
         game = DominoGame.objects.select_related(
@@ -31,24 +30,20 @@ def procesar_logica_de_mesa(game_id: int):
 
         # 1. Lógica de Movimientos (Antiguo automatic_move_in_game)
         if game.status == 'ru':
-            start_time = timezone.now()
-            player_positions = game.next_player
             is_pair_start = (game.inPairs and game.startWinner and game.winner >= DominoGame.Tie_Game)
             if is_pair_start:
                 automaticCoupleStarter(game)
             else:
                 automaticMove(game)
-            logger.error(f"Tiempo de procesamiento de movimientos automáticos para la mesa {game.id} del player: {player_positions}, time: {(timezone.now() - start_time).total_seconds()} segundos")
 
         # 2. Lógica de Reinicio/Finalización (Antiguo automatic_restar_game)
         elif game.status in ['fg', 'fi']:
-            # Aquí pegas la lógica de tu función automatic_restar_game 
+            # Lógica de la función automatic_restar_game 
             # pero usando la instancia 'game' que ya tenemos
             notifications_queue = []
             try:
                 if (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
                     try:
-                        start_time = timezone.now()
                         restargame = True
                         active_players = game_tools.playersCount(game)
                         players_running = [p for p in active_players if p.isPlaying]
@@ -56,9 +51,9 @@ def procesar_logica_de_mesa(game_id: int):
                         if game.status == 'fg':
                             now_time = timezone.now()
                             start_in_30_min = now_time + timedelta(minutes=30)
-                            for player in players_running:
-                                presence = get_player_presence(player)
-                                diff_time = now_time - presence['lastTimeInGame']
+                            players_presence = get_list_player_presence(players_running)
+                            for player in players_running:                                
+                                diff_time = now_time - players_presence[player.id]['lastTimeInGame']
                                 if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                     try:
                                         game_tools.exitPlayer(game,player,active_players,len(active_players))
@@ -148,13 +143,11 @@ def procesar_logica_de_mesa(game_id: int):
                         if restargame:
                             automaticStart(game, active_players)
                         
-                        logger.error(f"Tiempo de procesamiento del reinicio automático para la mesa {game.id}: {(timezone.now() - start_time).total_seconds()} segundos")
                     except Exception as e:
                         logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
                 
                 # --- FUERA DEL ATOMIC ---
                 # Solo se ejecuta si la transacción hizo commit sin errores
-                start_time = timezone.now()
                 for msg in notifications_queue:
                     try:
                         FCMNOTIFICATION.send_fcm_message(
@@ -164,9 +157,9 @@ def procesar_logica_de_mesa(game_id: int):
                         )
                     except Exception as e:
                         logger.error(f"Error enviando FCM diferido: {str(e)}")
-                logger.error(f"Tiempo de procesamiento de notificaciones diferidas para la mesa {game.id}: {(timezone.now() - start_time).total_seconds()} segundos")
+
             except Exception as error:
-                logger.critical(f'Ocurrio una excepcion dentro del restar automatico de la mesa {game.id}, error: {str(error)}')
+                logger.critical(f'Ocurrio una excepcion dentro del restar automatico de la mesa {game.id}, error: {str(error)}, time: {(timezone.now() - start_time).total_seconds()} segundos.')
 
         # 3. Lógica de Limpieza/Expulsión (Antiguo automatic_exit_player / clear_game)
         if game.status in ['fg', 'wt', 'ready'] and not game.in_tournament:
@@ -175,9 +168,9 @@ def procesar_logica_de_mesa(game_id: int):
             try:
                 needs_update = False
                 active_players = game_tools.playersCount(game)
-                for player in active_players:
-                    presence = get_player_presence(player)
-                    diff_time = now_time - presence['lastTimeInGame']
+                players_presence = get_list_player_presence(active_players)
+                for player in active_players:                    
+                    diff_time = now_time - players_presence[player.id]['lastTimeInGame']
                     if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
                         try:
                             game_tools.exitPlayer(game,player,active_players,len(active_players))
@@ -205,7 +198,7 @@ def procesar_logica_de_mesa(game_id: int):
     except DominoGame.DoesNotExist:
         pass 
     except Exception as e:
-        logger.critical(f"Error procesando mesa {game_id}: {str(e)}")
+        logger.critical(f"Error procesando mesa {game_id}: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
 
 def automatic_tournament(tournament_id: int):
     try:
@@ -285,8 +278,7 @@ def automaticCoupleStarter(game:DominoGame):
 
 def automaticMove(game: DominoGame):
     try:
-        lock_key = f"game_{game.id}_player_{game.next_player}"
-        lock = redis_client.lock(lock_key, timeout=10)
+        lock = lock_game_player(game.id, game.next_player)
         if lock.acquire(blocking=False):
             try:
                 MOVE_TILE_TIME = game.moveTime

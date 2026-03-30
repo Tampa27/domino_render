@@ -604,7 +604,7 @@ def move1(game_id: int,player_id: str,tile:str):
     try:
         with transaction.atomic():
             try:
-                game = DominoGame.objects.select_for_update().get(id=game_id)
+                game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
             except DominoGame.DoesNotExist:
                 return "Mesa no encontrada."
 
@@ -613,8 +613,12 @@ def move1(game_id: int,player_id: str,tile:str):
             player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
             if player_ids:
                 # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                list(Player.objects.select_for_update().filter(id__in=player_ids))
-    
+                locked_players = list(Player.objects.select_for_update(nowait=True).filter(id__in=player_ids))
+
+                if len(locked_players) < len(player_ids):
+                    # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                    return "No se pudieron bloquear a todos los jugadores"
+
             # Al haber usado select_related, estos objetos ya están "bloqueados"
             players = playersCount(game)
             players_ru = list(filter(lambda p: p.isPlaying, players))
