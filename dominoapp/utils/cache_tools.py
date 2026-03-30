@@ -1,9 +1,29 @@
 from django.core.cache import cache
-from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from dominoapp.models import Player
 import json
 import logging
 logger = logging.getLogger('django')
+
+def _serialize_dates(data: dict):
+    """Convierte objetos datetime a strings ISO para JSON"""
+    for key, value in data.items():
+        if hasattr(value, 'isoformat'):
+            data[key] = value.isoformat()
+    return data
+
+def _deserialize_dates(data: dict):
+    """Convierte strings ISO de vuelta a objetos datetime de forma segura"""
+    if not data or not isinstance(data, dict): 
+        return data
+    
+    for key in ['lastTimeInSystem', 'lastTimeInGame']:
+        value = data.get(key)
+        if isinstance(value, str):
+            # parse_datetime devuelve None si el formato es inválido
+            parsed = parse_datetime(value)
+            data[key] = parsed if parsed else value 
+    return data
 
 def update_player_presence_cache(player_id: int, data: dict):
     """Guarda los timestamps en Redis en lugar de la DB"""
@@ -13,10 +33,9 @@ def update_player_presence_cache(player_id: int, data: dict):
     try:
         backend = cache.client.get_client()
         # Convertimos el diccionario a una cadena JSON
-        serialized_data = json.dumps(data) 
-        
+        serialized_data = json.dumps(_serialize_dates(data))        
         with backend.pipeline() as pipe:
-            pipe.set(cache_key, serialized_data) # <--- Ahora es un string, no un dict
+            pipe.set(cache_key, serialized_data)
             pipe.expire(cache_key, timeout)
             pipe.execute()
     except AttributeError:
@@ -43,7 +62,7 @@ def get_player_presence(player_db_instance: Player):
             
             # Si hay datos, los convertimos de JSON a dict
             if presence_raw:
-                presence = json.loads(presence_raw)
+                presence = _deserialize_dates(json.loads(presence_raw))    
     except Exception:
         presence = cache.get(cache_key)
 
@@ -78,13 +97,23 @@ def get_list_player_presence(players: list[Player])-> dict:
     try:
         backend = cache.client.get_client()
         # Usamos MGET que es más eficiente que un pipeline de GETs individuales
-        presences_from_cache = backend.mget(cache_keys)
+        raw_data = backend.mget(cache_keys) # Devuelve lista de bytes o None
+        
+        for item in raw_data:
+            if item:
+                try:
+                    # 1. Convertir bytes a dict
+                    decoded_dict = json.loads(item)
+                    # 2. Convertir strings a datetime
+                    presences_from_cache.append(_deserialize_dates(decoded_dict))
+                except (json.JSONDecodeError, TypeError):
+                    presences_from_cache.append(None)
+            else:
+                presences_from_cache.append(None)
     except Exception as e:
-        logger.error(f"Error accediendo a Redis nativo: {e}")
-        # Fallback usando el API estándar de Django (que internamente suele usar mget)
-        presences_dict = cache.get_many(cache_keys)
-        presences_from_cache = [presences_dict.get(key) for key in cache_keys]
-
+        logger.error(f"Error en mget Redis: {e}")
+        # Fallback manual si falla Redis nativo
+        presences_from_cache = [cache.get(key) for key in cache_keys]
     results = {}
     
     # 2. Procesar resultados y mezclar con datos de DB si es necesario
