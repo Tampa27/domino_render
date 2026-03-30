@@ -28,7 +28,7 @@ def _deserialize_dates(data: dict):
 def update_player_presence_cache(player_id: int, data: dict):
     """Guarda los timestamps en Redis en lugar de la DB"""
     cache_key = f"p_{player_id}"
-    timeout = 600 # 10 minutos
+    timeout = 30 # 30 segundos
     
     try:
         backend = cache.client.get_client()
