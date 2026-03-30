@@ -194,7 +194,6 @@ def procesar_logica_de_mesa(game_id: int):
                         game.save(update_fields=['starter','board'])
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
-            logger.error(f"Tiempo de procesamiento de expulsiones automáticas para la mesa {game.id}: {(timezone.now() - now_time).total_seconds()} segundos")
     except DominoGame.DoesNotExist:
         pass 
     except Exception as e:
