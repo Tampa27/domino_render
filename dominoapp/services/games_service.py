@@ -9,14 +9,12 @@ from django.conf import settings
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
-from dominoapp.utils.cache_tools import update_player_presence_cache, get_player_presence
+from dominoapp.utils.cache_tools import update_player_presence_cache, get_player_presence, lock_game_player
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 import redis
 import logging
 logger = logging.getLogger('django')
 
-# Conexion a Redis
-redis_client = redis.from_url(settings.CACHES['default']['LOCATION'])
 
 class GameService:
 
@@ -122,10 +120,12 @@ class GameService:
                 player_request = Player.objects.get(
                         user_id=request.user.id
                     )
-                data = {
-                    'lastTimeInSystem': timezone.now()
-                }
-                update_player_presence_cache(player_request, data)
+                presence = get_player_presence(player_request)
+                if presence['lastTimeInSystem'] + timedelta(seconds = 20) < timezone.now():
+                    data = {
+                        'lastTimeInSystem': timezone.now()
+                    }
+                    update_player_presence_cache(player_request, data)
             except DatabaseError:
                 # Si el jugador está bloqueado (moviendo ficha), ignoramos la actualización
                 # del timestamp para esta petición de "retrieve". 
@@ -205,7 +205,10 @@ class GameService:
         try:
             with transaction.atomic():
                 # 1. Bloqueamos al jugador que intenta unirse (el "peticionario")
-                player = Player.objects.select_for_update().get(user__id=request.user.id)
+                try:
+                    player = Player.objects.select_for_update(nowait=True).get(user__id=request.user.id)
+                except:
+                    return Response({"status":'error',"message":"No se pudo actualizar el player."}, status=status.HTTP_404_NOT_FOUND)
                 
                 # Actualizamos sus datos de presencia
                 player.inactive_player = False
@@ -222,17 +225,10 @@ class GameService:
                 # 2. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
                 # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
                 try:
-                    game = DominoGame.objects.select_for_update().get(id=game_id)
+                    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
                 except DominoGame.DoesNotExist:
                     return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
-                # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
-                # Esto evita el error de PostgreSQL
-                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
-                if player_ids:
-                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                    list(Player.objects.select_for_update().filter(id__in=player_ids))
-                
                 # 3. Validaciones de negocio (Ahora son seguras porque nadie puede cambiar al player ni a la mesa)
                 check_others_game = DominoGame.objects.filter(
                     Q(player1__id=player.id) |
@@ -309,10 +305,8 @@ class GameService:
         except DatabaseError as error:
             # Si alguien más tiene el candado y usamos nowait=True (opcional) 
             # o hay un error de colisión de DB.
-            logger.error(f"La mesa {game_id} está ocupada en este momento. Error: {error}")
             return Response({'status': 'error', "message": "La mesa está ocupada en este momento."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
-            logger.error(f"Erro al intentar unirse a la mesa {game_id}, Error: {e}")
             return Response({'status': 'error', "message": "Algo salio mal, vuelva a intentar."}, status=500)
         
     @staticmethod
@@ -327,7 +321,7 @@ class GameService:
                 # 2. Bloqueamos la mesa y a los 4 jugadores relacionados
                 # Usamos select_related para traerlos de una vez y 'of' para fijar sus filas
                 try:
-                    game = DominoGame.objects.select_for_update().get(id=game_id)
+                    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
                 except DominoGame.DoesNotExist:
                     return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -336,8 +330,11 @@ class GameService:
                 player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
                 if player_ids:
                     # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                    list(Player.objects.select_for_update().filter(id__in=player_ids))
-                
+                    locked_players  = list(Player.objects.select_for_update(nowait=True).filter(id__in=player_ids))
+                    if len(locked_players) < len(player_ids):
+                        # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                        return Response(data={"status":"error","message":"No se pudieron bloquear a todos los jugadores"}, status=status.HTTP_409_CONFLICT)
+
                 # IMPORTANTE: Según tu lógica, el juego solo arranca si NO está en "wt" (waiting)
                 if game.status != "wt":
                     # 3. Obtenemos los jugadores bloqueados directamente desde la instancia 'game'
@@ -381,14 +378,12 @@ class GameService:
             return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
         except DatabaseError as error:
             # Si alguien más está intentando iniciar el juego o uniéndose justo ahora
-            logger.error(f"La mesa {game_id} está ocupada en este momento. Error: {error}")
             return Response({'status': 'error', "message": "La mesa está ocupada procesando otra acción."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_move(request, game_id):
-        start_time = timezone.now()
         tile = request.data["tile"]
         try:
             player = Player.objects.get(user__id=request.user.id)
@@ -407,8 +402,7 @@ class GameService:
                 return Response({'status': 'error', 'message': "No es tu turno"}, status=status.HTTP_409_CONFLICT)
             
             ## Se usa un lock de Redis para evitar que dos movimientos del mismo jugador o de jugadores diferentes en la misma mesa se procesen al mismo tiempo, lo que podría causar inconsistencias.
-            lock_key = f"game_{game.id}_player_{game.next_player}"
-            lock = redis_client.lock(lock_key, timeout=10)
+            lock = lock_game_player(game.id, game.next_player)
             if lock.acquire(blocking=False):
                 filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
                 check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
@@ -422,25 +416,25 @@ class GameService:
                     player.inactive_player = False
                     player.save(update_fields=["inactive_player"])
                     now = timezone.now()
-                    data={
-                            'lastTimeInSystem': now,
-                            'lastTimeInGame' : now
-                        }
-                    update_player_presence_cache(player.id, data)
-                    logger.error(f"Tiempo de procesamiento del movimiento para la mesa {game.id} del player {player.alias}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+                    
+                    presence = get_player_presence(player)
+                    if presence['lastTimeInSystem'] + timedelta(seconds = 20) < now:
+                        data={
+                                'lastTimeInSystem': now,
+                                'lastTimeInGame' : now
+                            }
+                        update_player_presence_cache(player.id, data)
+                    
                     # Se libera el bloqueo de la mesa
                     lock.release()
                     return Response({'status': 'success'}, status=status.HTTP_200_OK)
                 else:
-                    logger.error(f"Error procesando el movimiento en la mesa {game_id} para el tile {tile} y el player {player.alias}, error: {error}, time: {(timezone.now() - start_time).total_seconds()} segundos")
                     # Se libera el bloqueo de la mesa
                     lock.release()
                     return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                logger.error(f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}, time: {(timezone.now() - start_time).total_seconds()} segundos")
                 return Response({'status':'error', "message": f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}"}, status=status.HTTP_409_CONFLICT)
-        except Exception as e:        
-            logger.error(f"Error procesando el movimiento en la mesa {game_id} para el tile {tile}, error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+        except Exception as e:
             return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     @staticmethod
@@ -527,7 +521,10 @@ class GameService:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
         
         with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
+            try:
+                game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+            except:
+                return Response({'status': 'error', 'message': 'No se pudo seleccionar la mesa'}, status=status.HTTP_409_CONFLICT)
             select_starter = (game.inPairs and game.startWinner)
             if not select_starter:
                 return Response(data ={
@@ -550,31 +547,36 @@ class GameService:
         check_game = DominoGame.objects.filter(id = game_id).exists()
         if not check_game:
             return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
-        
-        with transaction.atomic():
-            game = DominoGame.objects.select_for_update().get(id=game_id)
-            
-            game_in_round = Round.objects.filter(game_list__id = game.id).exists()
-            if game_in_round:
-                return Response({'status': 'error', "message":"No se pueden cambiar las parejas en un torneo."}, status=status.HTTP_409_CONFLICT)
-            
-            if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
-                return Response({"status":'error',"message":"The Player are not play in this game"},status=status.HTTP_409_CONFLICT)    
-            
-            players = game_tools.playersCount(game)
-            # if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
-            #     return Response({'status': 'success'}, status=200)  
-            # else:    
-            for player in players:
-                if player.alias == request.data["alias"]:
-                    patner = player
-                    break
-            aux = game.player3
-            if game.player2.alias == request.data["alias"]:
-                game.player2 = aux
-                game.player3 = patner
-            elif game.player4.alias == request.data["alias"]:
-                game.player4 = aux
-                game.player3 = patner
-            game.save()    
-        return Response({'status': 'success'}, status=200) 
+        try:
+            with transaction.atomic():
+                try:
+                    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+                except:
+                    return Response({'status': 'error', 'message': 'No se pudo seleccionar la mesa'}, status=status.HTTP_409_CONFLICT)
+
+                game_in_round = Round.objects.filter(game_list__id = game.id).exists()
+                if game_in_round:
+                    return Response({'status': 'error', "message":"No se pueden cambiar las parejas en un torneo."}, status=status.HTTP_409_CONFLICT)
+                
+                if game.player1.alias != request.data["alias"] and game.player2.alias != request.data["alias"] and game.player3.alias != request.data["alias"] and game.player4.alias != request.data["alias"]:
+                    return Response({"status":'error',"message":"The Player no juega en esta mesa."},status=status.HTTP_409_CONFLICT)    
+                
+                players = game_tools.playersCount(game)
+                # if game.inPairs and (game.payMatchValue > 0 or game.payWinValue > 0):
+                #     return Response({'status': 'success'}, status=200)  
+                # else:    
+                for player in players:
+                    if player.alias == request.data["alias"]:
+                        patner = player
+                        break
+                aux = game.player3
+                if game.player2.alias == request.data["alias"]:
+                    game.player2 = aux
+                    game.player3 = patner
+                elif game.player4.alias == request.data["alias"]:
+                    game.player4 = aux
+                    game.player3 = patner
+                game.save(update_fields= ["player2", "player3", "player4"])    
+            return Response({'status': 'success'}, status=200)
+        except:
+            return Response({'status': 'error', 'message': 'Algo fayo al seleccionar a la pareja.'}, status=status.HTTP_409_CONFLICT)
