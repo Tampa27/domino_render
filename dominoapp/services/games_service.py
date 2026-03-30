@@ -391,6 +391,7 @@ class GameService:
     
     @staticmethod
     def process_move(request, game_id):
+        start_time = timezone.now()
         tile = request.data["tile"]
         try:
             player = Player.objects.get(user__id=request.user.id)
@@ -442,7 +443,8 @@ class GameService:
             else:
                 return Response({'status':'error', "message": f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}"}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
-            return Response({'status':'error', "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.critical(f"Error procesando mesa {game_id} en el request del player, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+            return Response({'status':'error', "message": str(e)}, status=status.HTTP_409_CONFLICT)
         
     @staticmethod
     def process_exitGame(request, game_id):

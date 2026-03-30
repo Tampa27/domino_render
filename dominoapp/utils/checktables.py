@@ -197,7 +197,7 @@ def procesar_logica_de_mesa(game_id: int):
     except DominoGame.DoesNotExist:
         pass 
     except Exception as e:
-        logger.critical(f"Error procesando mesa {game_id}: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
+        logger.critical(f"Error procesando mesa {game_id} en el automatico, error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
 
 def automatic_tournament(tournament_id: int):
     try:
