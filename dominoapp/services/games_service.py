@@ -35,7 +35,8 @@ class GameService:
         if presence['lastTimeInSystem'] + timedelta(seconds = 20) < timezone.now():
             Player.objects.filter(id=player.id).update(
                 inactive_player=False,
-                send_delete_email=False
+                send_delete_email=False,
+                lastTimeInSystem= timezone.now()
             )
             data={
                 'lastTimeInSystem': timezone.now()
@@ -120,8 +121,10 @@ class GameService:
                 player_request = Player.objects.get(
                         user_id=request.user.id
                     )
-                presence = get_player_presence(player_request)
-                if presence['lastTimeInSystem'] + timedelta(seconds = 20) < timezone.now():
+                if player_request.lastTimeInSystem + timedelta(seconds = 20) < timezone.now():
+                    Player.objects.filter(id=player_request.id).update(
+                        lastTimeInSystem= timezone.now()
+                    )
                     data = {
                         'lastTimeInSystem': timezone.now()
                     }
@@ -165,10 +168,13 @@ class GameService:
         if player1.play_tournament:
             return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
         
+        now = timezone.now()
         player1.tiles = ""
         player1.inactive_player = False
-        player1.save(update_fields=["tiles", "inactive_player"])
-        now = timezone.now()
+        player1.lastTimeInSystem = now
+        player1.lastTimeInGame = now
+        player1.save(update_fields=["tiles", "inactive_player", "lastTimeInSystem", "lastTimeInGame"])
+        
         data={
                 'lastTimeInSystem': now,
                 'lastTimeInGame' : now
@@ -176,7 +182,7 @@ class GameService:
         update_player_presence_cache(player1.id, data)
 
         data = request.data.copy()
-        data["lastTime1"] = timezone.now()
+        data["lastTime1"] = now
         data["player1"] = player1.id
         
         game_serializer = GameSerializer(data = data)
@@ -209,12 +215,14 @@ class GameService:
                     player = Player.objects.select_for_update(nowait=True).get(user__id=request.user.id)
                 except:
                     return Response({"status":'error',"message":"No se pudo actualizar el player."}, status=status.HTTP_404_NOT_FOUND)
-                
+                now = timezone.now()
                 # Actualizamos sus datos de presencia
                 player.inactive_player = False
                 player.send_delete_email = False
-                player.save(update_fields=["inactive_player", "send_delete_email"])
-                now = timezone.now()
+                player.lastTimeInSystem = now
+                player.lastTimeInGame = now
+                player.save(update_fields=["inactive_player", "send_delete_email", "lastTimeInSystem", "lastTimeInGame"])
+                
                 data={
                         'lastTimeInSystem': now,
                         'lastTimeInGame' : now
@@ -413,12 +421,13 @@ class GameService:
                 
                 error = game_tools.move1(game_id,player.id,tile)
                 if error is None:
-                    player.inactive_player = False
-                    player.save(update_fields=["inactive_player"])
-                    now = timezone.now()
-                    
+                    now = timezone.now()                                        
                     presence = get_player_presence(player)
                     if presence['lastTimeInSystem'] + timedelta(seconds = 20) < now:
+                        player.inactive_player = False
+                        player.lastTimeInSystem = now
+                        player.lastTimeInGame = now
+                        player.save(update_fields=["inactive_player", "lastTimeInSystem" , "lastTimeInGame"])
                         data={
                                 'lastTimeInSystem': now,
                                 'lastTimeInGame' : now
