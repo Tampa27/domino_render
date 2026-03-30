@@ -35,20 +35,16 @@ def get_player_presence(player_db_instance: Player):
     presence = None
 
     try:
-        # Obtenemos el cliente de Redis (asumiendo django-redis)
         backend = cache.client.get_client()
-        
-        # El pipeline aquí nos permite obtener el valor y, opcionalmente, 
-        # resetear el TTL en un solo viaje si quisiéramos.
         with backend.pipeline() as pipe:
             pipe.get(cache_key)
             result = pipe.execute()
-            presence = result[0] # El resultado de pipe.get
+            presence_raw = result[0]
             
-        # Nota: redis nativo devuelve bytes o None, 
-        # django-redis suele manejar la serialización automáticamente si se usa el cliente del backend.
+            # Si hay datos, los convertimos de JSON a dict
+            if presence_raw:
+                presence = json.loads(presence_raw)
     except Exception:
-        # Fallback al método estándar de Django si falla el acceso nativo
         presence = cache.get(cache_key)
 
     # Si no hay nada en caché, devolvemos lo que hay en la DB
