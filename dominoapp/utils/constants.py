@@ -159,7 +159,7 @@ class ChatRoomTypes:
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'
     DEFAULT_LANGUAGE = 'es'
-    EXIT_GAME_TIME = 120        # Tiempo en que si el jugador no hace peticiones a la mesa, se saca automaticamente de ella
+    EXIT_GAME_TIME = 180        # Tiempo en que si el jugador no hace peticiones a la mesa, se saca automaticamente de ella
     MOVE_TILE_TIME = 20         # Tiempo para que el jugador selecciona la ficha a jugar
     EXIT_TABLE = 40             # Tiempo para sacar al jugado de la mesa si esta inactivo al finalizar un juego
     EXIT_TABLE_2 = 10           # Tiempo para sacar al jugado de la mesa si esta inactivo al finalizar una data

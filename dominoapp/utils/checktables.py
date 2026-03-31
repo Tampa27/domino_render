@@ -277,139 +277,130 @@ def automaticCoupleStarter(game:DominoGame):
 
 def automaticMove(game: DominoGame):
     try:
-        lock = lock_game_player(game.id, game.next_player)
-        if lock.acquire(blocking=False):
-            try:
-                MOVE_TILE_TIME = game.moveTime
-                time_diff = timezone.now() - lastMove(game)
-                if len(game.board) == 0:
-                    if time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT):
+        MOVE_TILE_TIME = game.moveTime
+        time_diff = timezone.now() - lastMove(game)
+        if len(game.board) == 0:
+            if time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT):
+                try:
+                    with transaction.atomic():
                         try:
-                            with transaction.atomic():
-                                try:
-                                    game_block = (DominoGame.objects
-                                    .select_for_update(of=('self',), skip_locked=True)
-                                    .select_related(
-                                        'player1__user', 'player2__user', 
-                                        'player3__user', 'player4__user'
-                                    ).get(id=game.id))
-                                except Exception as error:
-                                    raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar la salida. Error: {error}")
+                            game_block = (DominoGame.objects
+                            .select_for_update(of=('self',), skip_locked=True)
+                            .select_related(
+                                'player1__user', 'player2__user', 
+                                'player3__user', 'player4__user'
+                            ).get(id=game.id))
+                        except Exception as error:
+                            raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar la salida. Error: {error}")
 
-                                # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
-                                # Esto evita el error de PostgreSQL
-                                player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
-                                if player_ids:
-                                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                                    locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
-                                    
-                                    if len(locked_players) < len(player_ids):
-                                        # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                        raise Exception("No se pudieron bloquear a todos los jugadores")
+                        # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                        # Esto evita el error de PostgreSQL
+                        player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                        if player_ids:
+                            # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                            locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                            
+                            if len(locked_players) < len(player_ids):
+                                # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                                raise Exception("No se pudieron bloquear a todos los jugadores")
 
-                                next_idx = game_block.next_player
-                                active_players = game_tools.playersCount(game_block)
-                                players = [p for p in active_players if p.isPlaying]
+                        next_idx = game_block.next_player
+                        active_players = game_tools.playersCount(game_block)
+                        players = [p for p in active_players if p.isPlaying]
 
-                                if next_idx >= len(players):
-                                    raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
-                                
-                                # Identificamos al jugador que le toca mover (ahora es una instancia segura)
-                                player_w = players[next_idx]
+                        if next_idx >= len(players):
+                            raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
+                        
+                        # Identificamos al jugador que le toca mover (ahora es una instancia segura)
+                        player_w = players[next_idx]
 
-                                tile = game_tools.takeRandomTile(player_w.tiles)
+                        tile = game_tools.takeRandomTile(player_w.tiles)
 
-                                error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
-                                if error is not None:
-                                    raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game_block.id} al intentar realizar la salida. Error: {error}")
-                                
-                                game_tools.updateLastPlayerTime(game_block, player_w.alias)  
-                        except Exception as e:
-                            logger.critical(f"Error crítico en el movimiento automático en la mesa {game.id} al intentar realizar la salida, error: {str(e)}")            
-                else:
-                    next_idx = game.next_player
-                    active_players = game_tools.playersCount(game)
-                    players = [p for p in active_players if p.isPlaying]
-
-                    # Identificamos al jugador que le toca mover
-                    player_w = players[next_idx]
-                    presence = get_player_presence(player_w)
-                    player_diff_time = timezone.now() - presence['lastTimeInSystem']
-
-                    tile = game_tools.takeRandomCorrectTile(player_w.tiles, game.leftValue, game.rightValue)
-                    if game_tools.isPass(tile):
-                        if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
-                            try:
-                                with transaction.atomic():
-                                    try:
-                                        game_block = (DominoGame.objects
-                                        .select_for_update(of=('self',), skip_locked=True)
-                                        .select_related(
-                                            'player1__user', 'player2__user', 
-                                            'player3__user', 'player4__user'
-                                        ).get(id=game.id))
-                                    except Exception as error:
-                                        raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
-
-                                    # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
-                                    # Esto evita el error de PostgreSQL
-                                    player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
-                                    if player_ids:
-                                        # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                                        locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
-                                        
-                                        if len(locked_players) < len(player_ids):
-                                            # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                            raise Exception("No se pudieron bloquear a todos los jugadores")
-
-                                    if next_idx >= len(players):
-                                        raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
-
-                                    error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
-                                    if error is not None:
-                                        raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
-                                    game_tools.updateLastPlayerTime(game, player_w.alias)  
-                            except Exception as e:
-                                logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
-                    elif time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
-                        try:
-                            with transaction.atomic():
-                                try:
-                                    game_block = (DominoGame.objects
-                                    .select_for_update(of=('self',), skip_locked=True)
-                                    .select_related(
-                                        'player1__user', 'player2__user', 
-                                        'player3__user', 'player4__user'
-                                    ).get(id=game.id))
-                                except Exception as error:
-                                    raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
-
-                                # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
-                                # Esto evita el error de PostgreSQL
-                                player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
-                                if player_ids:
-                                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                                    locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
-                                    
-                                    if len(locked_players) < len(player_ids):
-                                        # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                        raise Exception("No se pudieron bloquear a todos los jugadores")
-
-                                if next_idx >= len(players):
-                                    raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
-
-                                error = game_tools.movement(game, player_w, players, tile, automatic=True)
-                                if error is not None:
-                                    raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
-                                game_tools.updateLastPlayerTime(game, player_w.alias)  
-                        except Exception as e:
-                            logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
-            finally:
-                # Se libera el bloqueo de la mesa
-                lock.release()
+                        error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
+                        if error is not None:
+                            raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game_block.id} al intentar realizar la salida. Error: {error}")
+                        
+                        game_tools.updateLastPlayerTime(game_block, player_w.alias)  
+                except Exception as e:
+                    logger.critical(f"Error crítico en el movimiento automático en la mesa {game.id} al intentar realizar la salida, error: {str(e)}")            
         else:
-            logger.error(f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}")
-            pass    
+            next_idx = game.next_player
+            active_players = game_tools.playersCount(game)
+            players = [p for p in active_players if p.isPlaying]
+
+            # Identificamos al jugador que le toca mover
+            player_w = players[next_idx]
+            presence = get_player_presence(player_w)
+            player_diff_time = timezone.now() - presence['lastTimeInSystem']
+
+            tile = game_tools.takeRandomCorrectTile(player_w.tiles, game.leftValue, game.rightValue)
+            if game_tools.isPass(tile):
+                if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
+                    try:
+                        with transaction.atomic():
+                            try:
+                                game_block = (DominoGame.objects
+                                .select_for_update(of=('self',), skip_locked=True)
+                                .select_related(
+                                    'player1__user', 'player2__user', 
+                                    'player3__user', 'player4__user'
+                                ).get(id=game.id))
+                            except Exception as error:
+                                raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
+
+                            # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                            # Esto evita el error de PostgreSQL
+                            player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                            if player_ids:
+                                # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                                locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                                
+                                if len(locked_players) < len(player_ids):
+                                    # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                                    raise Exception("No se pudieron bloquear a todos los jugadores")
+
+                            if next_idx >= len(players):
+                                raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
+
+                            error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
+                            if error is not None:
+                                raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
+                            game_tools.updateLastPlayerTime(game, player_w.alias)  
+                    except Exception as e:
+                        logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
+            elif time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
+                try:
+                    with transaction.atomic():
+                        try:
+                            game_block = (DominoGame.objects
+                            .select_for_update(of=('self',), skip_locked=True)
+                            .select_related(
+                                'player1__user', 'player2__user', 
+                                'player3__user', 'player4__user'
+                            ).get(id=game.id))
+                        except Exception as error:
+                            raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
+
+                        # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                        # Esto evita el error de PostgreSQL
+                        player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                        if player_ids:
+                            # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                            locked_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                            
+                            if len(locked_players) < len(player_ids):
+                                # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                                raise Exception("No se pudieron bloquear a todos los jugadores")
+
+                        if next_idx >= len(players):
+                            raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
+
+                        error = game_tools.movement(game, player_w, players, tile, automatic=True)
+                        if error is not None:
+                            raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
+                        game_tools.updateLastPlayerTime(game, player_w.alias)  
+                except Exception as e:
+                    logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")   
     except Exception as e:
         logger.critical(f"Error en el movimiento automático de los jugadores en la mesa {game.id}, error: {str(e)}")
 

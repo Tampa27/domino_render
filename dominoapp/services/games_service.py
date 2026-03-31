@@ -390,7 +390,7 @@ class GameService:
             return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
     
     @staticmethod
-    def process_move(request, game_id):
+    def process_move_old(request, game_id):
         start_time = timezone.now()
         tile = request.data["tile"]
         try:
@@ -445,7 +445,30 @@ class GameService:
         except Exception as e:
             logger.critical(f"Error procesando mesa {game_id} en el request del player, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
             return Response({'status':'error', "message": str(e)}, status=status.HTTP_409_CONFLICT)
+
+    @staticmethod
+    def process_move(request, game_id):
+        tile = request.data.get("tile")
+        user_id = request.user.id
+
+        # 1. Validación rápida de existencia de jugador (usa caché si es posible)
+        try:
+            player = Player.objects.get(user__id=user_id)
+        except Player.DoesNotExist:
+            return Response({'status': 'error', 'message': "Debe autenticarse para realizar esta acción"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # 2. Intentar el movimiento directamente
+        # move1 debe encapsular la lógica de: ¿es mi turno? y ¿estoy en la mesa?
+        error = game_tools.move1(game_id, player, tile)
+
+        if error is None:
+            # 3. Respuesta inmediata. 
+            # La actualización de 'lastTimeInSystem' debería ser ASÍNCRONA (Celery) 
+            # o hacerse en una sola query de actualización sin bloquear el hilo principal.
+            return Response({'status': 'success'}, status=status.HTTP_200_OK)
         
+        return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
+
     @staticmethod
     def process_exitGame(request, game_id):
 
