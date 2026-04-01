@@ -291,7 +291,7 @@ def automaticMove(game: DominoGame):
                                 'player3__user', 'player4__user'
                             ).get(id=game.id))
                         except Exception as error:
-                            raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar la salida. Error: {error}")
+                            return
 
                         # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
                         # Esto evita el error de PostgreSQL
@@ -302,7 +302,7 @@ def automaticMove(game: DominoGame):
                             
                             if len(locked_players) < len(player_ids):
                                 # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                raise Exception("No se pudieron bloquear a todos los jugadores")
+                                return
 
                         next_idx = game_block.next_player
                         active_players = game_tools.playersCount(game_block)
@@ -346,7 +346,7 @@ def automaticMove(game: DominoGame):
                                     'player3__user', 'player4__user'
                                 ).get(id=game.id))
                             except Exception as error:
-                                raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
+                                return
 
                             # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
                             # Esto evita el error de PostgreSQL
@@ -357,7 +357,7 @@ def automaticMove(game: DominoGame):
                                 
                                 if len(locked_players) < len(player_ids):
                                     # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                    raise Exception("No se pudieron bloquear a todos los jugadores")
+                                    return
 
                             if next_idx >= len(players):
                                 raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
@@ -379,7 +379,7 @@ def automaticMove(game: DominoGame):
                                 'player3__user', 'player4__user'
                             ).get(id=game.id))
                         except Exception as error:
-                            raise Exception(f"No se pudo bloquear la mesa {game.id} para realizar el movimineto de la ficha. Error: {error}")
+                            return
 
                         # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
                         # Esto evita el error de PostgreSQL
@@ -390,7 +390,7 @@ def automaticMove(game: DominoGame):
                             
                             if len(locked_players) < len(player_ids):
                                 # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                                raise Exception("No se pudieron bloquear a todos los jugadores")
+                                return
 
                         if next_idx >= len(players):
                             raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
