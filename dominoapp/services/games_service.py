@@ -325,10 +325,11 @@ class GameService:
 
         try:
             with transaction.atomic():
-                # 2. Bloqueamos la mesa y a los 4 jugadores relacionados
-                # Usamos select_related para traerlos de una vez y 'of' para fijar sus filas
+                # 2. Bloqueamos la mesa y traemos los datos de los jugadores en un JOIN
                 try:
-                    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
+                    game = DominoGame.objects.select_related(
+                        'player1', 'player2', 'player3', 'player4'
+                    ).select_for_update(of=('self',), nowait=True).get(id=game_id)
                 except DominoGame.DoesNotExist:
                     return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -388,64 +389,7 @@ class GameService:
             return Response({'status': 'error', "message": "La mesa está ocupada procesando otra acción."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
             return Response ({'status': 'error', "message": "Algo anda mal, vuelva a intentar."},status=status.HTTP_409_CONFLICT)
-    
-    @staticmethod
-    def process_move_old(request, game_id):
-        start_time = timezone.now()
-        tile = request.data["tile"]
-        try:
-            player = Player.objects.get(user__id=request.user.id)
-        except:
-            return Response({'status': 'error', 'message': "Debe autenticarse para realizar esta acción"}, status=status.HTTP_401_UNAUTHORIZED)
-                
-        try:
-            games = DominoGame.objects.filter(id=game_id)
-            if not games.exists():
-                return Response({'status': 'error', 'message': "Game not found"}, status=404)
-            game = games.first()
-            players = game_tools.playersCount(game)
-            players_ru = list(filter(lambda p: p.isPlaying, players))
-            my_position = game_tools.getPlayerIndex(players_ru,player)
-            if my_position != game.next_player:
-                return Response({'status': 'error', 'message': "No es tu turno"}, status=status.HTTP_409_CONFLICT)
-            
-            ## Se usa un lock de Redis para evitar que dos movimientos del mismo jugador o de jugadores diferentes en la misma mesa se procesen al mismo tiempo, lo que podría causar inconsistencias.
-            lock = lock_game_player(game.id, game.next_player)
-            if lock.acquire(blocking=False):
-                filteres = Q(player1__alias=player.alias)|Q(player2__alias=player.alias)|Q(player3__alias=player.alias)|Q(player4__alias=player.alias)
-                check = DominoGame.objects.filter(filteres).filter(id=game_id).exists()
-                if not check:
-                    # Se libera el bloqueo de la mesa
-                    lock.release()
-                    return Response({'status': 'error', 'message': "No esta en el juego"}, status=status.HTTP_409_CONFLICT)
-                
-                error = game_tools.move1(game_id,player.id,tile)
-                if error is None:
-                    now = timezone.now()
-                    if player.lastTimeInSystem + timedelta(seconds = 10) < now:
-                        player.inactive_player = False
-                        player.lastTimeInSystem = now
-                        player.lastTimeInGame = now
-                        player.save(update_fields=["inactive_player", "lastTimeInSystem" , "lastTimeInGame"])
-                        data={
-                                'lastTimeInSystem': now,
-                                'lastTimeInGame' : now
-                            }
-                        update_player_presence_cache(player.id, data)
-                    
-                    # Se libera el bloqueo de la mesa
-                    lock.release()
-                    return Response({'status': 'success'}, status=status.HTTP_200_OK)
-                else:
-                    # Se libera el bloqueo de la mesa
-                    lock.release()
-                    return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({'status':'error', "message": f"La mesa {game.id} ya esta siendo procesada para el movimiento del player en la posicion {game.next_player}"}, status=status.HTTP_409_CONFLICT)
-        except Exception as e:
-            logger.critical(f"Error procesando mesa {game_id} en el request del player, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
-            return Response({'status':'error', "message": str(e)}, status=status.HTTP_409_CONFLICT)
-
+        
     @staticmethod
     def process_move(request, game_id):
         tile = request.data.get("tile")
