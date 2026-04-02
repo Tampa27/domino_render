@@ -163,10 +163,6 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
         'scoreTeam1', 'scoreTeam2'
     ])
     
-    move_data['score_team1'] = game.scoreTeam1
-    move_data['score_team2'] = game.scoreTeam2
-    move_data['player_points'] = player.points
-
     if game.status in ["fg", "fi"]:
         prepare_summary_end_game(game, players, bank_data, player_data_list)
     
@@ -353,9 +349,9 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
 
     # 3. Bucle único de cálculo (CPU es más barato que DB)
     for i in range(n):
-        p_data = next((d for d in player_data_list if d['id'] == player.id), None)
         player = players[i]
         if not player: continue
+        p_data = next((d for d in player_data_list if d['id'] == player.id), None)
         
         is_winner = i in winners_idx        
         # Valores de pago
@@ -486,12 +482,12 @@ def updatePassCoins(pos: int, game: DominoGame, players: list[Player], player_da
         player_data_list[pos]['transaction'] = {
             'from_user':True, 
             'amount':loss_coins,
-            'descriptions':descriptions_pass
+            'description':descriptions_pass
             }
         player_data_list[pos1]['transaction'] = {
             'to_user':True,
             'amount':coins_to_receive,
-            'descriptions':descriptions_passed
+            'description':descriptions_passed
         }
 
 def move1(game_id: int, player_request: Player, tile: str):
