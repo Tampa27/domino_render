@@ -170,7 +170,12 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     # Enviamos todo el paquete de datos para que Celery trabaje
     try:
         from dominoapp.tasks import async_update_summarys
-        async_update_summarys.delay(game.id, player_data_list, bank_data, move_data)
+        transaction.on_commit(lambda: async_update_summarys.delay(
+            game.id, 
+            player_data_list, 
+            bank_data, 
+            move_data
+        ))
     except Exception as e:
         logger_discord.error(f"Error lanzando async_update_summarys para game {game.id}: {e}")
 
