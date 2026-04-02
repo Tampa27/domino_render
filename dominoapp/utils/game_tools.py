@@ -12,7 +12,6 @@ from dominoapp.utils.transactions import create_game_transactions
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.cache_tools import update_player_presence_cache
-from dominoapp.utils.move_register_utils import movement_register
 from dominoapp.utils.players_tools import update_elo_pair, update_elo, get_summary_model
 
 logger = logging.getLogger(__name__)
@@ -50,55 +49,6 @@ def checkPlayerJoined(player: Player,game: DominoGame) -> tuple[bool, list[Playe
             res = True
     return res,players
 
-#### Si todo sale bien se borra este que es el viejo #########
-def startGame1_old(game:DominoGame,players:list[Player]):
-    n = len(players)
-    if game.starter == -1 or game.starter >= n:
-        game.next_player = random.randint(0,n-1)
-        game.starter = game.next_player
-    else:
-        # if players[game.starter].alias != players_ru[game.starter].alias:
-        #     game.starter = getPlayerIndex(players_ru,players[game.starter])
-        game.next_player = game.starter
-    if game.inPairs and game.winner != DominoGame.Tie_Game:
-        if game.starter == 0 or game.starter == 2:
-            game.winner = DominoGame.Winner_Couple_1
-        else:
-            game.winner = DominoGame.Winner_Couple_2    
-    
-    try:
-        bank = Bank.objects.all().first()
-    except:
-        bank = Bank.objects.create()
-    
-    bank.data_played+=1
-
-    game.board = ''
-    if game.perPoints and (game.status =="ready" or game.status =="fg"):
-        game.scoreTeam1 = 0
-        game.scoreTeam2 = 0
-        for player in players:
-            player.points = 0
-        game.rounds = 0
-
-        bank.game_played+=1
-    elif not game.perPoints:
-        bank.game_played+=1
-    
-    bank.save(update_fields=['game_played', 'data_played'])
-
-    shuffle(game,players)          
-    game.status = "ru"
-    game.start_time = timezone.now()
-    game.leftValue = -1
-    game.rightValue = -1
-    game.lastTime1 = timezone.now()
-    game.lastTime2 = timezone.now()
-    game.lastTime3 = timezone.now()
-    game.lastTime4 = timezone.now()
-    game.save(update_fields=['board','status','start_time','leftValue','rightValue','lastTime1','lastTime2','lastTime3','lastTime4', 'next_player','starter','winner','scoreTeam1','scoreTeam2','rounds'])
-##########################################################
-
 def startGame1(game: DominoGame, players: list[Player]):
     start_time = timezone.now()
     n = len(players)
@@ -120,14 +70,9 @@ def startGame1(game: DominoGame, players: list[Player]):
         game.rightValue = -1
         game.lastTime1 = game.lastTime2 = game.lastTime3 = game.lastTime4 = timezone.now()
         
-        # 4. Obtener o crear banco con una sola query optimizada
-        try:
-            bank = Bank.objects.all().first()
-        except:
-            bank = Bank.objects.create()
-        
-        # 5. Actualizar contadores del banco de forma atómica
-        bank.data_played += 1    
+        bank_data = {
+            'data_played': 1
+        }        
         
         # 6. Lógica de puntos y contadores de juegos completados
         if game.perPoints and game.status in ("ready", "fg"):
@@ -139,13 +84,10 @@ def startGame1(game: DominoGame, players: list[Player]):
             for player in players:
                 player.points = 0
             
-            bank.game_played += 1
+            bank_data['game_played'] = 1
         elif not game.perPoints:
-            bank.game_played += 1
-        
-        # 7. Guardar banco con solo los campos que cambiaron
-        bank.save(update_fields=['game_played', 'data_played'])
-        
+            bank_data['game_played'] = 1
+                
         # 8. Repartir fichas y actualizar estado
         shuffle(game, players)
         game.status = "ru"
@@ -157,6 +99,14 @@ def startGame1(game: DominoGame, players: list[Player]):
             'lastTime1', 'lastTime2', 'lastTime3', 'lastTime4',
             'next_player', 'starter', 'winner', 'scoreTeam1', 'scoreTeam2', 'rounds'
         ])
+
+        # 10. Actualizar estadísticas del banco de forma asíncrona
+        try:
+            from dominoapp.tasks import async_update_summarys
+            async_update_summarys.delay(bank_update_data=bank_data)
+        except Exception as e:
+            logger_discord.error(f"Error lanzando async_update_summarys para banco en startGame1: {e}")
+
     except Exception as e:
         logger_discord.critical(f"Error crítico en startGame1, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
 
@@ -170,10 +120,18 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     if error:
         return error
 
-    # 3. Lógica de Movimiento y Registro
-    move_register = movement_register(game, player, tile, players, automatic)
+    # --- PREPARACIÓN DE DATOS ASÍNCRONOS ---
+    bank_data = {'game_coins': 0}
+    player_data_list = [{'id': p.id, 'summary_fields': {}, 'transaction': None} for p in players]
     
-    update_bank_coins = 0
+    # Datos para el MoveRegister (que ahora será asíncrono)
+    move_data = {
+        'game_id': game.id,
+        'player_id': player.id,
+        'tile': tile,
+        'automatic': automatic,
+        'players_id': [p.id for p in players]
+    }
 
     if not passTile:
         isCapicua = False
@@ -186,15 +144,15 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
         player.save(update_fields=['tiles'])
 
         if tiles_count == 0:
-            handle_game_win(game, players, w, n, move_register, update_bank_coins, isCapicua)
+            handle_game_win(game, players, w, n, bank_data, player_data_list, isCapicua)
         else:
             game.next_player = (w + 1) % n          
     elif checkClosedGame1(game, n):
         winner = getWinner(players, game.inPairs, game.variant)
-        handle_closed_game(game, players, winner, n, move_register, update_bank_coins)
+        handle_closed_game(game, players, winner, n, bank_data, player_data_list)
     else:
         # Es un pase normal
-        updatePassCoins(w, game, players, move_register)
+        updatePassCoins(w, game, players, player_data_list)
         game.next_player = (w + 1) % n
 
     # 4. Guardado final de la mesa (Una sola query)
@@ -204,29 +162,32 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
         'leftValue', 'rightValue', 'rounds', 'start_time', 
         'scoreTeam1', 'scoreTeam2'
     ])
+    
+    move_data['score_team1'] = game.scoreTeam1
+    move_data['score_team2'] = game.scoreTeam2
+    move_data['player_points'] = player.points
 
-    # 5. Actualización masiva de Summaries (OPTIMIZACIÓN CLAVE)
-    # En lugar de .save() dentro de un loop, lo hacemos al final si el juego terminó
-    try:
-        bank = Bank.objects.all().first()
-    except:
-        bank = Bank.objects.create()
-    
     if game.status in ["fg", "fi"]:
-        update_all_summaries(game, players, bank)
-    bank.game_coins += update_bank_coins
-    bank.save(update_fields=["data_completed","game_completed", "game_coins"])
+        prepare_summary_end_game(game, players, bank_data, player_data_list)
     
+    # --- LANZAR TAREA ASÍNCRONA ---
+    # Enviamos todo el paquete de datos para que Celery trabaje
+    try:
+        from dominoapp.tasks import async_update_summarys
+        async_update_summarys.delay(game.id, player_data_list, bank_data, move_data)
+    except Exception as e:
+        logger_discord.error(f"Error lanzando async_update_summarys para game {game.id}: {e}")
+
     logger.info(f"{player.alias} movio {tile}")
     return None
 
 #### Adicionales para limpieza en el movement ####
-def validate_move(game: DominoGame, player: Player, players: list[Player], tile:str, w:int, passTile: bool):
+def validate_move(game: DominoGame, player: Player, players: list[Player], tile:str, player_position:int, passTile: bool):
     """Valida el movimiento de un jugador. """
     n = len(players)
-    if isMyTurn(game.board,w,game.starter,n, game.next_player) == False:
-        logger.warning(f"{player.alias} intento mover {tile} pero se detecto que no es su turno. Esta en la posicion: {w} y le toca el turno al player: {game.next_player}. El salidor es {game.starter}")
-        return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno. Esta en la posicion: {w} y le toca el turno al player: {game.next_player}. El salidor es {game.starter}")
+    if isMyTurn(player_position, game.next_player) == False:
+        logger.warning(f"{player.alias} intento mover {tile} pero se detecto que no es su turno. Esta en la posicion: {player_position} y le toca el turno al player: {game.next_player}. El salidor es {game.starter}")
+        return(f"{player.alias} intento mover {tile} pero se detecto que no es su turno. Esta en la posicion: {player_position} y le toca el turno al player: {game.next_player}. El salidor es {game.starter}")
     if noCorrect(game,tile):
         logger.warning(player.alias+" intento mover "+tile +" pero se detecto que no es una ficha correcta")
         return(f"{player.alias} intento mover {tile} pero se detecto que no es una ficha correcta")
@@ -245,36 +206,37 @@ def validate_move(game: DominoGame, player: Player, players: list[Player], tile:
     
     return None
 
-def update_all_summaries(game: DominoGame, players: list[Player], bank: Bank):
-    """Actualiza estadísticas de todos los jugadores y el banco en bloque."""
+def prepare_summary_end_game(game: DominoGame, players: list[Player], bank_data: dict, player_data_list: list[dict]):
+    """Prepara las estadísticas de todos los jugadores y el banco en bloque."""
     player_ids = [p.id for p in players]
     
     # Actualización del Banco
+    bank_data['data_completed'] = 1
     if game.status == "fg":
-        bank.data_completed += 1
-        bank.game_completed += 1
-    elif game.status == "fi":
-        bank.data_completed += 1
+        bank_data['game_completed'] = 1
 
-    # Actualización masiva de Summaries usando F() para evitar bloqueos
     
-    filter_params = {'player_id__in': player_ids}
+    # Determinamos los sufijos de los campos según la variante
+    variant_field = 'play_66_game' if game.variant == 'd6' else 'play_99_game'
+    pair_field = 'play_in_pairs' if game.inPairs else 'play_in_single'
+    points_field = 'play_by_points' if game.perPoints else 'play_without_points'
 
-    if game.status == "fg":
-        field_variant = 'play_66_game' if game.variant == 'd6' else 'play_99_game'
-        field_pair = 'play_in_pairs' if game.inPairs else 'play_in_single'
-        field_points = 'play_by_points' if game.perPoints else 'play_without_points'
-        
-        SummaryPlayer.objects.filter(**filter_params).update(
-            **{field_variant: F(field_variant) + 1},
-            **{field_pair: F(field_pair) + 1},
-            **{field_points: F(field_points) + 1}
-        )
-    
-    if game.winner == DominoGame.Tie_Game:
-        SummaryPlayer.objects.filter(**filter_params).update(data_tie=F('data_tie') + 1)
+    for i, player in enumerate(players):
+        # Buscamos el diccionario del jugador en la lista ya existente
+        p_data = next((d for d in player_data_list if d['id'] == player.id), None)
+        if not p_data: continue
 
-def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n: int, move_register: MoveRegister, update_bank_coins: int, isCapicua: bool):
+        if game.status == "fg":
+            # Añadimos los incrementos de estadísticas
+            summ = p_data.setdefault('summary_fields', {})
+            summ[variant_field] = summ.get(variant_field, 0) + 1
+            summ[pair_field] = summ.get(pair_field, 0) + 1
+            summ[points_field] = summ.get(points_field, 0) + 1
+
+        if game.winner == DominoGame.Tie_Game:
+            summ['data_tie'] = summ.get('data_tie', 0) + 1
+
+def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n: int, bank_data: dict, player_data_list: list[dict], isCapicua: bool):
     """Maneja la victoria por quedarse sin fichas."""
     game.status = 'fg'
     game.start_time = timezone.now()
@@ -295,10 +257,10 @@ def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n:
             Match_Game.objects.filter(game__id=game.id).update(count_game=F('count_game') + 1)
         
         # Llamamos a la función de puntos que optimizamos antes
-        updateAllPoints(game, players, winner_idx, move_register, update_bank_coins, isCapicua)
+        updateAllPoints(game, players, winner_idx, bank_data, player_data_list, isCapicua)
     else:
         # Si no es por puntos, solo actualizamos los datos básicos
-        updatePlayersData(game, players, winner_idx, "fg", move_register, update_bank_coins)
+        updatePlayersData(game, players, winner_idx, "fg", bank_data, player_data_list)
         
         # Mapeo de ganador a pareja si es necesario
         if game.inPairs:
@@ -307,7 +269,7 @@ def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n:
             else:
                 game.winner = DominoGame.Winner_Couple_2
 
-def handle_closed_game(game: DominoGame, players: list[Player], winner: int, n: int, move_register: MoveRegister, update_bank_coins: int):
+def handle_closed_game(game: DominoGame, players: list[Player], winner: int, n: int, bank_data: dict, player_data_list: list[dict]):
     """Maneja la lógica cuando el juego se cierra/tranca."""
     game.status = 'fg'
     game.start_time = timezone.now()
@@ -328,7 +290,7 @@ def handle_closed_game(game: DominoGame, players: list[Player], winner: int, n: 
             Match_Game.objects.filter(game__id=game.id).update(count_game=F('count_game') + 1)
             
         if winner < DominoGame.Tie_Game: # Alguien ganó por puntos            
-            updateAllPoints(game, players, winner, move_register, update_bank_coins) 
+            updateAllPoints(game, players, winner, bank_data, player_data_list) 
         elif winner == DominoGame.Tie_Game: # Empate técnico
             game.status = "fi" # El juego sigue o se repite la mano según tu regla
             # Lógica de quién sale en el empate
@@ -337,7 +299,7 @@ def handle_closed_game(game: DominoGame, players: list[Player], winner: int, n: 
             game.next_player = game.starter
     else:
         # Juego cerrado sin puntos
-        updatePlayersData(game, players, winner, "fg", move_register, update_bank_coins)
+        updatePlayersData(game, players, winner, "fg", bank_data, player_data_list)
         if game.inPairs and winner < DominoGame.Tie_Game:
             game.winner = DominoGame.Winner_Couple_1 if winner in [0, 2] else DominoGame.Winner_Couple_2
 
@@ -373,14 +335,13 @@ def rTile(tile)->str:
     values = tile.split('|')
     return (values[1]+"|"+values[0])
 
-def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: str, move_register: MoveRegister, update_bank_coins: int):
+def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: str, bank_data: dict, player_data_list: list[dict]):
     
     n = len(players)
     playing_count = sum(1 for p in players if p.isPlaying)
     is_final_game = (status == "fg")
     
     # Listas para guardar cambios y procesar al final
-    summaries_to_update = []
     players_to_update = []
     
     # 2. Identificar ganadores según el modo
@@ -392,21 +353,22 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
 
     # 3. Bucle único de cálculo (CPU es más barato que DB)
     for i in range(n):
+        p_data = next((d for d in player_data_list if d['id'] == player.id), None)
         player = players[i]
         if not player: continue
         
-        summary = get_summary_model(player)
-        is_winner = i in winners_idx
-        
+        is_winner = i in winners_idx        
         # Valores de pago
         win_val = game.payWinValue
         match_val = game.payMatchValue if (is_final_game and game.perPoints) else 0
         
+        summ = p_data.setdefault('summary_fields', {})
+
         if is_winner:
             # Lógica Ganador
-            summary.data_wins += 1
+            summ['data_wins'] = summ.get('data_wins', 0) + 1
             if is_final_game and game.perPoints:
-                summary.match_wins += 1
+                summ['match_wins'] = summ.get('match_wins', 0) + 1
             
             # Cálculo de monedas (Individual vs Parejas)
             multiplier = (playing_count - 1) if not game.inPairs else 1
@@ -417,20 +379,22 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                 bank_fee = int(total_win * fee_percent)
                 player_net = total_win - bank_fee
                 
-                update_bank_coins += bank_fee
+                bank_data['game_coins'] = bank_data.get('game_coins', 0) + bank_fee
                 player.earned_coins += player_net
-                summary.earned_coins += player_net
+                summ['earned_coins'] = summ.get('earned_coins', 0) + player_net
                 
                 # Transacción única por premio total
-                create_game_transactions(game=game, to_user=player, amount=player_net, 
-                                         status="cp", descriptions=f"Gané game {game.id}", 
-                                         move_register=move_register)
+                p_data['transaction'] = {
+                    'to_user': True, 
+                    'amount': player_net,
+                    'description': f"Gané game {game.id}"
+                }
         else:
             # Lógica Perdedor (Solo si el ganador es válido w < 4)
             if w < 4 and player.isPlaying:
-                summary.data_loss += 1
+                summ['data_loss'] = summ.get('data_loss', 0) + 1
                 if is_final_game and game.perPoints:
-                    summary.match_loss += 1
+                    summ['match_loss'] = summ.get('match_loss', 0) + 1
                 
                 total_loss = win_val + match_val
                 if total_loss > 0:
@@ -439,21 +403,19 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                         player.recharged_coins += player.earned_coins
                         player.earned_coins = 0
                     
-                    summary.loss_coins += total_loss
-                    create_game_transactions(game=game, from_user=player, amount=total_loss, 
-                                             status="cp", descriptions=f"Perdí game {game.id}", 
-                                             move_register=move_register)
+                    summ['loss_coins'] = summ.get('loss_coins', 0) + total_loss
+                    p_data['transaction'] = {
+                        'from_user': True,
+                        'amount': total_loss,
+                        'description': f"Perdí game {game.id}"
+                    }
 
         # Añadir a colas de guardado
-        summaries_to_update.append(summary)
         players_to_update.append(player)
 
     # 4. PERSISTENCIA MASIVA (El gran ahorro de tiempo)
     for p in players_to_update:
         p.save(update_fields=['earned_coins', 'recharged_coins'])
-    
-    for s in summaries_to_update:
-        s.save(update_fields=['data_wins', 'data_loss', 'match_wins', 'match_loss', 'earned_coins', 'loss_coins'])
     
     # 5. Actualización de ELO (al final de la transacción)
     if is_final_game:
@@ -463,9 +425,9 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
             else:
                 update_elo(players, (players[w] if w < 4 else None))
         except Exception as e:
-            logger_discord.error(f"Error ELO game {game.id}: {e}")
+            logger_discord.error(f"Error actualizando ELO game {game.id}: {e}")
 
-def updatePassCoins(pos: int, game: DominoGame, players: list[Player], move_register: MoveRegister):
+def updatePassCoins(pos: int, game: DominoGame, players: list[Player], player_data_list: list[dict]):
     if game.payPassValue <= 0:
         return # Si no hay pago por pase, ahorramos todo el procesamiento
 
@@ -504,31 +466,31 @@ def updatePassCoins(pos: int, game: DominoGame, players: list[Player], move_regi
         
         player_passed.earned_coins += coins_to_receive
 
-        # 4. Obtener resúmenes (Summary)
-        summary_pass = get_summary_model(player_pass)
-        summary_passed = get_summary_model(player_passed)
-
         # Actualización de estadísticas en memoria
-        summary_pass.loss_coins += loss_coins
-        summary_pass.owner_pass += 1
-        summary_passed.earned_coins += coins_to_receive
-        summary_passed.pass_player += 1
+        player_data_list[pos]['loss_coins'] += loss_coins
+        player_data_list[pos]['owner_pass'] = 1
+        player_data_list[pos1]['earned_coins'] += coins_to_receive
+        player_data_list[pos1]['pass_player'] = 1
 
         # 5. PERSISTENCIA ÚNICA (Aquí es donde ganamos velocidad)
         # Usamos save() una sola vez por objeto con update_fields
         player_pass.save(update_fields=['earned_coins', 'recharged_coins'])
         player_passed.save(update_fields=['earned_coins'])
-        summary_pass.save(update_fields=['loss_coins', 'owner_pass'])
-        summary_passed.save(update_fields=['earned_coins', 'pass_player'])
-
+        
         # 6. Transacciones (Ojalá pudieras hacer esto asíncrono)
         descriptions_pass = f"{player_passed.alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}"
         descriptions_passed = f"pase a {player_pass.alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}"
         
-        create_game_transactions(game=game, from_user=player_pass, amount=loss_coins, 
-                                 status="cp", descriptions=descriptions_pass, move_register=move_register)
-        create_game_transactions(game=game, to_user=player_passed, amount=coins_to_receive, 
-                                 status="cp", descriptions=descriptions_passed, move_register=move_register)
+        player_data_list[pos]['transaction'] = {
+            'from_user':True, 
+            'amount':loss_coins,
+            'descriptions':descriptions_pass
+            }
+        player_data_list[pos1]['transaction'] = {
+            'to_user':True,
+            'amount':coins_to_receive,
+            'descriptions':descriptions_passed
+        }
 
 def move1(game_id: int, player_request: Player, tile: str):
     start_time = timezone.now()
@@ -608,118 +570,6 @@ def shuffleCouples(game,players):
     game.player2 = players[1]
     game.player3 = players[2]
     game.player4 = players[3]
-
-####### Si todo sale bien borrar este que es el mas viejo #####
-def exitPlayer_old(game: DominoGame, player: Player, players: list[Player], totalPlayers: int):
-    exited = False
-    pos = getPlayerIndex(players,player)
-    isStarter = (game.starter == pos)
-    starter = game.starter
-    lastTimeMove = getLastMoveTime(game,player)
-    noActivity = False
-    if lastTimeMove is not None:
-        timediff = timezone.now() - lastTimeMove
-        if timediff.seconds >= 60:
-            noActivity = True
-        
-    if game.player1 is not None and game.player1.alias == player.alias:
-        game.player1 = None
-        exited = True
-    elif game.player2 is not None and game.player2.alias == player.alias:
-        game.player2 = None
-        exited = True        
-    elif game.player3 is not None and game.player3.alias == player.alias:
-        game.player3 = None
-        exited = True
-    elif game.player4 is not None and game.player4.alias == player.alias:
-        game.player4 = None
-        exited = True
-    
-    if exited:
-        player.points = 0
-        player.tiles = ""
-        if player.isPlaying:
-            have_points = havepoints(game)
-            if (game.status == "fi" or (game.status == "ru" and (have_points or game.board != ""))) and (game.payWinValue > 0 or game.payMatchValue > 0) and noActivity == False:
-                loss_coins = (game.payWinValue+game.payMatchValue)
-                coins = loss_coins
-                try:
-                    bank = Bank.objects.all().first()
-                except ObjectDoesNotExist:
-                    bank = Bank.objects.create()
-                bank_coins = int(coins*ApiConstants.DISCOUNT_PERCENT/100)
-                bank.game_coins+=bank_coins
-                coins -= bank_coins
-                if game.inPairs:
-                    coins_value = int(coins/2)
-                    players[(pos+1)%4].earned_coins+=coins_value
-                    summary_player = get_summary_model(players[(pos+1)%4])
-                    summary_player.earned_coins
-                    summary_player.save(update_fields=['earned_coins'])
-                    create_game_transactions(
-                        game=game, to_user=players[(pos+1)%4], amount=coins_value, status="cp",
-                        descriptions=f"{player.alias} salio del juego {game.id}")
-                    players[(pos+3)%4].earned_coins+=coins_value
-                    create_game_transactions(
-                        game=game, to_user=players[(pos+3)%4], amount=coins_value, status="cp",
-                        descriptions=f"{player.alias} salio del juego {game.id}")
-                    summary_player = get_summary_model(players[(pos+3)%4])
-                    summary_player.earned_coins
-                    summary_player.save(update_fields=['earned_coins'])
-                    players[(pos+1)%4].save(update_fields=['earned_coins'])
-                    players[(pos+3)%4].save(update_fields=['earned_coins'])     
-                else:
-                    n = len(players)-1
-                    for p in players:
-                        if p.alias != player.alias:
-                            p.earned_coins+= int(coins/n)
-                            create_game_transactions(
-                                game=game, to_user=p, amount=int(coins/n), status="cp",
-                                descriptions=f"{player.alias} salio del juego {game.id}")
-                            summary_player = get_summary_model(p)
-                            summary_player.earned_coins
-                            summary_player.save(update_fields=['earned_coins'])
-                            p.save(update_fields=['earned_coins'])
-                player.earned_coins-=loss_coins
-                if player.earned_coins<0:
-                    player.recharged_coins += player.earned_coins
-                    player.earned_coins = 0
-                summary_player = get_summary_model(player)
-                summary_player.loss_coins
-                summary_player.save(update_fields=['loss_coins'])
-                create_game_transactions(
-                    game=game, from_user=player, amount=loss_coins, status="cp",
-                    descriptions=f"por salir del juego {game.id}")
-                bank.save(update_fields=['game_coins'])                               
-            if totalPlayers <= 2 or game.inPairs:
-                game.status = "wt"
-                game.starter = -1
-                game.board = ""
-            elif (totalPlayers > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
-                game.status = "ready"
-                game.starter = -1
-            elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
-                if isStarter and game.startWinner:
-                    game.starter = -1
-                elif not isStarter:
-                    if game.starter > pos:
-                        game.starter-=1
-                if game.winner < DominoGame.Tie_Game and game.winner > pos:
-                    game.winner-=1
-            player.isPlaying = False
-        else:
-            if totalPlayers <= 2 or game.inPairs:
-                game.status = "wt"
-                game.starter = -1
-                game.board = ""
-        reorderPlayers(game,player,players,starter)                                                       
-        now = timezone.now()
-        player.lastTimeInGame = now
-        player.lastTimeInSystem = now
-        player.save(update_fields=['points','tiles','isPlaying','earned_coins','recharged_coins','lastTimeInGame','lastTimeInSystem'])
-        game.save(update_fields=['player1','player2','player3','player4','status','starter','winner','board'])    
-    return exited    
-################################################################
 
 def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPlayers: int):
     # 1. Identificar posición de forma rápida
@@ -846,31 +696,6 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
     
     return True
 
-### Si todo sale bien se borra este que es el mas viejo
-def reorderPlayers_old(game:DominoGame, player:Player, players:list, starter:int):
-    k = 0
-    pos = getPlayerIndex(players,player)
-    n = len(players)
-    game.player1 = None
-    game.player2 = None
-    game.player3 = None
-    game.player4 = None
-    for i in range(n):
-        if i != pos:
-            if k == 0:
-                game.player1 = players[i]
-            elif k == 1:
-                game.player2 = players[i]
-            elif k == 2:
-                game.player3 = players[i]
-            elif k == 3:
-                game.player4 = players[i]
-            if starter == i:
-                game.starter = k
-            
-            k+=1
-##################################################
-
 def reorderPlayers(game: DominoGame, player_who_left: Player, players: list[Player], starter_idx: int):
     """
     Reordena los slots de la mesa (player1-4) tras una salida.
@@ -907,7 +732,7 @@ def reorderPlayers(game: DominoGame, player_who_left: Player, players: list[Play
         else:
             game.starter = starter_idx
 
-def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_points: int, move_register: MoveRegister, update_bank_coins: int):
+def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_points: int, bank_data: dict, player_data_list: list[dict]):
     # 1. Determinar equipo ganador y jugadores a actualizar
     # Asumimos: Equipo 1 (índices 0, 2), Equipo 2 (índices 1, 3)
     is_team_1 = winner in [DominoGame.Winner_Player_1, DominoGame.Winner_Player_3]
@@ -934,16 +759,15 @@ def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_po
         if game.in_tournament:
             field_to_inc = "games_win_team_1" if game.scoreTeam1 >= game.maxScore else "games_win_team_2"
             Match_Game.objects.filter(game__id=game.id).update(**{field_to_inc: F(field_to_inc) + 1})
-            
-        updatePlayersData(game, players, winner, "fg", move_register, update_bank_coins)
     else:
         game.status = "fi"
-        updatePlayersData(game, players, winner, "fi", move_register, update_bank_coins)
+    
+    updatePlayersData(game, players, winner, game.status, bank_data, player_data_list)
 
     # Nota: Asegúrate de que el objeto 'game' se guarde después de llamar a esta función 
     # o añade game.save() aquí si es necesario.
 
-def updateAllPoints(game: DominoGame, players: list[Player], winner: int, move_register: MoveRegister, update_bank_coins: int, isCapicua=False):
+def updateAllPoints(game: DominoGame, players: list[Player], winner: int, bank_data: dict, player_data_list: list[dict], isCapicua=False):
     # 1. Cálculo de puntos base usando comprensión de listas (más rápido)
     all_tiles_points = [totalPoints(p.tiles) for p in players]
     
@@ -964,7 +788,7 @@ def updateAllPoints(game: DominoGame, players: list[Player], winner: int, move_r
     # 3. Delegar o ejecutar la actualización
     if game.inPairs:
         # Reutilizamos la función optimizada anterior
-        updateTeamScore(game, winner, players, sum_points, move_register, update_bank_coins)
+        updateTeamScore(game, winner, players, sum_points, bank_data, player_data_list)
     else:
         # Actualización atómica del jugador individual
         winner_player = players[winner]
@@ -976,7 +800,7 @@ def updateAllPoints(game: DominoGame, players: list[Player], winner: int, move_r
         game.status = "fg" if is_final_game else "fi"
         
         # Llamada única a updatePlayersData
-        updatePlayersData(game, players, winner, game.status, move_register, update_bank_coins)
+        updatePlayersData(game, players, winner, game.status, bank_data, player_data_list)
 
     # Nota: El objeto 'game' debe guardarse al final del proceso principal
 
@@ -1185,7 +1009,7 @@ def takeRandomCorrectTile(tiles,left,right):
     
     return best_tile if best_tile is not None else "-1|-1"
 
-def isMyTurn(board:str,myPos:int,starter:int,n:int, next_player:int):
+def isMyTurn(myPos:int, next_player:int):
     return myPos == next_player
 
 def getLastMoveTime(game,player):
