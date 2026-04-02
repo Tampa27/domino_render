@@ -86,8 +86,12 @@ def async_update_summarys(game_id: int= None, player_data_list: list = None, ban
                 # Crear Transacción
                 trans = data.get('transaction')
                 if trans:
+                    try:
+                        game = DominoGame.objects.get(id=game_id) if game_id else None
+                    except DominoGame.DoesNotExist:
+                        continue  # Si no existe el juego, saltamos la transacción
                     create_game_transactions(
-                        game_id=game_id,
+                        game= game,
                         to_user=player if trans.get('to_user') else None,
                         from_user=player if trans.get('from_user') else None,
                         amount=trans['amount'],

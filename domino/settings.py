@@ -259,6 +259,23 @@ LOGGING = {
 SITE_ID = 1
 
 CELERY_BROKER_URL = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+# 2. Forzar SSL para evitar "Connection refused" en Heroku/RedisCloud
+if CELERY_BROKER_URL.startswith('rediss'):
+    CELERY_BROKER_USE_SSL = {
+        'ssl_cert_reqs': None
+    }
+    CELERY_REDIS_BACKEND_USE_SSL = {
+        'ssl_cert_reqs': None
+    }
+
+# 3. Ajustes de visibilidad de tareas
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
 CELERY_BEAT_SCHEDULE = {
     # Los movimientos deben ser rápidos para que el usuario no espere
     'ejecutar_movimiento_automatico': {

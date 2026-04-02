@@ -2,7 +2,7 @@ import os
 from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
-app = Celery('domino', broker=os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0'))
+app = Celery('domino')
 # Configuración de rendimiento y memoria.
 app.conf.update(
     # --- Optimización de Workers ---
@@ -18,7 +18,9 @@ app.conf.update(
     task_soft_time_limit=25,  # Notifica a la tarea antes de matarla.
     
     # --- Redis (Broker) ---
-    broker_pool_limit=10,  # Conexiones máximas al broker (evita sobrecarga).
+    broker_pool_limit=5, # Permite que cada hilo de Gunicorn gestione su conexión
+    broker_connection_retry_on_startup=True,
+    broker_connection_max_retries=10,
     broker_connection_timeout=30,  # Timeout para conexiones.
     
     # --- Serialización ---
