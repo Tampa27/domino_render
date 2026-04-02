@@ -467,10 +467,12 @@ def updatePassCoins(pos: int, game: DominoGame, players: list[Player], player_da
         player_passed.earned_coins += coins_to_receive
 
         # Actualización de estadísticas en memoria
-        player_data_list[pos]['loss_coins'] += loss_coins
-        player_data_list[pos]['owner_pass'] = 1
-        player_data_list[pos1]['earned_coins'] += coins_to_receive
-        player_data_list[pos1]['pass_player'] = 1
+        summ_pass = player_data_list[pos].setdefault('summary_fields', {})
+        summ_passed = player_data_list[pos1].setdefault('summary_fields', {})
+        summ_pass['loss_coins'] = summ_pass.get('loss_coins', 0) + loss_coins
+        summ_pass['owner_pass'] = summ_pass.get('owner_pass', 0) + 1
+        summ_passed['earned_coins'] = summ_passed.get('earned_coins', 0) + coins_to_receive
+        summ_passed['pass_player'] = summ_passed.get('pass_player', 0) + 1
 
         # 5. PERSISTENCIA ÚNICA (Aquí es donde ganamos velocidad)
         # Usamos save() una sola vez por objeto con update_fields
