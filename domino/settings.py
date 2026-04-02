@@ -275,6 +275,8 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_POOL_LIMIT = 1  # Limita a 1 conexión por hilo de Gunicorn para no saturar Redis
+CELERY_BROKER_CONNECTION_TIMEOUT = 10 # No esperar 30s si falla
 
 CELERY_BEAT_SCHEDULE = {
     # Los movimientos deben ser rápidos para que el usuario no espere
