@@ -13,6 +13,7 @@ from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.cache_tools import update_player_presence_cache
 from dominoapp.utils.players_tools import update_elo_pair, update_elo, get_summary_model
+from dominoapp.utils.async_task_helper import safe_async_task
 
 logger = logging.getLogger(__name__)
 logger_discord = logging.getLogger('django')
@@ -170,14 +171,15 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     # Enviamos todo el paquete de datos para que Celery trabaje
     try:
         from dominoapp.tasks import async_update_summarys
-        async_update_summarys.delay(
+        safe_async_task(
+            async_update_summarys,
             game.id, 
             player_data_list, 
             bank_data, 
             move_data
         )
     except Exception as e:
-        logger_discord.error(f"Error lanzando async_update_summarys para game {game.id}: {e}")
+        logger_discord.error(f"Error lanzando async task para game {game.id}: {e}")
 
     logger.info(f"{player.alias} movio {tile}")
     return None

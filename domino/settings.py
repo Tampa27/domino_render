@@ -260,23 +260,32 @@ SITE_ID = 1
 
 CELERY_BROKER_URL = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
-# 2. Forzar SSL para evitar "Connection refused" en Heroku/RedisCloud
+# Para entornos con SSL (Heroku, RedisCloud)
 if CELERY_BROKER_URL.startswith('rediss'):
     CELERY_BROKER_USE_SSL = {
-        'ssl_cert_reqs': None
+        'ssl_cert_reqs': None,
+        'ssl_check_hostname': False
     }
-    CELERY_REDIS_BACKEND_USE_SSL = {
-        'ssl_cert_reqs': None
-    }
+    if CELERY_RESULT_BACKEND:
+        CELERY_REDIS_BACKEND_USE_SSL = {
+            'ssl_cert_reqs': None,
+            'ssl_check_hostname': False
+        }
 
 # 3. Ajustes de visibilidad de tareas
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BROKER_POOL_LIMIT = None  # Sin límite fijo, usar pooling por defecto
+CELERY_BROKER_CONNECTION_TIMEOUT = 5
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_BROKER_POOL_LIMIT = 1  # Limita a 1 conexión por hilo de Gunicorn para no saturar Redis
-CELERY_BROKER_CONNECTION_TIMEOUT = 10 # No esperar 30s si falla
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 3
+
+# Para las tasks
+CELERY_TASK_ALWAYS_EAGER = False  # Asegurar que NO se ejecute en modo eager
+CELERY_TASK_EAGER_PROPAGATES = False  # No propagar excepciones en modo eager (aunque no se use)
 
 CELERY_BEAT_SCHEDULE = {
     # Los movimientos deben ser rápidos para que el usuario no espere

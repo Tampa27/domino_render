@@ -1,5 +1,7 @@
 release: python manage.py migrate --noinput
 
-web: gunicorn domino.wsgi --workers $WEB_CONCURRENCY --threads 4 --worker-class=gthread --timeout 25 --keep-alive 5 --max-requests 500 --max-requests-jitter 50 --bind 0.0.0.0:$PORT
+# Procfile o comando de inicio
+web: gunicorn domino.wsgi:application --workers=2 --threads=4 --timeout=25 --max-requests=1000
 
-worker: celery -A domino worker --beat -l info
+# Celery worker
+worker: celery -A domino worker --loglevel=info --concurrency=1 --max-tasks-per-child=100
