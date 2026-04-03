@@ -104,7 +104,10 @@ def startGame1(game: DominoGame, players: list[Player]):
         # 10. Actualizar estadísticas del banco de forma asíncrona
         try:
             from dominoapp.tasks import async_update_summarys
-            async_update_summarys.delay(bank_update_data=bank_data)
+            safe_async_task(
+                async_update_summarys,
+                    bank_update_data=bank_data
+                )
         except Exception as e:
             logger_discord.error(f"Error lanzando async_update_summarys para banco en startGame1: {e}")
 
@@ -229,9 +232,9 @@ def prepare_summary_end_game(game: DominoGame, players: list[Player], bank_data:
         p_data = next((d for d in player_data_list if d['id'] == player.id), None)
         if not p_data: continue
 
+        summ = p_data.setdefault('summary_fields', {})
         if game.status == "fg":
-            # Añadimos los incrementos de estadísticas
-            summ = p_data.setdefault('summary_fields', {})
+            # Añadimos los incrementos de estadísticas            
             summ[variant_field] = summ.get(variant_field, 0) + 1
             summ[pair_field] = summ.get(pair_field, 0) + 1
             summ[points_field] = summ.get(points_field, 0) + 1
