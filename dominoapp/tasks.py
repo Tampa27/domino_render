@@ -9,7 +9,7 @@ from dominoapp.utils.move_register_utils import movement_register
 from dominoapp.utils.checktables import procesar_logica_de_mesa, automatic_tournament
 logger = logging.getLogger('django')
 
-@shared_task(name="task_maestra_domino")
+@shared_task(name="task_maestra_domino", ignore_result=True)
 def task_maestra_domino():
     """
     Se ejecuta cada 7s. Identifica mesas activas y lanza procesos individuales.
@@ -30,7 +30,7 @@ def task_maestra_domino():
     for tournament_id in tournaments_active:
         task_logica_torneos.delay(tournament_id)
 
-@shared_task(name="procesar_mesa_individual")
+@shared_task(name="procesar_mesa_individual", ignore_result=True)
 def procesar_mesa_individual(game_id):
     """
     Procesa toda la lógica (movimientos, reinicios, expulsiones) de una sola mesa.
@@ -38,13 +38,13 @@ def procesar_mesa_individual(game_id):
     procesar_logica_de_mesa(game_id)
 
 
-@shared_task(name="task_logica_torneos")
+@shared_task(name="task_logica_torneos", ignore_result=True)
 def task_logica_torneos(tournament_id):
     """Procesa toda la lógica de los torneos (reinicios, expulsiones, notificaciones)."""
     automatic_tournament(tournament_id)
 
 
-@shared_task(name="async_update_summarys")
+@shared_task(name="async_update_summarys", ignore_result=True)
 def async_update_summarys(game_id: int= None, player_data_list: list = None, bank_update_data: dict=None, move_data: dict = None):
     """
     Procesa actualizaciones masivas de estadísticas, transacciones y registros de movimientos.

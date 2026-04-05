@@ -286,6 +286,7 @@ CELERY_BROKER_CONNECTION_MAX_RETRIES = 3
 # Para las tasks
 CELERY_TASK_ALWAYS_EAGER = False  # Asegurar que NO se ejecute en modo eager
 CELERY_TASK_EAGER_PROPAGATES = False  # No propagar excepciones en modo eager (aunque no se use)
+CELERY_TASK_RESULT_EXPIRES = 60  # Borrar resultados tras 1 minutos
 
 CELERY_BEAT_SCHEDULE = {
     # Los movimientos deben ser rápidos para que el usuario no espere
