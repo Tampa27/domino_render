@@ -166,32 +166,51 @@ def procesar_logica_de_mesa(game_id: int):
             now_time = timezone.now()
             start_in_30_min = now_time + timedelta(minutes=30)
             try:
-                needs_update = False
-                active_players = game_tools.playersCount(game)
-                players_presence = get_list_player_presence(active_players)
-                for player in active_players:                    
-                    diff_time = now_time - players_presence[player.id]['lastTimeInGame']
-                    if (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game, player) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min)) and player.isPlaying:
-                        try:
-                            game_tools.exitPlayer(game,player,active_players,len(active_players))
-                            needs_update = True
-                        except Exception as e:
-                            logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
-                    elif (diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME) or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min):
-                        try:
-                            game_tools.exitPlayer(game,player,active_players,len(active_players))
-                            needs_update = True
-                        except Exception as e:
-                            logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
+                with transaction.atomic():
+                    try:
+                        game_block = (DominoGame.objects
+                            .select_for_update(of=('self',), skip_locked=True)
+                            .select_related(
+                                'player1__user', 'player2__user', 
+                                'player3__user', 'player4__user'
+                            ).get(id=game.id))
+                    except Exception as error:
+                        return
+                    needs_update = False
+                    active_players = game_tools.playersCount(game_block)
+                    players_presence = get_list_player_presence(active_players)
+                    for player in active_players:                    
+                        # Usar el estado de presencia (Cache/Redis) para decidir
+                        presence = players_presence.get(player.id)
+                        if not presence: continue
+                
+                        diff_time = now_time - presence['lastTimeInGame']
+                        # Condiciones de expulsión
+                        lost_connection = diff_time.seconds >= ApiConstants.EXIT_GAME_TIME
+                        is_inactive = diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME
+                        not_enough_money = not game_tools.ready_to_play(game_block, player)
+                        tournament_soon = player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min
 
-                # Solo guardamos si realmente hubo un cambio
-                if needs_update:
-                    # Actualizar estado de la mesa si quedó vacía/sola
-                    active_players = game_tools.playersCount(game)
-                    if game.status == 'wt' and len(active_players)<2:
-                        game.starter=-1
-                        game.board = ""
-                        game.save(update_fields=['starter','board'])
+                        if (lost_connection and player.isPlaying) or (is_inactive)  or tournament_soon  or not_enough_money:
+                            # 2. EJECUTAR LÓGICA DE SALIDA
+                            # Ojo: exitPlayer debe recibir el objeto bloqueado (game_block)
+                            try:
+                                success = game_tools.exitPlayer(game_block, player, active_players, len(active_players))
+                                if success:
+                                    needs_update = True
+                                    # Actualizamos la lista local para que la siguiente iteración vea el cambio
+                                    active_players = game_tools.playersCount(game_block)
+                            except Exception as e:
+                                logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
+
+                    # Solo guardamos si realmente hubo un cambio
+                    if needs_update:
+                        if game_block.status == 'wt' and len(active_players)<2:
+                            # game.starter=-1  ## lo comento para que si quien expulsa al jugador es el automatico el starter se mantega como se actualizo en el exitplayer
+                            game_block.board = ""
+                            # game.save(update_fields=['starter','board'])
+                            game_block.save(update_fields=['board'])
+                
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
     except DominoGame.DoesNotExist:

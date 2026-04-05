@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from dominoapp.models import Player, SummaryPlayer, DominoGame, MoveRegister,Bank, Match_Game
+from dominoapp.models import Player, DominoGame, Match_Game
 from django.utils import timezone
 from datetime import timedelta
 from django.core.exceptions import ObjectDoesNotExist
@@ -8,11 +8,10 @@ from django.db.models import F
 import random
 from django.db import transaction
 import logging
-from dominoapp.utils.transactions import create_game_transactions
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.cache_tools import update_player_presence_cache
-from dominoapp.utils.players_tools import update_elo_pair, update_elo, get_summary_model
+from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
 
 logger = logging.getLogger(__name__)
@@ -617,77 +616,87 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
             bank_fee = int(loss_coins * fee_percent)
             net_to_distribute = loss_coins - bank_fee
 
-            # Actualizar Banco
-            try:
-                bank = Bank.objects.first()
-            except ObjectDoesNotExist:
-                bank = Bank.objects.create()
-            bank.game_coins += bank_fee
-            bank.save(update_fields=['game_coins'])
-
-            # Distribuir monedas a los que se quedan
-            if game.inPairs:
-                share = int(net_to_distribute / 2)
-                players[(pos+1)%4].earned_coins+=share
-                summary_player = get_summary_model(players[(pos+1)%4])
-                summary_player.earned_coins += share
-                summary_player.save(update_fields=['earned_coins'])
-                create_game_transactions(
-                    game=game, to_user=players[(pos+1)%4], amount=share, status="cp",
-                    descriptions=f"{player.alias} salio del juego {game.id}")
-                players[(pos+3)%4].earned_coins+=share
-                create_game_transactions(
-                    game=game, to_user=players[(pos+3)%4], amount=share, status="cp",
-                    descriptions=f"{player.alias} salio del juego {game.id}")
-                summary_player = get_summary_model(players[(pos+3)%4])
-                summary_player.earned_coins += share
-                summary_player.save(update_fields=['earned_coins'])
-                players[(pos+1)%4].save(update_fields=['earned_coins'])
-                players[(pos+3)%4].save(update_fields=['earned_coins'])
-            else:
-                remaining_players = [p for p in players if p.id != player.id and p.isPlaying]
-                if remaining_players:
-                    share = int(net_to_distribute / len(remaining_players))
-                    for p in remaining_players:
-                        p.earned_coins += share
-                        p.save(update_fields=['earned_coins'])
-                        # Actualizar summary del que recibe
-                        summary = get_summary_model(p)
-                        summary.earned_coins += share
-                        summary.save(update_fields=['earned_coins'])
-                        create_game_transactions(game=game, to_user=p, amount=share, status="cp", descriptions=f"{player.alias} salió")
-
+            # --- PREPARACIÓN DE DATOS ASÍNCRONOS ---
+            bank_data = {
+                'game_coins': bank_fee
+            }
+            player_data_list = [{'id': p.id, 'summary_fields': {}, 'transaction': None} for p in players]
+            
             # Penalizar al que salió
             player.earned_coins -= loss_coins
             if player.earned_coins < 0:
                 player.recharged_coins += player.earned_coins
                 player.earned_coins = 0
-            summary = get_summary_model(player)
-            summary.loss_coins += loss_coins
-            summary.save(update_fields=['loss_coins'])
-            create_game_transactions(game=game, from_user=player, amount=loss_coins, status="cp", descriptions="por salir del juego")
+
+            # Datos de penalización para Celery
+            p_out_data = next((d for d in player_data_list if d['id'] == player.id), None)
+            if p_out_data is not None:
+                p_out_data['summary_fields']['loss_coins'] = loss_coins
+                p_out_data['transaction'] = {
+                    'from_user': True,
+                    'amount': loss_coins,
+                    'description': f"por salir del juego {game.id}"
+                }
+
+            # Distribuir monedas a los que se quedan
+            # 3. Distribuir a ganadores
+            winners = []
+            if game.inPairs:
+                share = int(net_to_distribute / 2)
+                winners = [players[(pos+1)%4], players[(pos+3)%4]]
+            else:
+                winners = [p for p in players if p.id != player.id and p.isPlaying]
+                share = int(net_to_distribute / len(winners)) if winners else 0
+
+            for p_win in winners:
+                p_win.earned_coins += share
+                # Actualizamos el mapa para Celery
+                p_w_data = next((d for d in player_data_list if d['id'] == p_win.id),None)
+                if p_w_data is not None:
+                    p_w_data['summary_fields']['earned_coins'] = share
+                    p_w_data['transaction'] = {
+                        'to_user': True,
+                        'amount': share,
+                        'description': f"{player.alias} salió del juego {game.id}"
+                    }
+                # Guardar solo el campo necesario de forma eficiente
+                p_win.save(update_fields=['earned_coins'])
+            
+                        
+            # Actualizar estadísticas del banco y del player de forma asíncrona
+            try:
+                from dominoapp.tasks import async_update_summarys
+                safe_async_task(
+                        async_update_summarys,
+                        game_id=game.id,
+                        player_data_list=player_data_list,
+                        bank_update_data=bank_data
+                    )
+            except Exception as e:
+                logger_discord.error(f"Error lanzando async_update_summarys en exitPlayer: {e}")
+
 
         # 5. Actualizar estado del juego tras la salida
         if totalPlayers <= 2 or game.inPairs:
             game.status = "wt"
-            game.starter = -1
+            # game.starter = -1
             game.board = ""
         elif (totalPlayers > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
             game.status = "ready"
-            game.starter = -1
+            # game.starter = -1
         elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
-            # Ajustar índices si el que salió estaba antes que el salidor/ganador
-            if isStarter and game.startWinner:
-                game.starter = -1
-            elif not isStarter and game.starter > pos:
-                game.starter -= 1
+            # # Ajustar índices si el que salió estaba antes que el salidor/ganador
+            # if isStarter and game.startWinner:
+            #     game.starter = -1
+            # elif not isStarter and game.starter > pos:
+            #     game.starter -= 1
             
             if game.winner < DominoGame.Tie_Game and game.winner > pos:
                 game.winner -= 1
     else:
         if totalPlayers <= 2 or game.inPairs:
             game.status = "wt"
-            game.starter = -1
+            # game.starter = -1
             game.board = ""
 
     # 6. Reordenar y Persistir
