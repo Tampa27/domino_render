@@ -278,6 +278,7 @@ class PlayerPersonalRankinSerializer(serializers.ModelSerializer):
     data_win_percent = serializers.SerializerMethodField()
     match_win_percent = serializers.SerializerMethodField()
     pass_player = serializers.SerializerMethodField()
+    owner_pass = serializers.SerializerMethodField()
     tournaments_wins = serializers.SerializerMethodField()
     
     def get_date_filter(self):
@@ -349,6 +350,10 @@ class PlayerPersonalRankinSerializer(serializers.ModelSerializer):
     def get_pass_player(self, obj: Player) -> int:
         date_filter = self.get_date_filter()
         return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('pass_player'))['total'] or 0 
+    
+    def get_owner_pass(self, obj: Player) -> int:
+        date_filter = self.get_date_filter()
+        return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('owner_pass'))['total'] or 0
 
     def get_tournaments_wins(self, obj: Player) -> list[dict]:
         # Subconsulta para victorias individuales
@@ -405,7 +410,7 @@ class PlayerPersonalRankinSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player", "tournaments_wins"]
+        fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player", "owner_pass", "tournaments_wins"]
 
 class PlayerNotificationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
