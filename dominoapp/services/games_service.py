@@ -9,9 +9,9 @@ from django.conf import settings
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
 from dominoapp.utils import game_tools
-from dominoapp.utils.cache_tools import update_player_presence_cache, get_player_presence, lock_game_player
+from dominoapp.utils.async_task_helper import safe_async_task
+from dominoapp.tasks import async_update_player_presence
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
-import redis
 import logging
 logger = logging.getLogger('django')
 
@@ -32,15 +32,18 @@ class GameService:
         # Solo actualizamos si ha pasado un tiempo prudencial (ej. 1 minuto) 
         # o usamos .update() directamente para evitar el overhead de .save()
         if player.lastTimeInSystem + timedelta(seconds = 10) < timezone.now():
-            Player.objects.filter(id=player.id).update(
-                inactive_player=False,
-                send_delete_email=False,
-                lastTimeInSystem= timezone.now()
-            )
-            data={
-                'lastTimeInSystem': timezone.now()
-            }
-            update_player_presence_cache(player.id, data)
+            try:
+                safe_async_task(
+                    async_update_player_presence,
+                    player_data = {
+                        'id': player.id,
+                        'inactive_player': False,
+                        'send_delete_email': False,
+                        'lastTimeInSystem': timezone.now().isoformat()
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Error lanzando async task para actualizar presencia del jugador: {e}")
 
         # 3. Verificación de bloqueo más directa
         if BlockPlayer.objects.filter(player_blocked=player).exists():
@@ -121,13 +124,16 @@ class GameService:
                         user_id=request.user.id
                     )
                 if player_request.lastTimeInSystem + timedelta(seconds = 10) < timezone.now():
-                    Player.objects.filter(id=player_request.id).update(
-                        lastTimeInSystem= timezone.now()
-                    )
-                    data = {
-                        'lastTimeInSystem': timezone.now()
-                    }
-                    update_player_presence_cache(player_request.id, data)
+                    try:
+                        safe_async_task(
+                            async_update_player_presence,
+                            player_data = {
+                                'id': player_request.id,
+                                'lastTimeInSystem': timezone.now().isoformat()
+                            }
+                        )
+                    except Exception as e:
+                        logger.error(f"Error lanzando async task para actualizar presencia del jugador: {e}")
             except DatabaseError:
                 # Si el jugador está bloqueado (moviendo ficha), ignoramos la actualización
                 # del timestamp para esta petición de "retrieve". 
@@ -174,12 +180,6 @@ class GameService:
         player1.lastTimeInGame = now
         player1.save(update_fields=["tiles", "inactive_player", "lastTimeInSystem", "lastTimeInGame"])
         
-        data={
-                'lastTimeInSystem': now,
-                'lastTimeInGame' : now
-            }
-        update_player_presence_cache(player1.id, data)
-
         data = request.data.copy()
         data["lastTime1"] = now
         data["player1"] = player1.id
@@ -209,7 +209,16 @@ class GameService:
     def process_join(request, game_id):
         try:
             with transaction.atomic():
-                # 1. Bloqueamos al jugador que intenta unirse (el "peticionario")
+                # 1. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
+                # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
+                try:
+                    game = DominoGame.objects.select_related(
+                        'player1', 'player2', 'player3', 'player4'
+                    ).select_for_update(of=('self',), nowait=True).get(id=game_id)
+                except DominoGame.DoesNotExist:
+                    return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+                # 2. Bloqueamos al jugador que intenta unirse (el "peticionario")
                 try:
                     player = Player.objects.select_for_update(nowait=True).get(user__id=request.user.id)
                 except:
@@ -222,20 +231,6 @@ class GameService:
                 player.lastTimeInGame = now
                 player.save(update_fields=["inactive_player", "send_delete_email", "lastTimeInSystem", "lastTimeInGame"])
                 
-                data={
-                        'lastTimeInSystem': now,
-                        'lastTimeInGame' : now
-                    }
-                update_player_presence_cache(player.id, data)
-
-
-                # 2. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
-                # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
-                try:
-                    game = DominoGame.objects.select_for_update(nowait=True).get(id=game_id)
-                except DominoGame.DoesNotExist:
-                    return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
                 # 3. Validaciones de negocio (Ahora son seguras porque nadie puede cambiar al player ni a la mesa)
                 check_others_game = DominoGame.objects.filter(
                     Q(player1__id=player.id) |
@@ -436,7 +431,21 @@ class GameService:
                 if game_in_round:
                     return Response({'status': 'error', "message":"No puedes salir de un juego del torneo."}, status=status.HTTP_409_CONFLICT)
                 
-                player = Player.objects.get(user__id=request.user.id)
+                # 2. Bloqueamos a los jugadores que YA están sentados de forma independiente
+                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+                if player_ids:
+                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                    locked_players  = list(Player.objects.select_for_update(nowait=True).filter(id__in=player_ids))
+                    if len(locked_players) < len(player_ids):
+                        # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                        return Response(data={"status":"error","message":"No se pudieron bloquear a todos los jugadores"}, status=status.HTTP_409_CONFLICT)
+                try:
+                    player = next((p for p in locked_players if p and p.user.id == request.user.id), None)
+                    if not player:
+                        return Response(data={"status":"error","message":"Player no encontrado en esta mesa."}, status=status.HTTP_404_NOT_FOUND)
+                except:
+                    return Response(data={"status":"error","message":"Player no encontrado en esta mesa. Debe autenticarse."}, status=status.HTTP_404_NOT_FOUND)
+
                 if game.status in ["ru","fi"] and player.isPlaying and game.perPoints:
                     have_points = game_tools.havepoints(game)
                     if have_points:

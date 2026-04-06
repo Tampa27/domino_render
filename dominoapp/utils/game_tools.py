@@ -10,7 +10,6 @@ from django.db import transaction
 import logging
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
-from dominoapp.utils.cache_tools import update_player_presence_cache
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
 
@@ -550,19 +549,13 @@ def move1(game_id: int, player_request: Player, tile: str):
                     'lastTime1', 'lastTime2', 'lastTime3', 'lastTime4'
                 ])
 
-                #### esto hay que cambiarlo a asincrono y pasarcelo a Celery para que no afecte el rendimiento del movimiento, lo mismo con el update_player_presence_cache
                 now = timezone.now()
                 if player.lastTimeInSystem + timedelta(seconds = 5) < now:
                     player.inactive_player = False
                     player.lastTimeInSystem = now
                     player.lastTimeInGame = now
                     player.save(update_fields=["inactive_player", "lastTimeInSystem" , "lastTimeInGame"])
-                    data={
-                            'lastTimeInSystem': now,
-                            'lastTimeInGame' : now
-                        }
-                    update_player_presence_cache(player.id, data)
-                ###########################################################
+                    
                 return None
             return error
 
@@ -603,7 +596,6 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
 
     # 4. Lógica de Penalización (Solo si el juego está en curso y no es por inactividad)
     if player.isPlaying:
-        player.isPlaying = False # Marcar como ya no jugando
         have_points = havepoints(game)
         
         # ¿Debe pagar por abandonar?
@@ -679,24 +671,15 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
         # 5. Actualizar estado del juego tras la salida
         if totalPlayers <= 2 or game.inPairs:
             game.status = "wt"
-            # game.starter = -1
             game.board = ""
         elif (totalPlayers > 2 and not game.inPairs and game.perPoints) or game.status == "ru":
             game.status = "ready"
-            # game.starter = -1
         elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
-            # # Ajustar índices si el que salió estaba antes que el salidor/ganador
-            # if isStarter and game.startWinner:
-            #     game.starter = -1
-            # elif not isStarter and game.starter > pos:
-            #     game.starter -= 1
-            
             if game.winner < DominoGame.Tie_Game and game.winner > pos:
                 game.winner -= 1
     else:
         if totalPlayers <= 2 or game.inPairs:
             game.status = "wt"
-            # game.starter = -1
             game.board = ""
 
     # 6. Reordenar y Persistir
@@ -704,6 +687,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
     
     now = timezone.now()
     player.points = 0
+    player.isPlaying = False # Marcar como ya no jugando
     player.tiles = ""
     player.lastTimeInGame = now
     player.lastTimeInSystem = now

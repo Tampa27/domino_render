@@ -37,12 +37,10 @@ def procesar_mesa_individual(game_id):
     """
     procesar_logica_de_mesa(game_id)
 
-
 @shared_task(name="task_logica_torneos", ignore_result=True)
 def task_logica_torneos(tournament_id):
     """Procesa toda la lógica de los torneos (reinicios, expulsiones, notificaciones)."""
     automatic_tournament(tournament_id)
-
 
 @shared_task(name="async_update_summarys", ignore_result=True)
 def async_update_summarys(game_id: int= None, player_data_list: list = None, bank_update_data: dict=None, move_data: dict = None):
@@ -53,10 +51,10 @@ def async_update_summarys(game_id: int= None, player_data_list: list = None, ban
     if bank_update_data:
         try:
             with transaction.atomic():
-                bank = Bank.objects.select_for_update().first() or Bank.objects.create()
+                firts_bank = Bank.objects.first()
                 update_kwargs = {k: F(k) + v for k, v in bank_update_data.items() if v != 0}
                 if update_kwargs:
-                    Bank.objects.filter(id=bank.id).update(**update_kwargs)
+                    Bank.objects.filter(id=firts_bank.id).update(**update_kwargs)
         except Exception as e:
             logger.error(f"Error actualizando Banco en proceso asincrono: {e}")
 
@@ -101,3 +99,23 @@ def async_update_summarys(game_id: int= None, player_data_list: list = None, ban
                     )
         except Exception as e:
             logger.error(f"Error procesando jugador {data.get('id')} en proceso asincrono: {e}")
+
+@shared_task(name="async_update_player_presence", ignore_result=True)
+def async_update_player_presence(player_data: dict):
+    """
+    Procesa actualizaciones de presencia de jugadores.
+    """
+    if not 'id' in player_data:
+        logger.error("Error: player_data debe contener 'id' para actualizar presencia.")
+        return
+
+    try:
+        with transaction.atomic():
+            player = Player.objects.get(id=player_data['id'])
+            if player:
+                player.objects.filter(id=player.id).update(**player_data)
+
+    except Exception as e:
+        logger.error(f"Error actualizando presencia del Jugador en proceso asincrono: {e}")
+
+    return
