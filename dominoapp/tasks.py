@@ -105,15 +105,13 @@ def async_update_player_presence(player_data: dict):
     """
     Procesa actualizaciones de presencia de jugadores.
     """
-    if not 'id' in player_data:
-        logger.error("Error: player_data debe contener 'id' para actualizar presencia.")
+    player_id = player_data.get('id')
+    if not player_id:
+        logger.error("Error: player_data debe contener 'id'.")
         return
 
     try:
-        with transaction.atomic():
-            player = Player.objects.get(id=player_data['id'])
-            if player:
-                player.objects.filter(id=player.id).update(**player_data)
+        Player.objects.filter(id=player_id).update(**player_data)
 
     except Exception as e:
         logger.error(f"Error actualizando presencia del Jugador en proceso asincrono: {e}")
