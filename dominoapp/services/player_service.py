@@ -26,9 +26,9 @@ logger = logging.getLogger('django')
 class PlayerService:
 
     @staticmethod
-    def process_retrieve(request, player_id):
+    def process_retrieve(request):
         try:
-            player = Player.objects.get(id = player_id, user__id = request.user.id)
+            player = Player.objects.get(user__id = request.user.id)
             if player.is_block:
                 return Response({"status":'error',"message":"Este player esta bloqueado. Contacta a los administradores."},status=status.HTTP_401_UNAUTHORIZED)
         except:

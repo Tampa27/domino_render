@@ -160,15 +160,7 @@ class PlayerView(viewsets.ModelViewSet):
         }
     )
     def retrieve(self, request, pk):
-        is_valid, message, status_response = PlayerRequest.validate_retrieve(pk)
-        
-        if not is_valid:
-            return Response(data ={
-                "status":'error',
-                "message": message
-            }, status = status_response)
-        
-        return PlayerService.process_retrieve(request, pk)
+        return PlayerService.process_retrieve(request)
     
     @extend_schema(
             responses={

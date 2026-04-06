@@ -64,9 +64,9 @@ class PaymentService:
                 bank.save(update_fields=['promotion_coins'])
                 
                 FCMNOTIFICATION.send_fcm_message(
-                user = player.parent.user,
-                title = "Nueva Recarga en Domino Club",
-                body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                    user = player.parent.user,
+                    title = "Nueva Recarga en Domino Club",
+                    body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
                 )
                 DiscordConnector.send_event(
                     "Promoción",

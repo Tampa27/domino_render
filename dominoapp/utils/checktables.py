@@ -11,11 +11,9 @@ from django.utils.timezone import timedelta
 from django.db import connection, transaction
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
-from dominoapp.utils.cache_tools import get_player_presence, get_list_player_presence, lock_game_player
 from dominoapp.services.tournament_service import TournamentService
 import logging
 import pytz
-import redis
 logger = logging.getLogger('django')
 logger_api = logging.getLogger(__name__)
 
@@ -51,9 +49,8 @@ def procesar_logica_de_mesa(game_id: int):
                         if game.status == 'fg':
                             now_time = timezone.now()
                             start_in_30_min = now_time + timedelta(minutes=30)
-                            players_presence = get_list_player_presence(players_running)
                             for player in players_running:                                
-                                diff_time = now_time - players_presence[player.id]['lastTimeInGame']
+                                diff_time = now_time - player.lastTimeInGame
                                 if not game.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                     try:
                                         game_tools.exitPlayer(game,player,active_players,len(active_players))
@@ -176,15 +173,23 @@ def procesar_logica_de_mesa(game_id: int):
                             ).get(id=game.id))
                     except Exception as error:
                         return
+                    
+                    # Bloqueamos a los jugadores que YA están sentados de forma independiente
+                    # Esto evita el error de PostgreSQL
+                    player_ids = [pid for pid in [game_block.player1_id, game_block.player2_id, game_block.player3_id, game_block.player4_id] if pid]
+                    active_players = []
+                    if player_ids:
+                        # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                        active_players  = list(Player.objects.select_for_update(skip_locked=True).filter(id__in=player_ids))
+                        
+                        if len(active_players) < len(player_ids):
+                            # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                            return
+
                     needs_update = False
-                    active_players = game_tools.playersCount(game_block)
-                    players_presence = get_list_player_presence(active_players)
                     for player in active_players:                    
-                        # Usar el estado de presencia (Cache/Redis) para decidir
-                        presence = players_presence.get(player.id)
-                        if not presence: continue
-                
-                        diff_time = now_time - presence['lastTimeInGame']
+                                       
+                        diff_time = now_time - player.lastTimeInGame
                         # Condiciones de expulsión
                         lost_connection = diff_time.seconds >= ApiConstants.EXIT_GAME_TIME
                         is_inactive = diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME
@@ -206,9 +211,7 @@ def procesar_logica_de_mesa(game_id: int):
                     # Solo guardamos si realmente hubo un cambio
                     if needs_update:
                         if game_block.status == 'wt' and len(active_players)<2:
-                            # game.starter=-1  ## lo comento para que si quien expulsa al jugador es el automatico el starter se mantega como se actualizo en el exitplayer
                             game_block.board = ""
-                            # game.save(update_fields=['starter','board'])
                             game_block.save(update_fields=['board'])
                 
             except Exception as error:
@@ -349,8 +352,7 @@ def automaticMove(game: DominoGame):
 
             # Identificamos al jugador que le toca mover
             player_w = players[next_idx]
-            presence = get_player_presence(player_w)
-            player_diff_time = timezone.now() - presence['lastTimeInSystem']
+            player_diff_time = timezone.now() - player_w.lastTimeInSystem
 
             tile = game_tools.takeRandomCorrectTile(player_w.tiles, game.leftValue, game.rightValue)
             if game_tools.isPass(tile):
