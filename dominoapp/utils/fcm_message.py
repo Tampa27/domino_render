@@ -22,7 +22,24 @@ class FCMNOTIFICATION:
             )
         except Exception as error:
             logger.critical(f'Error al enviar notificacion FCM" => {str(error)}')
-            
+
+    @staticmethod
+    def send_fcm_message_by_users_list(users: list[int], title:str, body:str):
+
+        try:
+            user_devices = FCMDevice.objects.filter(user__id__in=users)
+            user_devices.send_message(
+                Message(
+                    notification=Notification(
+                            title=title, 
+                            body=body
+                    )
+                )
+            )
+        except Exception as error:
+            logger.critical(f'Error al enviar notificacion FCM a listas de usuarios" => {str(error)}')
+       
+
     @staticmethod
     def send_fcm_global_message(title:str, body:str):
 

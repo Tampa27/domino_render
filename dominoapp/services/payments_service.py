@@ -221,13 +221,12 @@ class PaymentService:
             # )
         
         if send_request or transactions_exist:
-            admins = Player.objects.filter(user__is_staff=True)
-            for admin in admins:
-                FCMNOTIFICATION.send_fcm_message(
-                    user = admin.user,
-                    title = "🚨Solicitud de Recarga🚨",
-                    body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰."
-                    )
+            admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
+            FCMNOTIFICATION.send_fcm_message_by_users_list(
+                users = admins_id,
+                title = "🚨Solicitud de Recarga🚨",
+                body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰."
+                )
             
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
             }, status=status.HTTP_200_OK)
@@ -472,13 +471,13 @@ class PaymentService:
             # bank.extracted_coins+=int(request.data["coins"])
             # bank.save(update_fields=['extracted_coins'])
             
-            admins = Player.objects.filter(user__is_staff=True)
-            for admin in admins:
-                FCMNOTIFICATION.send_fcm_message(
-                    user = admin.user,
-                    title = "🚨Solicitud de Extracción🚨",
-                    body = f"👤 {player.alias} solicita retirar {request.data['coins']} monedas 💰."
-                    )
+            admins_list = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
+            
+            FCMNOTIFICATION.send_fcm_message_by_users_list(
+                users = admins_list,
+                title = "🚨Solicitud de Extracción🚨",
+                body = f"👤 {player.alias} solicita retirar {request.data['coins']} monedas 💰."
+                )
             
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
                 }, status=status.HTTP_200_OK)

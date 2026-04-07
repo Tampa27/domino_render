@@ -3,10 +3,11 @@ import logging
 from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, MoveRegister
 from django.db import transaction
 from django.db.models import F
-from dominoapp.utils.transactions import create_game_transactions
+from dominoapp.utils.transactions import create_game_transactions, create_transactions
 from dominoapp.utils.players_tools import get_summary_model
 from dominoapp.utils.move_register_utils import movement_register
 from dominoapp.utils.checktables import procesar_logica_de_mesa, automatic_tournament
+from dominoapp.utils.fcm_message import FCMNOTIFICATION
 logger = logging.getLogger('django')
 
 @shared_task(name="task_maestra_domino", ignore_result=True)
@@ -86,17 +87,24 @@ def async_update_summarys(game_id: int= None, player_data_list: list = None, ban
                 if trans:
                     try:
                         game = DominoGame.objects.get(id=game_id) if game_id else None
-                    except DominoGame.DoesNotExist:
-                        continue  # Si no existe el juego, saltamos la transacción
-                    create_game_transactions(
-                        game= game,
-                        to_user=player if trans.get('to_user') else None,
-                        from_user=player if trans.get('from_user') else None,
-                        amount=trans['amount'],
-                        status="cp",
-                        descriptions=trans['description'],
-                        move_register=move_register
-                    )
+                        create_game_transactions(
+                            game= game,
+                            to_user=player if trans.get('to_user') else None,
+                            from_user=player if trans.get('from_user') else None,
+                            amount=trans['amount'],
+                            status="cp",
+                            descriptions=trans['description'],
+                            move_register=move_register
+                        )
+                    except:
+                        create_transactions(
+                            to_user=player if trans.get('to_user') else None,
+                            from_user=player if trans.get('from_user') else None,
+                            amount=trans['amount'],
+                            status="cp",
+                            type="gm",
+                            descriptions=trans['description']
+                        )
         except Exception as e:
             logger.error(f"Error procesando jugador {data.get('id')} en proceso asincrono: {e}")
 
@@ -115,5 +123,31 @@ def async_update_player_presence(player_data: dict):
 
     except Exception as e:
         logger.error(f"Error actualizando presencia del Jugador en proceso asincrono: {e}")
+
+    return
+
+
+@shared_task(name="async_send_fcm_message", ignore_result=True)
+def async_send_fcm_message(users_id: list[int], title: str, message: str):
+    """
+    Procesa el envío de mensajes FCM a usuarios.
+    """
+    FCMNOTIFICATION.send_fcm_message_by_users_list(
+        users = users_id,
+        title = title,
+        body = message
+    )
+
+    return
+
+@shared_task(name="async_send_global_fcm_message", ignore_result=True)
+def async_send_global_fcm_message(title: str, message: str):
+    """
+    Procesa el envío de mensajes FCM a todos los usuarios.
+    """
+    FCMNOTIFICATION.send_fcm_global_message(
+        title = title,
+        body = message
+    )
 
     return

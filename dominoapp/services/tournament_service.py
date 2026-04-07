@@ -8,8 +8,7 @@ from django.db import transaction
 from dominoapp.serializers import TournamentCreateSerializer
 from dominoapp.models import Player, BlockPlayer, Tournament, Round, Pair, DominoGame, Match_Game, Bank
 from dominoapp.utils.transactions import create_transactions
-from dominoapp.utils.fcm_message import FCMNOTIFICATION
-from dominoapp.utils.players_tools import get_summary_model
+
 logger = logging.getLogger('django')
 
 
@@ -315,64 +314,63 @@ class TournamentService:
    
     @staticmethod
     def process_pay_winners(tournament:Tournament, winner: Pair, second: Pair= None, third: Pair= None):
+        from dominoapp.tasks import async_send_fcm_message
+        from dominoapp.tasks import async_update_summarys
+        
         tournament.first_place_object_id = winner.id
                 
         total_player = tournament.player_list.count()            
         total_registration_fee = tournament.registration_fee*total_player
         
+        # --- PREPARACIÓN DE DATOS ASÍNCRONOS ---
+        bank_data = {'tournament_coins': 0}
+        player_data_list = []
+        
+
         if tournament.winner_payout > 0:
-            
-            try:
-                bank = Bank.objects.all().first()
-            except:
-                bank = Bank.objects.create()
-            
+                      
             TRANSFER_PERCENT = os.getenv("TOURNAMENT_ADMIN_PERCENT")
             bank_amount = int(total_registration_fee*int(TRANSFER_PERCENT)/100)
             
-            bank.tournament_coins += bank_amount
-            bank.save(update_fields=["tournament_coins"])
-            
+            bank_data['tournament_coins'] = bank_data.get('tournament_coins', 0) + bank_amount
+                    
             player_coins = int((total_registration_fee*tournament.winner_payout/100)/2)
+            
             
             winner.player1.earned_coins+= player_coins
             winner.player1.save(update_fields=["earned_coins"])
+            
+            player_data_list.append({
+                    'id': winner.player1.id,
+                    'summary_fields': {'tournament_wins': 1},
+                    'transaction': {
+                        'amount': player_coins,
+                        'to_user': True,
+                        'description': f"Por terminar en 1er lugar en el torneo {tournament.id}"
+                    }
+                })
+            
             winner.player2.earned_coins+= player_coins
             winner.player2.save(update_fields=["earned_coins"])
+
+            player_data_list.append({
+                    'id': winner.player2.id,
+                    'summary_fields': {'tournament_wins': 1},
+                    'transaction': {
+                        'amount': player_coins,
+                        'to_user': True,
+                        'description': f"Por terminar en 1er lugar en el torneo {tournament.id}"
+                    }
+                })
             
-            summary_winner1 = get_summary_model(winner.player1)
-            summary_winner1.tournament_wins += 1
-            summary_winner1.save(update_fields=['tournament_wins'])
-            summary_winner2 = get_summary_model(winner.player2)
-            summary_winner2.tournament_wins += 1
-            summary_winner2.save(update_fields=['tournament_wins'])
-
-            ## Crear las transacciones
-            create_transactions(
-                amount=player_coins,
-                to_user= winner.player1,
-                status= "cp",
-                type= "gm",
-                descriptions=f"Por terminar en 1er lugar en el torneo {tournament.id}"
-            )
-
-            FCMNOTIFICATION.send_fcm_message(
-                user= winner.player1.user,
-                title= "🏅 Campeón del Torneo",
-                body=f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
-            )
-            create_transactions(
-                amount=player_coins,
-                to_user= winner.player2,
-                status= "cp",
-                type= "gm",
-                descriptions=f"Por terminar en 1er lugar en el torneo {tournament.id}"
-            )
-            FCMNOTIFICATION.send_fcm_message(
-                user= winner.player2.user,
-                title= "🏅 Campeón del Torneo",
-                body=f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
-            )
+            try:
+                async_send_fcm_message.delay(
+                    users_id=[winner.player1.user.id, winner.player2.user.id],
+                    title= "🏅 Campeón del Torneo",
+                    message= f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
+                    )
+            except Exception as error:
+                logger.error(f'Error al enviar notificacion FCM de ganador del torneo" => {str(error)}')
 
         if second:
             tournament.second_place_object_id = second.id
@@ -382,35 +380,39 @@ class TournamentService:
             
                 second.player1.earned_coins+= player_coins
                 second.player1.save(update_fields=["earned_coins"])
+                
+                player_data_list.append({
+                        'id': second.player1.id,
+                        'summary_fields': {}, # No sumamos torneo ganado al 2do
+                        'transaction': {
+                            'amount': player_coins,
+                            'to_user': True,
+                            'description': f"Por terminar en 2do lugar en el torneo {tournament.id}"
+                        }
+                    })
+
                 second.player2.earned_coins+= player_coins                
                 second.player2.save(update_fields=["earned_coins"])
                 
-                ## Crear las transacciones
-                create_transactions(
-                    amount=player_coins,
-                    to_user= second.player1,
-                    status= "cp",
-                    type= "gm",
-                    descriptions=f"Por terminar en 2do lugar en el torneo {tournament.id}"
-                )
-                FCMNOTIFICATION.send_fcm_message(
-                    user= second.player1.user,
-                    title= "🎊 Subcampeón del Torneo",
-                    body=f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
-                )
-                create_transactions(
-                    amount=player_coins,
-                    to_user= second.player2,
-                    status= "cp",
-                    type= "gm",
-                    descriptions=f"Por terminar en 2do lugar en el torneo {tournament.id}"
-                )
-                FCMNOTIFICATION.send_fcm_message(
-                    user= second.player2.user,
-                    title= "🎊 Subcampeón del Torneo",
-                    body=f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
-                )
-                
+                player_data_list.append({
+                        'id': second.player2.id,
+                        'summary_fields': {}, # No sumamos torneo ganado al 2do
+                        'transaction': {
+                            'amount': player_coins,
+                            'to_user': True,
+                            'description': f"Por terminar en 2do lugar en el torneo {tournament.id}"
+                        }
+                    })
+
+                try:
+                    async_send_fcm_message.delay(
+                        users_id=[second.player1.user.id, second.player2.user.id],
+                        title= "🎊 Subcampeón del Torneo",
+                        message= f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
+                        )
+                except Exception as error:
+                    logger.error(f'Error al enviar notificacion FCM de subcampeón del torneo" => {str(error)}')
+                                
         if third:
             tournament.third_place_object_id = third.id
             
@@ -419,33 +421,46 @@ class TournamentService:
             
                 third.player1.earned_coins+= player_coins
                 third.player1.save(update_fields=["earned_coins"])
+                
+                player_data_list.append({
+                        'id': third.player1.id,
+                        'summary_fields': {},
+                        'transaction': {
+                            'amount': player_coins,
+                            'to_user': True,
+                            'description': f"Por terminar en 3er lugar en el torneo {tournament.id}"
+                        }
+                    })
+
                 third.player2.earned_coins+= player_coins
                 third.player2.save(update_fields=["earned_coins"])
                 
-                ## Crear las transacciones
-                create_transactions(
-                    amount=player_coins,
-                    to_user= third.player1,
-                    status= "cp",
-                    type= "gm",
-                    descriptions=f"Por terminar en 3er lugar en el torneo {tournament.id}"
+                player_data_list.append({
+                        'id': third.player2.id,
+                        'summary_fields': {},
+                        'transaction': {
+                            'amount': player_coins,
+                            'to_user': True,
+                            'description': f"Por terminar en 3er lugar en el torneo {tournament.id}"
+                        }
+                    })
+                
+                try:
+                    async_send_fcm_message.delay(
+                        users_id=[third.player1.user.id, third.player2.user.id],
+                        title= "👏 Tercer Lugar del Torneo",
+                        message= f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones! 🎉"
+                        )
+                except Exception as error:
+                    logger.error(f'Error al enviar notificacion FCM de tercer lugar del torneo" => {str(error)}')
+        
+        if bank_data.get('tournament_coins', 0) > 0 or len(player_data_list)>0:
+            try:
+                async_update_summarys.delay(
+                    player_data_list = player_data_list,
+                    bank_update_data = bank_data
                 )
-                FCMNOTIFICATION.send_fcm_message(
-                    user= third.player1.user,
-                    title= "👍 ¡Felicitaciones!",
-                    body=f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones!"
-                )
-                create_transactions(
-                    amount=player_coins,
-                    to_user= third.player2,
-                    status= "cp",
-                    type= "gm",
-                    descriptions=f"Por terminar en 3er lugar en el torneo {tournament.id}"
-                )
-                FCMNOTIFICATION.send_fcm_message(
-                    user= third.player2.user,
-                    title= "👍 ¡Felicitaciones!",
-                    body=f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones!"
-                )
+            except Exception as error:
+                logger.error(f'Error al actualizar resumenes de jugadores y banco de torneo de forma asincrona" => {str(error)}')
         
         tournament.save(update_fields=["first_place_object_id", "second_place_object_id", "third_place_object_id"])

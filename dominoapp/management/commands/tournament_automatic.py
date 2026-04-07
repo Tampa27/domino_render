@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import timedelta
 from django.utils import timezone
 from dominoapp.models import Tournament
-from dominoapp.utils.fcm_message import FCMNOTIFICATION
+from dominoapp.tasks import async_send_fcm_message, async_send_global_fcm_message
 import logging
 logger = logging.getLogger("django")
 
@@ -31,48 +31,66 @@ class Command(BaseCommand):
                 tournament.start_at += timedelta(days=1)
                 tournament.save(update_fields=['deadline', 'start_at'])
                 for player in player_list:
-                    FCMNOTIFICATION.send_fcm_message(
-                        user= player.user,
-                        title= "⏰ Fechas del Torneo Corridas",
-                        body=f"El torneo se pospuso para el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {tournament.deadline.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')}."
-                    )
+                    try:
+                        async_send_fcm_message.delay(
+                            users_id=[player.user.id],
+                            title= "⏰ Fechas del Torneo Corridas",
+                            message=f"El torneo se pospuso para el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {tournament.deadline.astimezone(pytz.timezone(player.timezone)).strftime('%d-%m-%Y, %H:%M')}."
+                        )
+                    except Exception as error:
+                            logger.error(f'Error al enviar notificacion FCM de cambio de fecha del torneo" => {str(error)}')
                 
-                FCMNOTIFICATION.send_fcm_global_message(
-                    title="⏰ Última oportunidad para inscribirte al torneo",
-                    body= f"⏰ Se corrió el torneo. Ahora puedes unirte al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
-                )
+                try:
+                    async_send_global_fcm_message.delay(
+                        title="⏰ Última oportunidad para inscribirte al torneo",
+                        message= f"⏰ Se corrió el torneo. Ahora puedes unirte al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
+                    )
+                except Exception as error:
+                    logger.error(f'Error al enviar notificacion FCM global de cambio de fecha del torneo" => {str(error)}')
             
             diff_deadline = tournament.deadline - timedelta(hours=12)
             if (
                 diff_deadline < now and not tournament.notification_deadline and
                 player_in_tournament < int(tournament.max_player)
                 ):
-                FCMNOTIFICATION.send_fcm_global_message(
-                    title="⏰ Últimas horas para inscribirte al torneo",
-                    body= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
-                )
+                try:
+                    async_send_global_fcm_message.delay(
+                        title="⏰ Últimas horas para inscribirte al torneo",
+                        message= f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {tournament.deadline.astimezone(pytz.timezone('America/Havana')).strftime('%d-%m a las %H:%M')}."
+                    )
+                except Exception as error:
+                        logger.error(f'Error al enviar notificacion FCM global de recordatorio de cierre de inscripciones" => {str(error)}')
+                
                 tournament.notification_deadline = True
                 tournament.save(update_fields=['notification_deadline'])
 
             diff_start = tournament.start_at - timedelta(hours=2)
             if  diff_start < now and not tournament.notification_1 and int(player_in_tournament) == int(tournament.max_player):
                 for player in player_list:
-                    FCMNOTIFICATION.send_fcm_message(
-                        user= player.user,
-                        title= "⏰ Recordatorio de inicio",
-                        body=f"Recordatorio: El torneo comienza el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d de %B')} a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. Te esperamos puntual."
-                    )
+                    try:
+                        async_send_fcm_message.delay(
+                            users_id=[player.user.id],
+                            title= "⏰ Recordatorio de inicio",
+                            message= f"Recordatorio: El torneo comienza el {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%d de %B')} a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. Te esperamos puntual."
+                        )
+                    except Exception as error:
+                        logger.error(f'Error al enviar notificacion FCM de recordatorio de inicio del torneo de 2 horas antes" => {str(error)}')
+
                 tournament.notification_1 = True
                 tournament.save(update_fields=['notification_1'])
             
             diff_start = tournament.start_at - timedelta(minutes=30)
             if  diff_start < now and not tournament.notification_30 and int(player_in_tournament) == int(tournament.max_player):
                 for player in player_list:
-                    FCMNOTIFICATION.send_fcm_message(
-                        user= player.user,
-                        title= "⏰ Recordatorio de inicio",
-                        body=f"Recordatorio: El torneo comienza en 30 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Prepárate para jugar!"
-                    )
+                    try:
+                        async_send_fcm_message.delay(
+                            users_id=[player.user.id],
+                            title= "⏰ Recordatorio de inicio",
+                            message=f"Recordatorio: El torneo comienza en 30 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Prepárate para jugar!"
+                        )
+                    except Exception as error:
+                        logger.error(f'Error al enviar notificacion FCM de recordatorio de inicio del torneo de 30 minutos antes" => {str(error)}')
+
                 tournament.notification_30 = True
                 tournament.save(update_fields=['notification_30'])
             

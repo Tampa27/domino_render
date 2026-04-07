@@ -121,9 +121,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',           # 1. CORS siempre primero
+    'django.middleware.security.SecurityMiddleware',   # 2. Seguridad básica
+    'whitenoise.middleware.WhiteNoiseMiddleware',      # 3. Archivos estáticos
+    'django.middleware.gzip.GZipMiddleware',           # 4. COMPRESIÓN DE API (JSON)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

@@ -5,7 +5,6 @@ django.setup()
 
 from dominoapp.utils import game_tools
 from dominoapp.models import DominoGame, Tournament, Match_Game, Round, Player
-from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from django.utils import timezone
 from django.utils.timezone import timedelta
 from django.db import connection, transaction
@@ -38,7 +37,6 @@ def procesar_logica_de_mesa(game_id: int):
         elif game.status in ['fg', 'fi']:
             # Lógica de la función automatic_restar_game 
             # pero usando la instancia 'game' que ya tenemos
-            notifications_queue = []
             try:
                 if (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
                     try:
@@ -60,6 +58,7 @@ def procesar_logica_de_mesa(game_id: int):
                             if len(active_players)<2:
                                 restargame = False
                             if game.in_tournament:
+                                from dominoapp.tasks import async_send_fcm_message
                                 match = Match_Game.objects.get(game__id = game.id)
                                 if match.is_final_match:
                                     restargame = False
@@ -67,32 +66,27 @@ def procesar_logica_de_mesa(game_id: int):
                                     if match.winner_pair_1:                                    
                                         round.winner_pair_list.add(match.pair_list.first())
                                         if not round.end_round:
-                                            notifications_queue.append({
-                                                'user': match.pair_list.first().player1.user,
-                                                'title': "✅ Partido Completado",
-                                                'body': "Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
-                                            })
-                                            
-                                            notifications_queue.append({
-                                                'user': match.pair_list.first().player2.user,
-                                                'title': "✅ Partido Completado",
-                                                'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
-                                            })
+                                            try:
+                                                async_send_fcm_message.delay(
+                                                    users_id=[match.pair_list.first().player1.user.id, match.pair_list.first().player2.user.id],
+                                                    title="✅ Partido Completado",
+                                                    message="Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                                )
+                                            except Exception as error:
+                                                logger.error(f'Error al enviar notificacion FCM de partido completado" => {str(error)}')
                                     
                                     if match.winner_pair_2:
                                         round.winner_pair_list.add(match.pair_list.last())
                                         if not round.final_round:
-                                            notifications_queue.append({
-                                                'user': match.pair_list.last().player1.user,
-                                                'title': "✅ Partido Completado",
-                                                'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
-                                            })
-                                            notifications_queue.append({
-                                                'user': match.pair_list.last().player2.user,
-                                                'title': "✅ Partido Completado",
-                                                'body':"Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
-                                            })
-                                        
+                                            try:
+                                                async_send_fcm_message.delay(
+                                                    users_id=[match.pair_list.last().player1.user.id, match.pair_list.last().player2.user.id],
+                                                    title="✅ Partido Completado",
+                                                    message="Partida ganada. El Torneo continúa tras finalizar los demás partidos. 🎮"
+                                                )
+                                            except Exception as error:
+                                                logger.error(f'Error al enviar notificacion FCM de partido completado" => {str(error)}')
+
                                     for player in active_players:
                                         game_tools.exitPlayer(game,player,active_players,len(active_players))
                                         active_players = game_tools.playersCount(game)
@@ -113,47 +107,36 @@ def procesar_logica_de_mesa(game_id: int):
                                             
                                             winner_pair = round.winner_pair_list.first()
                                             ###### Notificar a los jugadores del torneo
-                                            for player in game.tournament.player_list.all():
-                                                notifications_queue.append({
-                                                    'user': player.user,
-                                                    'title': "🏆 Torneo Finalizado",
-                                                    'body':"El torneo ha finalizado. ¡Felicidades a los ganadores de este torneo!"
-                                                })
-                                                                                    
+                                            players_ids = list(game.tournament.player_list.values_list('user_id', flat=True))
+                                            try:
+                                                async_send_fcm_message.delay(
+                                                    users_id=players_ids,
+                                                    title="🏆 Torneo Finalizado",
+                                                    message="El torneo ha finalizado. ¡Felicidades a los ganadores de este torneo!"
+                                                )
+                                            except Exception as error:
+                                                logger.error(f'Error al enviar notificacion FCM de torneo finalizado" => {str(error)}')
+                                                                                                                                
                                             ##### asignar premios a los ganadores ############
                                             second_pair = round.pair_list.exclude(id=winner_pair.id).first()
                                             TournamentService.process_pay_winners(game.tournament,winner_pair, second_pair)
                                             ##################################################
                                         else:
-                                            for pair in round.winner_pair_list.all():
-                                                notifications_queue.append({
-                                                    'user': pair.player1.user,
-                                                    'title': "⏰ Recordatorio de inicio",
-                                                    'body':"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
-                                                })
-                                                notifications_queue.append({
-                                                    'user': pair.player2.user,
-                                                    'title': "⏰ Recordatorio de inicio",
-                                                    'body':f"La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
-                                                })
+                                            players_ids = list(round.winner_pair_list.values_list('player1__user_id', flat=True)) + list(round.winner_pair_list.values_list('player2__user_id', flat=True))
+                                            try:
+                                                async_send_fcm_message.delay(
+                                                    users_id=players_ids,
+                                                    title="⏰ Recordatorio de inicio",
+                                                    message="La proxima ronda comienza en 5 minutos. ¡Nos vemos pronto en la mesa!"
+                                                )
+                                            except Exception as error:
+                                                logger.error(f'Error al enviar notificacion FCM de recordatorio de inicio" => {str(error)}')
                                             
                         if restargame:
                             automaticStart(game, active_players)
                         
                     except Exception as e:
                         logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
-                
-                # --- FUERA DEL ATOMIC ---
-                # Solo se ejecuta si la transacción hizo commit sin errores
-                for msg in notifications_queue:
-                    try:
-                        FCMNOTIFICATION.send_fcm_message(
-                            user=msg['user'],
-                            title=msg['title'],
-                            body=msg['body']
-                        )
-                    except Exception as e:
-                        logger.error(f"Error enviando FCM diferido: {str(e)}")
 
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del restar automatico de la mesa {game.id}, error: {str(error)}, time: {(timezone.now() - start_time).total_seconds()} segundos.')
@@ -236,27 +219,39 @@ def automatic_tournament(tournament_id: int):
         player_in_tournament = player_list.count()
         diff_start = tournament.start_at - timedelta(minutes=5)
         if  diff_start < now and not tournament.notification_5 and int(player_in_tournament) == int(tournament.max_player):
+                       
+            from dominoapp.tasks import async_send_fcm_message
+            # Enviamos UNA tarea para cada mensaje pq depende de la zona horario del player
             for player in player_list:
-                FCMNOTIFICATION.send_fcm_message(
-                    user= player.user,
-                    title= "⏰ Recordatorio de inicio",
-                    body=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
-                )
+                try:
+                    async_send_fcm_message.delay(
+                        users_id=[player.user.id],
+                        title= "⏰ Recordatorio de inicio",
+                        message=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
+                    )
+                except Exception as error:
+                    logger.error(f'Error al enviar notificacion FCM de recordatorio de inicio de torneo" => {str(error)}')
+                
             tournament.notification_5 = True
             tournament.save(update_fields=['notification_5'])
             
             TournamentService.process_order_players_rounds(tournament)
 
         if tournament.start_at < now and tournament.status == 'ready':
+            from dominoapp.tasks import async_send_fcm_message
             for game in DominoGame.objects.filter(tournament__id=tournament.id):
                 players = game_tools.playersCount(game)
                 automaticStart(game, players)
-                for player in players:
-                    FCMNOTIFICATION.send_fcm_message(
-                        user= player.user,
-                        title= "🏆 Torneo Iniciado",
-                        body= "Entra ya, no te lo pierdas"
+                # Agrupamos los jugadores de ESTA mesa
+                game_user_ids = [p.user.id for p in players]
+                try:
+                    async_send_fcm_message.delay(
+                        users_id=game_user_ids,
+                        title="🏆 Torneo Iniciado",
+                        message="Entra ya, no te lo pierdas"
                     )
+                except Exception as error:
+                    logger.error(f'Error al enviar notificacion FCM de inicio de torneo" => {str(error)}')
             
             tournament.status = "ru"
             tournament.save(update_fields=["status"])
@@ -264,16 +259,22 @@ def automatic_tournament(tournament_id: int):
         if tournament.status == 'ru':
             last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
             if last_round.status == 'ready' and last_round.start_at + timedelta(seconds=30) < now:
+                from dominoapp.tasks import async_send_fcm_message
                 for game in last_round.game_list.all():
                     if game.status == 'ready':
                         players = game_tools.playersCount(game)
                         automaticStart(game, players)
-                        for player in players:
-                            FCMNOTIFICATION.send_fcm_message(
-                                user= player.user,
+                        
+                        # Agrupamos los jugadores de ESTA mesa
+                        game_user_ids = [p.user.id for p in players]
+                        try:
+                            async_send_fcm_message.delay(
+                                users_id=game_user_ids,
                                 title= "🚨 Ronda Activa 🚨",
-                                body= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
+                                message= "La nueva ronda ya empezó. ¡Únete ahora o te lo pierdes!"
                             )
+                        except Exception as error:
+                            logger.error(f'Error al enviar notificacion FCM de ronda activa" => {str(error)}')
             
             last_round = Round.objects.filter(tournament__id = tournament.id).order_by("-round_no").first()
             if last_round.end_at is not None and last_round.end_at + timedelta(minutes=5) < now:
