@@ -506,55 +506,95 @@ class GameCreateSerializer(serializers.ModelSerializer):
 
 class GameSerializer(serializers.ModelSerializer):
 
-    players_close = serializers.SerializerMethodField()
+    # players_close = serializers.SerializerMethodField() ## No se esta usando por el momento
     in_tournament = serializers.SerializerMethodField()
 
-    def get_players_close(self, obj: DominoGame) -> bool:
-        # Recopilar IDs de jugadores (igual que antes)
-        players_ids = []
-        if obj.player1:
-            players_ids.append(obj.player1.id)
-        if obj.player2:
-            players_ids.append(obj.player2.id)
-        if obj.player3:
-            players_ids.append(obj.player3.id)
-        if obj.player4:
-            players_ids.append(obj.player4.id)
+    # def get_players_close(self, obj: DominoGame) -> bool:
+    #     # Recopilar IDs de jugadores (igual que antes)
+    #     players_ids = []
+    #     if obj.player1:
+    #         players_ids.append(obj.player1.id)
+    #     if obj.player2:
+    #         players_ids.append(obj.player2.id)
+    #     if obj.player3:
+    #         players_ids.append(obj.player3.id)
+    #     if obj.player4:
+    #         players_ids.append(obj.player4.id)
         
-        if len(players_ids) < 2:
-            return False
+    #     if len(players_ids) < 2:
+    #         return False
         
-        players = Player.objects.filter(
-            id__in=players_ids,
-            lat__isnull=False,
-            lng__isnull=False
-            ).only('id', 'lat', 'lng')
-        players_list = list(players)
+    #     players = Player.objects.filter(
+    #         id__in=players_ids,
+    #         lat__isnull=False,
+    #         lng__isnull=False
+    #         ).only('id', 'lat', 'lng')
+    #     players_list = list(players)
         
-        for i in range(len(players_list)):
-            for j in range(i + 1, len(players_list)):
+    #     for i in range(len(players_list)):
+    #         for j in range(i + 1, len(players_list)):
                 
-                punto1 = (players_list[i].lat, players_list[i].lng)
-                punto2 = (players_list[j].lat, players_list[j].lng)
+    #             punto1 = (players_list[i].lat, players_list[i].lng)
+    #             punto2 = (players_list[j].lat, players_list[j].lng)
                 
-                dist = geodesic(punto1, punto2).meters
+    #             dist = geodesic(punto1, punto2).meters
 
-                if dist < 20:  # 20 metros exactos
-                    return True
+    #             if dist < 20:  # 20 metros exactos
+    #                 return True
         
-        return False
+    #     return False
     
     def get_in_tournament(self, obj: DominoGame) -> bool:
         return obj.in_tournament
 
     class Meta:
         model = DominoGame
-        fields = ('__all__')
+        fields = [
+            "id",
+            "table_no", 
+            "status", 
+            "variant", 
+            "inPairs", 
+            "perPoints", 
+            "payPassValue", 
+            "payWinValue", 
+            "payMatchValue", 
+            "maxScore",
+            "password",
+            "next_player",
+            "board",
+            "start_time",
+            "winner",
+            "scoreTeam1",
+            "scoreTeam2",
+            "startWinner",
+            "lostStartInTie",
+            "leftValue",
+            "rightValue",            
+            "sumAllPoints",
+            "capicua",
+            "rounds",
+            "moveTime",            
+            "hours_active",
+            
+            #### Revisar estos parametros####
+            # "players_close",
+            "in_tournament",
+            "player1",
+            "player2",
+            "player3",
+            "player4",
+            "starter",
+            "tournament",
+            "created_time",
+            "startAuto"
+
+            ]
 
 class ListGameSerializer(serializers.ModelSerializer):
     is_privated = serializers.SerializerMethodField()
     number_player = serializers.SerializerMethodField()
-    players_close = serializers.SerializerMethodField()
+    # players_close = serializers.SerializerMethodField()
     
     def get_is_privated(self, obj: DominoGame)-> bool:
         return True if obj.password != "" else False
@@ -571,44 +611,50 @@ class ListGameSerializer(serializers.ModelSerializer):
             total_player += 1
         return total_player
 
-    def get_players_close(self, obj: DominoGame) -> bool:
-        # Recopilar IDs de jugadores (igual que antes)
-        players_ids = []
-        if obj.player1:
-            players_ids.append(obj.player1.id)
-        if obj.player2:
-            players_ids.append(obj.player2.id)
-        if obj.player3:
-            players_ids.append(obj.player3.id)
-        if obj.player4:
-            players_ids.append(obj.player4.id)
+    # def get_players_close(self, obj: DominoGame) -> bool:
+    #     # Recopilar IDs de jugadores (igual que antes)
+    #     players_ids = []
+    #     if obj.player1:
+    #         players_ids.append(obj.player1.id)
+    #     if obj.player2:
+    #         players_ids.append(obj.player2.id)
+    #     if obj.player3:
+    #         players_ids.append(obj.player3.id)
+    #     if obj.player4:
+    #         players_ids.append(obj.player4.id)
         
-        if len(players_ids) < 2:
-            return False
+    #     if len(players_ids) < 2:
+    #         return False
         
-        players = Player.objects.filter(
-            id__in=players_ids,
-            lat__isnull=False,
-            lng__isnull=False
-            ).only('id', 'lat', 'lng')
-        players_list = list(players)
+    #     players = Player.objects.filter(
+    #         id__in=players_ids,
+    #         lat__isnull=False,
+    #         lng__isnull=False
+    #         ).only('id', 'lat', 'lng')
+    #     players_list = list(players)
         
-        for i in range(len(players_list)):
-            for j in range(i + 1, len(players_list)):
+    #     for i in range(len(players_list)):
+    #         for j in range(i + 1, len(players_list)):
                 
-                punto1 = (players_list[i].lat, players_list[i].lng)
-                punto2 = (players_list[j].lat, players_list[j].lng)
+    #             punto1 = (players_list[i].lat, players_list[i].lng)
+    #             punto2 = (players_list[j].lat, players_list[j].lng)
                 
-                dist = geodesic(punto1, punto2).meters
+    #             dist = geodesic(punto1, punto2).meters
                 
-                if dist < 20:  # 20 metros exactos
-                    return True
+    #             if dist < 20:  # 20 metros exactos
+    #                 return True
         
-        return False
+    #     return False
 
     class Meta:
         model = DominoGame
-        fields = ["id","table_no", "status", "variant", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "is_privated", "password", "number_player", "players_close"]
+        fields = [
+            "id",
+            "table_no", "status", 
+            "variant", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "is_privated", "password", 
+            "number_player"
+                #   , "players_close"
+                  ]
 
 class PairSerializaer(serializers.ModelSerializer):
     player1 = serializers.SerializerMethodField()
