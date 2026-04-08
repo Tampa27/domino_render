@@ -1,17 +1,16 @@
-from rest_framework.response import Response
 from dominoapp.models import Player, DominoGame, Match_Game
 from django.utils import timezone
 from datetime import timedelta
-from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import DatabaseError
 from django.db.models import F
 import random
 from django.db import transaction
 import logging
-from dominoapp.connectors.pusher_connector import PushNotificationConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
+from dominoapp.utils.websocket_consumers import send_ws_notification
+
 
 logger = logging.getLogger(__name__)
 logger_discord = logging.getLogger('django')
@@ -120,7 +119,7 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     # 1. Validaciones iniciales (Fail Fast)
     error = validate_move(game, player, players, tile, w, passTile)
     if error:
-        return error
+        return error, None
 
     # --- PREPARACIÓN DE DATOS ASÍNCRONOS ---
     bank_data = {'game_coins': 0}
@@ -170,6 +169,19 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     
     # --- LANZAR TAREA ASÍNCRONA ---
     # Enviamos todo el paquete de datos para que Celery trabaje
+    
+    # 1. Preparamos la data que necesitan los demás jugadores
+    
+    socket_payload = {
+        "action": "TILE_MOVED",
+        "data": {
+            "player_pos": w,
+            "tile": tile,
+            "next_player": game.next_player,
+            "status": game.status
+        }
+    }
+
     try:
         from dominoapp.tasks import async_update_summarys
         safe_async_task(
@@ -183,7 +195,7 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
         logger_discord.error(f"Error lanzando async task para game {game.id}: {e}")
 
     logger.info(f"{player.alias} movio {tile}")
-    return None
+    return None, socket_payload
 
 #### Adicionales para limpieza en el movement ####
 def validate_move(game: DominoGame, player: Player, players: list[Player], tile:str, player_position:int, passTile: bool):
@@ -537,7 +549,7 @@ def move1(game_id: int, player_request: Player, tile: str):
             players_ru = [p for p in ordered_players_in_table if p and p.isPlaying]
             
             # 7. Ejecutamos la lógica (aquí game.player1, player2, etc. siguen siendo los correctos)
-            error = movement(game, player, players_ru, tile)
+            error, payload = movement(game, player, players_ru, tile)
             
             if error is None:
                 # Actualizamos tiempos sin volver a guardar todo el objeto si no es necesario
@@ -555,7 +567,16 @@ def move1(game_id: int, player_request: Player, tile: str):
                     player.lastTimeInSystem = now
                     player.lastTimeInGame = now
                     player.save(update_fields=["inactive_player", "lastTimeInSystem" , "lastTimeInGame"])
-                    
+
+                # Registramos la función para que corra SOLO si el commit es exitoso
+                try:
+                    transaction.on_commit(lambda: send_ws_notification(
+                        game_id= game.id,
+                        payload= payload
+                    ))
+                except Exception as error:
+                    logger_discord.error(f"Error al enviar el WS en el move1: {error}")
+
                 return None
             return error
 

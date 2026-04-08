@@ -101,7 +101,9 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 # Application definition
 INSTALLED_APPS = [
-    'jazzmin',
+    'daphne',
+    'channels',
+    'jazzmin',    
     'dominoapp.apps.DominoappConfig',
     'rest_framework',
     'rest_framework.authtoken',
@@ -142,6 +144,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://domino-club-web.pages.dev"
     # Add more allowed origins as needed
 ]
+
+ASGI_APPLICATION = 'domino.asgi.application'
 
 ROOT_URLCONF = 'domino.urls'
 
