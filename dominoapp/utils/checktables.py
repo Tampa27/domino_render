@@ -45,7 +45,7 @@ def procesar_logica_de_mesa(game_id: int):
                         with transaction.atomic():    
                             try:
                                 game_block = DominoGame.objects.select_related(
-                                    'player1', 'player2', 'player3', 'player4'
+                                    'player1', 'player2', 'player3', 'player4', 'tournament'
                                 ).select_for_update(of=('self',), skip_locked=True).get(id=game.id)
                             except Exception as error:
                                 return
@@ -125,7 +125,7 @@ def procesar_logica_de_mesa(game_id: int):
                                         
                                         needs_update = False
                                         for player in active_players:
-                                            game_tools.exitPlayer(game_block,player,active_players,len(active_players))
+                                            success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
                                                 needs_update = True
                                                 # Actualizamos la lista local para que la siguiente iteración vea el cambio
