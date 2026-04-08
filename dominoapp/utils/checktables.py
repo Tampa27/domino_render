@@ -11,6 +11,7 @@ from django.db import connection, transaction
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
+from dominoapp.utils.websocket_consumers import send_ws_notification
 import logging
 import pytz
 logger = logging.getLogger('django')
@@ -193,6 +194,19 @@ def procesar_logica_de_mesa(game_id: int):
 
                     # Solo guardamos si realmente hubo un cambio
                     if needs_update:
+                        try:
+                            transaction.on_commit(lambda: send_ws_notification(
+                                game_id= game_block.id,
+                                payload={
+                                    "action": "PLAYER_LEFT",
+                                    "data": {
+                                        "status": game_block.status,
+                                        "next_player": game_block.next_player
+                                    } 
+                                }
+                            ))
+                        except Exception as error:
+                            logger.error(f"Error al enviar el WS en el exit del automatico: {error}")
                         if game_block.status == 'wt' and len(active_players)<2:
                             game_block.board = ""
                             game_block.save(update_fields=['board'])
@@ -339,11 +353,20 @@ def automaticMove(game: DominoGame):
 
                         tile = game_tools.takeRandomTile(player_w.tiles)
 
-                        error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
+                        error, payload = game_tools.movement(game_block, player_w, players, tile, automatic=True)
                         if error is not None:
                             raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game_block.id} al intentar realizar la salida. Error: {error}")
                         
-                        game_tools.updateLastPlayerTime(game_block, player_w.alias)  
+                        game_tools.updateLastPlayerTime(game_block, player_w.alias)
+                        
+                        # Registramos la función para que corra SOLO si el commit es exitoso
+                        try:
+                            transaction.on_commit(lambda: send_ws_notification(
+                                game_id= game_block.id,
+                                payload= payload
+                            ))
+                        except Exception as error:
+                            logger.error(f"Error al enviar el WS en el movimiento automatico: {error}")
                 except Exception as e:
                     logger.critical(f"Error crítico en el movimiento automático en la mesa {game.id} al intentar realizar la salida, error: {str(e)}")            
         else:
@@ -384,10 +407,20 @@ def automaticMove(game: DominoGame):
                             if next_idx >= len(players):
                                 raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
 
-                            error = game_tools.movement(game_block, player_w, players, tile, automatic=True)
+                            error, payload = game_tools.movement(game_block, player_w, players, tile, automatic=True)
                             if error is not None:
                                 raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(error)}")
-                            game_tools.updateLastPlayerTime(game, player_w.alias)  
+                            
+                            game_tools.updateLastPlayerTime(game, player_w.alias)
+                            
+                            # Registramos la función para que corra SOLO si el commit es exitoso
+                            try:
+                                transaction.on_commit(lambda: send_ws_notification(
+                                    game_id= game_block.id,
+                                    payload= payload
+                                ))
+                            except Exception as error:
+                                logger.error(f"Error al enviar el WS en el movimiento automatico: {error}")
                     except Exception as e:
                         logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
             elif time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
@@ -417,10 +450,20 @@ def automaticMove(game: DominoGame):
                         if next_idx >= len(players):
                             raise Exception(f"Índice {next_idx} fuera de rango para mesa {game_block.id} con {len(players)} jugadores activos.")
 
-                        error = game_tools.movement(game, player_w, players, tile, automatic=True)
+                        error, payload = game_tools.movement(game_block, player_w, players, tile, automatic=True)
                         if error is not None:
                             raise Exception(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, message: {error}")
-                        game_tools.updateLastPlayerTime(game, player_w.alias)  
+                        
+                        game_tools.updateLastPlayerTime(game_block, player_w.alias)
+                        
+                        # Registramos la función para que corra SOLO si el commit es exitoso
+                        try:
+                            transaction.on_commit(lambda: send_ws_notification(
+                                game_id= game_block.id,
+                                payload= payload
+                            ))
+                        except Exception as error:
+                            logger.error(f"Error al enviar el WS en el movimiento automatico: {error}")
                 except Exception as e:
                     logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")   
     except Exception as e:

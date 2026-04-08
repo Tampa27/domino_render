@@ -11,7 +11,7 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLogi
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.connectors.pusher_connector import PushNotificationConnector
+from dominoapp.utils.websocket_consumers import send_ws_notification
 import logging
 logger = logging.getLogger('django')
 
@@ -289,17 +289,22 @@ class GameService:
                                 p.save(update_fields=["tiles"])          
                     # game_tools.updateLastPlayerTime(game,alias)
                     game.save(update_fields=["status", "player1", "player2", "player3", "player4"])    
+                    
+                    try:
+                        transaction.on_commit(lambda: send_ws_notification(
+                            game_id= game.id,
+                            payload={
+                                "action": "PLAYER_JOINED",
+                                "data": {
+                                    "status": game.status,
+                                    "next_player": game.next_player
+                                } 
+                            }
+                        ))
+                    except Exception as error:
+                        logger.error(f"Error al enviar el WS en el join. Error: {error}")
+
                     serializerGame = GameSerializer(game)
-                    ## No se estan usando y estan demorando los request       
-                    # PushNotificationConnector.push_notification(
-                    #     channel=f'mesa_{game.id}',
-                    #     event_name='join_player',
-                    #     data_notification={
-                    #         'game_status': game.status,
-                    #         'player': player.id,
-                    #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                    #     }
-                    # )
                     playerSerializer = PlayerGameSerializer(players,many=True)
                     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
                 else:
@@ -362,22 +367,25 @@ class GameService:
                     # 6. Comenzar el juego (repartir fichas, cambiar status a 'ru')
                     # startGame1 ahora es seguro porque tiene el candado de los 4 players y la mesa
                     game_tools.startGame1(game, players)
-                    
+                    try:
+                        transaction.on_commit(lambda: send_ws_notification(
+                            game_id= game.id,
+                            payload={
+                                "action": "GAME_STARTED",
+                                "data": {
+                                    "status": game.status,
+                                    "next_player": game.next_player
+                                } 
+                            }
+                        ))
+                    except Exception as error:
+                        logger.error(f"Error enviando el ws en el Start. Error: {error}")
+
                     # Serialización
                     serializerGame = GameSerializer(game)
                     playerSerializer = PlayerGameSerializer(players, many=True)
 
-                    ## No se estan usando y estan demorando los request       
-                    # PushNotificationConnector.push_notification(
-                    #     channel=f'mesa_{game.id}',
-                    #     event_name='start_game',
-                    #     data_notification={
-                    #         'game_status': game.status,
-                    #         'starter': game.starter,
-                    #         'next_player': game.next_player,
-                    #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                    #     }
-                    # )
+                    
                     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
             # Si el status es "wt", significa que aún no cumple requisitos para iniciar
             return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
@@ -403,9 +411,6 @@ class GameService:
         error = game_tools.move1(game_id, player, tile)
 
         if error is None:
-            # 3. Respuesta inmediata. 
-            # La actualización de 'lastTimeInSystem' debería ser ASÍNCRONA (Celery) 
-            # o hacerse en una sola query de actualización sin bloquear el hilo principal.
             return Response({'status': 'success'}, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
@@ -456,16 +461,20 @@ class GameService:
                 players = game_tools.playersCount(game)
                 exited = game_tools.exitPlayer(game,player,players,len(players))
                 if exited:
-                    ## No se estan usando y estan demorando los request       
-                    # PushNotificationConnector.push_notification(
-                    #     channel=f'mesa_{game.id}',
-                    #     event_name='exit_player',
-                    #     data_notification={
-                    #         'game_status': game.status,
-                    #         'player': player.id,
-                    #         'time': timezone.now().strftime("%d/%m/%Y, %H:%M:%S")
-                    #     }
-                    # )
+                    try: 
+                        transaction.on_commit(lambda: send_ws_notification(
+                            game_id= game.id,
+                            payload={
+                                "action": "PLAYER_LEFT",
+                                "data": {
+                                    "status": game.status,
+                                    "next_player": game.next_player
+                                } 
+                            }
+                        ))
+                    except Exception as error:
+                        logger.error(f"Error enviando el WS en el ExitGame. Error: {error}")
+
                     return Response({'status': 'success'}, status=200)
                 return Response({'status': 'error', "message":'No estas en esta mesa.'}, status=409)
         except Exception as e:
@@ -536,6 +545,20 @@ class GameService:
             
             game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
             game.save(update_fields= ["starter", "winner", "next_player", "start_time"])
+            try:
+                transaction.on_commit(lambda: send_ws_notification(
+                    game_id= game.id,
+                    payload={
+                        "action": "STARTER_CHANGE",
+                        "data": {
+                            "status": game.status,
+                            "next_player": game.next_player,
+                            "starter": game.starter
+                        } 
+                    }
+                ))
+            except Exception as error:
+                logger.error(f"Error enviando el WS en el SetStarter. Error: {error}")
         return Response({'status': 'success'}, status=200)
 
     @staticmethod
@@ -573,7 +596,22 @@ class GameService:
                 elif game.player4.alias == request.data["alias"]:
                     game.player4 = aux
                     game.player3 = patner
-                game.save(update_fields= ["player2", "player3", "player4"])    
+                game.save(update_fields= ["player2", "player3", "player4"])
+
+                try:
+                    transaction.on_commit(lambda: send_ws_notification(
+                        game_id= game.id,
+                        payload={
+                            "action": "UPDATE_PATNER",
+                            "data": {
+                                "status": game.status,
+                                "next_player": game.next_player
+                            } 
+                        }
+                    ))
+                except Exception as error:
+                    logger.error(f"Error al enviar el WS en SetPatner. Error: {error}")
+
             return Response({'status': 'success'}, status=200)
         except:
             return Response({'status': 'error', 'message': 'Algo fayo al seleccionar a la pareja.'}, status=status.HTTP_409_CONFLICT)
