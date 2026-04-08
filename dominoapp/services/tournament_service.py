@@ -193,7 +193,7 @@ class TournamentService:
             }, status=status.HTTP_401_UNAUTHORIZED)
                 
         player.lastTimeInSystem = datetime.now()
-        player.save(player.save(update_fields=['lastTimeInSystem']))
+        player.save(update_fields=['lastTimeInSystem'])
 
         if player.is_block:
             return Response({'status': 'error', "message":"Este player esta bloqueado, contacta a los administradores."}, status=status.HTTP_409_CONFLICT)
