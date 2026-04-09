@@ -15,7 +15,7 @@ app.conf.update(
     worker_prefetch_multiplier=1,
     
     # Task config
-    task_acks_late=True,
+    task_acks_late=False,
     task_reject_on_worker_lost=True,
     task_time_limit=30,
     task_soft_time_limit=25,
