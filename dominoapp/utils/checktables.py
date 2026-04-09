@@ -12,6 +12,7 @@ from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
 from dominoapp.utils.websocket_consumers import send_ws_notification
+from dominoapp.utils.constants import WSActions
 import logging
 import pytz
 logger = logging.getLogger('django')
@@ -81,10 +82,9 @@ def procesar_logica_de_mesa(game_id: int):
                                         transaction.on_commit(lambda: send_ws_notification(
                                             game_id= game_block.id,
                                             payload={
-                                                "action": "PLAYER_LEFT",
-                                                "data": {
-                                                    "status": game_block.status,
-                                                    "next_player": game_block.next_player
+                                                "a": WSActions.PLAYER_LEFT,
+                                                "d": {
+                                                    "st": game_block.status
                                                 } 
                                             }
                                         ))
@@ -136,10 +136,9 @@ def procesar_logica_de_mesa(game_id: int):
                                                 transaction.on_commit(lambda: send_ws_notification(
                                                     game_id= game_block.id,
                                                     payload={
-                                                        "action": "PLAYER_LEFT",
-                                                        "data": {
-                                                            "status": game_block.status,
-                                                            "next_player": game_block.next_player
+                                                        "a": WSActions.PLAYER_LEFT,
+                                                        "d": {
+                                                            "st": game_block.status
                                                         } 
                                                     }
                                                 ))
@@ -194,10 +193,9 @@ def procesar_logica_de_mesa(game_id: int):
                                         transaction.on_commit(lambda: send_ws_notification(
                                             game_id= game_block.id,
                                             payload={
-                                                "action": "GAME_STARTED",
-                                                "data": {
-                                                    "status": game_block.status,
-                                                    "next_player": game_block.next_player
+                                                "a": WSActions.GAME_STARTED,
+                                                "d": {
+                                                    "st": game_block.status
                                                 } 
                                             }
                                         ))
@@ -265,10 +263,9 @@ def procesar_logica_de_mesa(game_id: int):
                             transaction.on_commit(lambda: send_ws_notification(
                                 game_id= game_block.id,
                                 payload={
-                                    "action": "PLAYER_LEFT",
-                                    "data": {
-                                        "status": game_block.status,
-                                        "next_player": game_block.next_player
+                                    "a": WSActions.PLAYER_LEFT,
+                                    "d": {
+                                        "st": game_block.status
                                     } 
                                 }
                             ))
@@ -328,10 +325,9 @@ def automatic_tournament(tournament_id: int):
                         send_ws_notification(
                             game_id= game.id,
                             payload={
-                                "action": "GAME_STARTED",
-                                "data": {
-                                    "status": game.status,
-                                    "next_player": game.next_player
+                                "a": WSActions.GAME_STARTED,
+                                "d": {
+                                    "st": game.status
                                 } 
                             }
                         )
@@ -364,10 +360,9 @@ def automatic_tournament(tournament_id: int):
                                 send_ws_notification(
                                     game_id= game.id,
                                     payload={
-                                        "action": "GAME_STARTED",
-                                        "data": {
-                                            "status": game.status,
-                                            "next_player": game.next_player
+                                        "a": WSActions.GAME_STARTED,
+                                        "d": {
+                                            "st": game.status
                                         } 
                                     }
                                 )

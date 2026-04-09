@@ -10,6 +10,7 @@ from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.utils.websocket_consumers import send_ws_notification
+from dominoapp.utils.constants import WSActions
 
 
 logger = logging.getLogger(__name__)
@@ -173,12 +174,9 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     # 1. Preparamos la data que necesitan los demás jugadores
     
     socket_payload = {
-        "action": "TILE_MOVED",
-        "data": {
-            "player_pos": w,
-            "tile": tile,
-            "next_player": game.next_player,
-            "status": game.status
+        "a": WSActions.TILE_MOVED,
+        "d": {
+            "st": game.status
         }
     }
 

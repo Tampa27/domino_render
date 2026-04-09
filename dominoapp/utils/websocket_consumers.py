@@ -9,7 +9,7 @@ class GameConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
         self.game_id = self.scope['url_route']['kwargs']['game_id']
-        self.room_group_name = f'game_{self.game_id}'
+        self.room_group_name = f'g_{self.game_id}'
 
         # Unirse al grupo de la mesa
         await self.channel_layer.group_add(
@@ -38,7 +38,7 @@ def send_ws_notification(game_id, payload):
     try:
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f'game_{game_id}',
+            f'g_{game_id}',
             {
                 "type": "game_update",
                 "payload": payload
