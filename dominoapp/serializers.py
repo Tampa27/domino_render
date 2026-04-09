@@ -461,22 +461,17 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
 
 class PlayerOnListGameSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
-    url = serializers.SerializerMethodField()    
     unread_notification = serializers.SerializerMethodField(read_only = True)
 
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
     
-    def get_url(self, obj: Player) -> str:
-        BACKEND_URL = os.getenv("BACKEND_URL", "localhost:8000/v2/api")
-        return f"{BACKEND_URL}/refer/?refer_code={obj.referral_code}"
-
     def get_unread_notification(self, obj: Player) -> int:
         return Notification.objects.filter(player__id = obj.id, seen=False).count()
 
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "url"]
+        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "referral_code"]
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
