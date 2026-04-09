@@ -341,7 +341,7 @@ CHANNEL_LAYERS = {
                     'address':CELERY_BROKER_URL
                 }
             ],
-            'prefix': 'domino_club'  # Prefijo para las claves Redis
+            'prefix': 'dc'  # Prefijo para las claves Redis
         },
     },
 }
