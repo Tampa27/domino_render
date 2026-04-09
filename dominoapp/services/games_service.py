@@ -210,7 +210,7 @@ class GameService:
     def process_join(request, game_id):
         try:
             with transaction.atomic():
-                # 1. Bloqueamos la mesa Y a los jugadores que ya están en ella (player1...player4)
+                # 1. Bloqueamos la mesa y traemos los datos de los jugadores en un JOIN
                 # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
                 try:
                     game = DominoGame.objects.select_related(
@@ -225,13 +225,7 @@ class GameService:
                 except:
                     return Response({"status":'error',"message":"No se pudo actualizar el player."}, status=status.HTTP_404_NOT_FOUND)
                 now = timezone.now()
-                # Actualizamos sus datos de presencia
-                player.inactive_player = False
-                player.send_delete_email = False
-                player.lastTimeInSystem = now
-                player.lastTimeInGame = now
-                player.save(update_fields=["inactive_player", "send_delete_email", "lastTimeInSystem", "lastTimeInGame"])
-                
+                                
                 # 3. Validaciones de negocio (Ahora son seguras porque nadie puede cambiar al player ni a la mesa)
                 check_others_game = DominoGame.objects.filter(
                     Q(player1__id=player.id) |
@@ -243,53 +237,45 @@ class GameService:
                     return Response({'status': 'error', "message": "Ya estas jugando en otra mesa."}, status=status.HTTP_409_CONFLICT)
         
                 game_in_round = Round.objects.filter(game_list__id = game.id).exists()
-                if not game_in_round and player.registered_in_tournament and player.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now() and timezone.now() < player.registered_in_tournament.start_at + timedelta(minutes=5):
-                    return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
+                if not game_in_round and player.registered_in_tournament:
+                    tournament = player.registered_in_tournament
+                    if tournament.start_at - timedelta(minutes=30) <= timezone.now() and timezone.now() < tournament.start_at + timedelta(minutes=5):
+                        return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
 
                 if player.play_tournament and not game_in_round:
-                    return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+                    return Response({'status': 'error',"message":"Estás participando en un torneo."}, status=status.HTTP_409_CONFLICT)
                         
                 if not game_tools.ready_to_play(game, player):
-                    return Response({"status":'error',"message":"No tienes suficientes monedas para jugar en esta mesa."},status=status.HTTP_409_CONFLICT)
+                    return Response({"status":'error',"message":"Monedas insuficientes."},status=status.HTTP_409_CONFLICT)
         
-                joined,players = game_tools.checkPlayerJoined(player,game)
-                if joined != True:
-                    if game.player1 is None:
-                        game.player1 = player
-                        joined = True
-                        players.insert(0,player)
-                    elif game.player2 is None:
-                        game.player2 = player
-                        joined = True
-                        players.insert(1,player)
-                    elif game.player3 is None :
-                        game.player3 = player
-                        joined = True
-                        players.insert(2,player)
-                    elif game.player4 is None:
-                        game.player4 = player
-                        joined = True
-                        players.insert(3,player)
+                is_in_game,players_in_game = game_tools.checkPlayerJoined(player,game)
+                
+                slot_assigned = False
+                if not is_in_game:
+                    # Buscar el primer slot libre                    
+                    for i in range(4):
+                        attr = f'player{i+1}'
+                        if getattr(game, attr) is None:
+                            setattr(game, attr, player)
+                            players_in_game.append(player)
+                            slot_assigned = True
+                            break
+                
+                    if not slot_assigned:
+                        return Response({'status': 'error', "message": "Mesa llena."}, status=status.HTTP_409_CONFLICT)
 
-                if joined == True:
+                # 4. Actualización de Estado de la Mesa
+                if slot_assigned:
+                    num_players = len(players_in_game)
                     if game.inPairs:
-                        if len(players) == 4 and game.status == "wt":
+                        game.status = "ready" if num_players == 4 and game.status == "wt" else "wt"
+                    else:
+                        if num_players >= 2 and game.status not in ["ru", "fi"]:
                             game.status = "ready"
-                        elif len(players) != 4:
+                        elif num_players < 2:
                             game.status = "wt"
-                    else:                
-                        if len(players) >= 2 and game.status not in ["ru", "fi"]:
-                            game.status = "ready"
-                        elif game.status not in ["ru", "fi"]:
-                            game.status = "wt"
-                    # 5. Limpieza de fichas (Seguro porque todos en current_players están bloqueados)
-                    if game.status in ["wt", "ready"]:
-                        for p in players:
-                            if p.tiles != "": # Optimización: solo guardar si es necesario
-                                p.tiles = ""
-                                p.save(update_fields=["tiles"])          
-                    # game_tools.updateLastPlayerTime(game,alias)
-                    game.save(update_fields=["status", "player1", "player2", "player3", "player4"])    
+                    
+                    game.save(update_fields=["status", "player1", "player2", "player3", "player4"])
                     
                     try:
                         transaction.on_commit(lambda: send_ws_notification(
@@ -304,25 +290,28 @@ class GameService:
                     except Exception as error:
                         logger.error(f"Error al enviar el WS en el join. Error: {error}")
 
-                    serializerGame = GameSerializer(game)
-                    playerSerializer = PlayerGameSerializer(players,many=True)
-                    return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
-                else:
-                    return Response({'status': 'error', "message":"Mesa llena"}, status=status.HTTP_409_CONFLICT)
+                player.inactive_player = False
+                player.send_delete_email = False
+                player.lastTimeInSystem = now
+                player.lastTimeInGame = now
+                if game.status in ["wt", "ready"]:
+                    player.tiles = "" # Limpiar fichas si el juego no ha empezado
+                
+                player.save(update_fields=["inactive_player", "send_delete_email", "lastTimeInSystem", "lastTimeInGame", "tiles"])                
+                
+                serializerGame = GameSerializer(game)
+                playerSerializer = PlayerGameSerializer(players_in_game,many=True)
+                return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
+                
         except DatabaseError as error:
             # Si alguien más tiene el candado y usamos nowait=True (opcional) 
             # o hay un error de colisión de DB.
             return Response({'status': 'error', "message": "La mesa está ocupada en este momento."}, status=status.HTTP_409_CONFLICT)
         except Exception as e:
-            return Response({'status': 'error', "message": "Algo salio mal, vuelva a intentar."}, status=500)
+            return Response({'status': 'error', "message": "Algo salio mal, vuelva a intentar."}, status=status.HTTP_409_CONFLICT)
         
     @staticmethod
     def process_start(game_id):
-        # 1. Validación rápida fuera de la transacción (opcional, para liberar carga)
-        check_game = DominoGame.objects.filter(id=game_id).exclude(tournament__isnull=False).exists()
-        if not check_game:
-            return Response({"status": 'error', "message": "Mesa no disponible."}, status=status.HTTP_404_NOT_FOUND)
-
         try:
             with transaction.atomic():
                 # 2. Bloqueamos la mesa y traemos los datos de los jugadores en un JOIN
