@@ -264,18 +264,13 @@ LOGGING = {
 SITE_ID = 1
 
 CELERY_BROKER_URL = os.getenv('REDISCLOUD_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+
 # Para entornos con SSL (Heroku, RedisCloud)
 if CELERY_BROKER_URL.startswith('rediss'):
     CELERY_BROKER_USE_SSL = {
         'ssl_cert_reqs': None,
         'ssl_check_hostname': False
     }
-    if CELERY_RESULT_BACKEND:
-        CELERY_REDIS_BACKEND_USE_SSL = {
-            'ssl_cert_reqs': None,
-            'ssl_check_hostname': False
-        }
 
 # 3. Ajustes de visibilidad de tareas
 CELERY_TASK_SERIALIZER = 'json'
