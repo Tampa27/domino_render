@@ -471,7 +471,7 @@ class PlayerOnListGameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "referral_code"]
+        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "lat", "lng"]
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
