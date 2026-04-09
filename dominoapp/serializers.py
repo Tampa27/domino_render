@@ -459,6 +459,21 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
         model = Player
         fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng", "unread_notification"]
 
+class PlayerOnListGameSerializer(serializers.ModelSerializer):
+    coins = serializers.SerializerMethodField()
+    unread_notification = serializers.SerializerMethodField(read_only = True)
+
+    def get_coins(self, obj: Player) -> int:
+        return obj.earned_coins + obj.recharged_coins
+    
+    def get_unread_notification(self, obj: Player) -> int:
+        return Notification.objects.filter(player__id = obj.id, seen=False).count()
+
+    class Meta:
+        model = Player
+        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification"]
+
+
 class BankAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = BankAccount

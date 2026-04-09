@@ -7,7 +7,7 @@ from django.db.utils import DatabaseError
 from django.db import transaction
 from django.conf import settings
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
-from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerLoginSerializer, PlayerGameSerializer
+from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGameSerializer, PlayerOnListGameSerializer
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
@@ -50,7 +50,7 @@ class GameService:
         if BlockPlayer.objects.filter(player_blocked=player).exists():
             return Response({'status': 'error', "message": "Este usuario está bloqueado, contacte con soporte."}, status=status.HTTP_409_CONFLICT)
         
-        player_data = PlayerLoginSerializer(player).data
+        player_data = PlayerOnListGameSerializer(player).data
         
         # 4. Manejo de versión de app (evitamos try/except genérico que es lento)
         app_version = request.query_params.get('app_version')
