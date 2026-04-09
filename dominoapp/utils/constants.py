@@ -156,6 +156,14 @@ class ChatRoomTypes:
         CHATROOM_GROUP
     ]
 
+class WSActions:
+    TILE_MOVED = "TM"
+    PLAYER_JOINED = "PJ"
+    GAME_STARTED = "GS"
+    PLAYER_LEFT = "PL"
+    STARTER_CHANGE = "SC"
+    UPDATE_PATNER = "UP"
+
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'
     DEFAULT_LANGUAGE = 'es'

@@ -12,6 +12,7 @@ from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
 from dominoapp.utils.websocket_consumers import send_ws_notification
+from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
 
@@ -294,11 +295,10 @@ class GameService:
                         transaction.on_commit(lambda: send_ws_notification(
                             game_id= game.id,
                             payload={
-                                "action": "PLAYER_JOINED",
-                                "data": {
-                                    "status": game.status,
-                                    "next_player": game.next_player
-                                } 
+                                "a": WSActions.PLAYER_JOINED,
+                                "d": {
+                                    "st": game.status
+                                }
                             }
                         ))
                     except Exception as error:
@@ -371,10 +371,9 @@ class GameService:
                         transaction.on_commit(lambda: send_ws_notification(
                             game_id= game.id,
                             payload={
-                                "action": "GAME_STARTED",
-                                "data": {
-                                    "status": game.status,
-                                    "next_player": game.next_player
+                                "a": WSActions.GAME_STARTED,
+                                "d": {
+                                    "st": game.status
                                 } 
                             }
                         ))
@@ -465,10 +464,9 @@ class GameService:
                         transaction.on_commit(lambda: send_ws_notification(
                             game_id= game.id,
                             payload={
-                                "action": "PLAYER_LEFT",
-                                "data": {
-                                    "status": game.status,
-                                    "next_player": game.next_player
+                                "a": WSActions.PLAYER_LEFT,
+                                "d": {
+                                    "st": game.status
                                 } 
                             }
                         ))
@@ -549,11 +547,9 @@ class GameService:
                 transaction.on_commit(lambda: send_ws_notification(
                     game_id= game.id,
                     payload={
-                        "action": "STARTER_CHANGE",
-                        "data": {
-                            "status": game.status,
-                            "next_player": game.next_player,
-                            "starter": game.starter
+                        "a": WSActions.STARTER_CHANGE,
+                        "d": {
+                            "st": game.status
                         } 
                     }
                 ))
@@ -602,10 +598,9 @@ class GameService:
                     transaction.on_commit(lambda: send_ws_notification(
                         game_id= game.id,
                         payload={
-                            "action": "UPDATE_PATNER",
-                            "data": {
-                                "status": game.status,
-                                "next_player": game.next_player
+                            "a": WSActions.UPDATE_PATNER,
+                            "d": {
+                                "st": game.status
                             } 
                         }
                     ))
