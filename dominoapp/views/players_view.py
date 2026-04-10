@@ -303,7 +303,7 @@ class PlayerView(viewsets.ModelViewSet):
             
         }
     ) 
-    @action(detail=False, methods=["post"], url_path="notification")
+    @action(detail=False, methods=["post", "get"], url_path="notification")
     def send_list_notification(self, request):
 
         if self.request.method == "POST":       
@@ -364,5 +364,4 @@ class PlayerView(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="refer")
     def refer_register(self, request):
         return PlayerService.process_refer_register(request)
-    
     
