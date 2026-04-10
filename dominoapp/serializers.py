@@ -438,7 +438,7 @@ class PlayerGameSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo", "lat", "lng"]
+        fields = ["id", "name", "alias", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo"]
 
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
@@ -579,7 +579,6 @@ class GameSerializer(serializers.ModelSerializer):
             "password",
             "next_player",
             "board",
-            "start_time",
             "winner",
             "scoreTeam1",
             "scoreTeam2",
@@ -590,21 +589,18 @@ class GameSerializer(serializers.ModelSerializer):
             "sumAllPoints",
             "capicua",
             "rounds",
-            "moveTime",            
-            "hours_active",
+            "moveTime",
+            "starter",
+            "in_tournament",
             
             #### Revisar estos parametros####
             # "players_close",
-            "in_tournament",
+            
             "player1",
             "player2",
             "player3",
-            "player4",
-            "starter",
-            "tournament",
-            "created_time",
-            "startAuto"
-
+            "player4",            
+            "tournament"
             ]
 
 class ListGameSerializer(serializers.ModelSerializer):
