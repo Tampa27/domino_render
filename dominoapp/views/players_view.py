@@ -272,6 +272,21 @@ class PlayerView(viewsets.ModelViewSet):
         return PlayerService.process_fcm_register(request)
     
     @extend_schema(
+            operation_id="list_notification",
+            request=None,
+            responses={
+                status.HTTP_200_OK:inline_serializer(
+                name="player_notifications",
+                fields={
+                    "count": IntegerField(),
+                    "next": URLField(),
+                    "previous": URLField(),
+                    "results": PlayerNotificationSerializer(many=True)
+                }
+            )
+            }
+            )    
+    @extend_schema(
             operation_id="send_notifications",
             request={
                 "application/json": inline_serializer(
@@ -289,17 +304,33 @@ class PlayerView(viewsets.ModelViewSet):
         }
     ) 
     @action(detail=False, methods=["post"], url_path="notification")
-    def send_notification(self, request):
-               
-        is_valid, message, status_response = PlayerRequest.validate_send_notification(request)
-        
-        if not is_valid:
-            return Response(data ={
-                "status":'error',
-                "message": message
-            }, status = status_response)
+    def send_list_notification(self, request):
 
-        return PlayerService.process_send_notification(request)
+        if self.request.method == "POST":       
+            is_valid, message, status_response = PlayerRequest.validate_send_notification(request)
+            
+            if not is_valid:
+                return Response(data ={
+                    "status":'error',
+                    "message": message
+                }, status = status_response)
+
+            return PlayerService.process_send_notification(request)
+        elif self.request.method == "GET":
+            is_valid, message, status_response = PlayerRequest.validate_list_notifications(request)
+        
+            if not is_valid:
+                return Response(data ={
+                    "status":'error',
+                    "message": message
+                }, status = status_response)
+            
+            return PlayerService.process_list_notification(request)
+        else:
+            return Response(data ={
+                    "status":'error',
+                    "message": "Method not allowed"
+                }, status = status.HTTP_405_METHOD_NOT_ALLOWED)
         
     @extend_schema(
             operation_id="players_refer_code",
@@ -334,29 +365,4 @@ class PlayerView(viewsets.ModelViewSet):
     def refer_register(self, request):
         return PlayerService.process_refer_register(request)
     
-    @extend_schema(
-            operation_id="list_notification",
-            request=None,
-            responses={
-                status.HTTP_200_OK:inline_serializer(
-                name="player_notifications",
-                fields={
-                    "count": IntegerField(),
-                    "next": URLField(),
-                    "previous": URLField(),
-                    "results": PlayerNotificationSerializer(many=True)
-                }
-            )
-            }
-            )
-    @action(detail=False, methods=["get"], url_path="notification")
-    def list_notification(self, request):
-        is_valid, message, status_response = PlayerRequest.validate_list_notifications(request)
-        
-        if not is_valid:
-            return Response(data ={
-                "status":'error',
-                "message": message
-            }, status = status_response)
-        
-        return PlayerService.process_list_notification(request)
+    
