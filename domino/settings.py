@@ -67,8 +67,6 @@ if PRODUCTION:
     SERVER_EMAIL = os.getenv('SERVER_EMAIL')  # Para errores
 
     PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(
-        conn_max_age=60,
-        conn_health_checks=True,
         ssl_require=True
     )
     DATABASES["default"] = PRODUCTION_DATABASE_SETTINGS
