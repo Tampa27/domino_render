@@ -20,12 +20,13 @@ app.conf.update(
     task_time_limit=30,
     task_soft_time_limit=25,
     task_track_started=True,
+    task_always_eager=False,
     
     # Beat config - importante para que funcione con --beat
     beat_max_loop_interval=5,  # Revisar tareas cada 5 segundos
     
     # Broker
-    broker_pool_limit=10,
+    broker_pool_limit=5,
     broker_connection_retry_on_startup=True,
     
     # Serialization
