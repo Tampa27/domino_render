@@ -600,12 +600,6 @@ class GameSerializer(serializers.ModelSerializer):
             
             #### Revisar estos parametros####
             # "players_close",
-            
-            "player1",
-            "player2",
-            "player3",
-            "player4",            
-            "tournament"
             ]
 
 class ListGameSerializer(serializers.ModelSerializer):

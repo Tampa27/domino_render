@@ -273,6 +273,7 @@ class PlayerView(viewsets.ModelViewSet):
     
     @extend_schema(
             operation_id="list_notification",
+            methods=["get"],
             request=None,
             responses={
                 status.HTTP_200_OK:inline_serializer(
@@ -288,6 +289,7 @@ class PlayerView(viewsets.ModelViewSet):
             )    
     @extend_schema(
             operation_id="send_notifications",
+            methods=["post"],
             request={
                 "application/json": inline_serializer(
                 name="Send Notification Request",
