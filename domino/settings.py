@@ -67,10 +67,15 @@ if PRODUCTION:
     SERVER_EMAIL = os.getenv('SERVER_EMAIL')  # Para errores
 
     PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(
+        conn_max_age=0,           # (para PgBouncer)
+        conn_health_checks=True,  # (para PgBouncer)
         ssl_require=True
     )
     
     DATABASES["default"] = PRODUCTION_DATABASE_SETTINGS
+    
+    # ← AÑADE ESTA LÍNEA - REQUERIDO para PgBouncer
+    DISABLE_SERVER_SIDE_CURSORS = True
 
     CSRF_TRUSTED_ORIGINS = ['https://domino-club-fdc25b05dc8f.herokuapp.com']
 
