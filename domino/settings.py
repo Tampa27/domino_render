@@ -66,11 +66,21 @@ if PRODUCTION:
     DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')  # ¡Importante! Evita solo el email.
     SERVER_EMAIL = os.getenv('SERVER_EMAIL')  # Para errores
 
-    PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(
-        conn_max_age=0,           # (para PgBouncer)
-        conn_health_checks=True,  # (para PgBouncer)
-        ssl_require=True
-    )
+    database_url = os.environ.get('DATABASE_URL', '')
+
+    if 'localhost' in database_url or '127.0.0.1' in database_url:
+        PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(
+            conn_max_age=0,
+            conn_health_checks=True,
+            ssl_require=False  # ← IMPORTANTE: False para PgBouncer
+        )
+    else:
+        # Conexión directa a PostgreSQL (desarrollo, etc.)
+        PRODUCTION_DATABASE_SETTINGS = dj_database_url.config(
+            conn_max_age=0,
+            conn_health_checks=True,
+            ssl_require=True  # SSL solo para conexiones remotas
+        )
     
     DATABASES["default"] = PRODUCTION_DATABASE_SETTINGS
     
