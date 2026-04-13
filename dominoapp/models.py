@@ -134,13 +134,20 @@ class SummaryPlayer(models.Model):
 
     # Datos a Resumir
     data_wins = models.PositiveIntegerField(default=0)
+    free_data_wins = models.PositiveIntegerField(default=0)   ### datas que gana en un partido sin monedas
     data_loss = models.PositiveIntegerField(default=0)
+    free_data_loss = models.PositiveIntegerField(default=0)   ### datas que pierde en un partido sin monedas
     data_tie = models.PositiveIntegerField(default=0)
+    free_data_tie = models.PositiveIntegerField(default=0)    ### datas que empata en un partido sin monedas
     match_wins = models.PositiveIntegerField(default=0)
+    free_match_wins = models.PositiveIntegerField(default=0)    ### Partidos que gana un player sin monedas
     match_loss = models.PositiveIntegerField(default=0)
+    free_match_loss = models.PositiveIntegerField(default=0)    ### Partidos que pierde un player sin monedas
     tournament_wins = models.PositiveIntegerField(default=0)
     pass_player = models.PositiveIntegerField(default=0)  ## Pases que da un player
+    free_pass_player = models.PositiveIntegerField(default=0)  ## Pases que da un player en un partido sin monedas
     owner_pass = models.PositiveIntegerField(default=0)  ## Pases que recibe un player
+    free_owner_pass = models.PositiveIntegerField(default=0)  ## Pases que recibe un player en un partido sin monedas
     earned_coins = models.IntegerField(default=0)
     loss_coins = models.IntegerField(default=0)
     play_99_game = models.PositiveIntegerField(default=0) ## Veces que un player juega en mesas del 9|9
@@ -359,6 +366,12 @@ class DominoGame(models.Model):
             return True
         return False
     
+    @property
+    def with_coins(self):
+        if self.payPassValue > 0 or self.payWinValue > 0 or self.payMatchValue > 0:
+            return True
+        return False
+
     class Meta:
         indexes = [
             # Optimiza DominoGame.objects.filter(player1__isnull=False)

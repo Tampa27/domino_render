@@ -248,7 +248,10 @@ def prepare_summary_end_game(game: DominoGame, players: list[Player], bank_data:
             summ[points_field] = summ.get(points_field, 0) + 1
 
         if game.winner == DominoGame.Tie_Game:
-            summ['data_tie'] = summ.get('data_tie', 0) + 1
+            if game.with_coins:
+                summ['data_tie'] = summ.get('data_tie', 0) + 1
+            else:
+                summ['free_data_tie'] = summ.get('free_data_tie', 0) + 1
 
 def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n: int, bank_data: dict, player_data_list: list[dict], isCapicua: bool):
     """Maneja la victoria por quedarse sin fichas."""
@@ -380,9 +383,14 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
 
         if is_winner:
             # Lógica Ganador
-            summ['data_wins'] = summ.get('data_wins', 0) + 1
-            if is_final_game and game.perPoints:
-                summ['match_wins'] = summ.get('match_wins', 0) + 1
+            if game.with_coins:
+                summ['data_wins'] = summ.get('data_wins', 0) + 1
+                if is_final_game and game.perPoints:
+                    summ['match_wins'] = summ.get('match_wins', 0) + 1
+            else:
+                summ['free_data_wins'] = summ.get('free_data_wins', 0) + 1
+                if is_final_game and game.perPoints:
+                    summ['free_match_wins'] = summ.get('free_match_wins', 0) + 1
             
             # Cálculo de monedas (Individual vs Parejas)
             multiplier = (playing_count - 1) if not game.inPairs else 1
@@ -406,10 +414,15 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
         else:
             # Lógica Perdedor (Solo si el ganador es válido w < 4)
             if w < 4 and player.isPlaying:
-                summ['data_loss'] = summ.get('data_loss', 0) + 1
-                if is_final_game and game.perPoints:
-                    summ['match_loss'] = summ.get('match_loss', 0) + 1
-                
+                if game.with_coins:
+                    summ['data_loss'] = summ.get('data_loss', 0) + 1
+                    if is_final_game and game.perPoints:
+                        summ['match_loss'] = summ.get('match_loss', 0) + 1
+                else:
+                    summ['free_data_loss'] = summ.get('free_data_loss', 0) + 1
+                    if is_final_game and game.perPoints:
+                        summ['free_match_loss'] = summ.get('free_match_loss', 0) + 1
+
                 total_loss = win_val + match_val
                 if total_loss > 0:
                     player.earned_coins -= total_loss
@@ -442,9 +455,6 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
             logger_discord.error(f"Error actualizando ELO game {game.id}: {e}")
 
 def updatePassCoins(pos: int, game: DominoGame, players: list[Player], player_data_list: list[dict]):
-    if game.payPassValue <= 0:
-        return # Si no hay pago por pase, ahorramos todo el procesamiento
-
     tiles = game.board.split(',')
     rtiles = reversed(tiles)
     prev = 1
@@ -468,45 +478,55 @@ def updatePassCoins(pos: int, game: DominoGame, players: list[Player], player_da
         player_pass = players[pos]       # El que se pasó
         player_passed = players[pos1]    # El que hizo que el otro se pasara
         
-        loss_coins = game.payPassValue
-        bank_coins = 0 # Mantengo tu lógica de bank_coins=0
-        coins_to_receive = loss_coins - bank_coins
-
-        # 3. Actualización de saldos en memoria
-        player_pass.earned_coins -= loss_coins
-        if player_pass.earned_coins < 0:
-            player_pass.recharged_coins += player_pass.earned_coins
-            player_pass.earned_coins = 0
-        
-        player_passed.earned_coins += coins_to_receive
-
-        # Actualización de estadísticas en memoria
         summ_pass = player_data_list[pos].setdefault('summary_fields', {})
         summ_passed = player_data_list[pos1].setdefault('summary_fields', {})
-        summ_pass['loss_coins'] = summ_pass.get('loss_coins', 0) + loss_coins
-        summ_pass['owner_pass'] = summ_pass.get('owner_pass', 0) + 1
-        summ_passed['earned_coins'] = summ_passed.get('earned_coins', 0) + coins_to_receive
-        summ_passed['pass_player'] = summ_passed.get('pass_player', 0) + 1
 
-        # 5. PERSISTENCIA ÚNICA (Aquí es donde ganamos velocidad)
-        # Usamos save() una sola vez por objeto con update_fields
-        player_pass.save(update_fields=['earned_coins', 'recharged_coins'])
-        player_passed.save(update_fields=['earned_coins'])
-        
-        # 6. Transacciones (Ojalá pudieras hacer esto asíncrono)
-        descriptions_pass = f"{player_passed.alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}"
-        descriptions_passed = f"pase a {player_pass.alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}"
-        
-        player_data_list[pos]['transaction'] = {
-            'from_user':True, 
-            'amount':loss_coins,
-            'description':descriptions_pass
+        if game.payPassValue > 0:
+            loss_coins = game.payPassValue
+            bank_coins = 0 # Mantengo tu lógica de bank_coins=0
+            coins_to_receive = loss_coins - bank_coins
+
+            # 3. Actualización de saldos en memoria
+            player_pass.earned_coins -= loss_coins
+            if player_pass.earned_coins < 0:
+                player_pass.recharged_coins += player_pass.earned_coins
+                player_pass.earned_coins = 0
+            
+            player_passed.earned_coins += coins_to_receive
+
+            # Actualización de estadísticas en memoria            
+            summ_pass['loss_coins'] = summ_pass.get('loss_coins', 0) + loss_coins
+            summ_pass['owner_pass'] = summ_pass.get('owner_pass', 0) + 1
+            summ_passed['earned_coins'] = summ_passed.get('earned_coins', 0) + coins_to_receive
+            summ_passed['pass_player'] = summ_passed.get('pass_player', 0) + 1
+
+            # 5. PERSISTENCIA ÚNICA (Aquí es donde ganamos velocidad)
+            # Usamos save() una sola vez por objeto con update_fields
+            player_pass.save(update_fields=['earned_coins', 'recharged_coins'])
+            player_passed.save(update_fields=['earned_coins'])
+            
+            # 6. Transacciones (Ojalá pudieras hacer esto asíncrono)
+            descriptions_pass = f"{player_passed.alias} me paso en el juego {game.id}, a {game.leftValue} y a {game.rightValue}"
+            descriptions_passed = f"pase a {player_pass.alias} en el juego {game.id}, a {game.leftValue} y a {game.rightValue}"
+            
+            player_data_list[pos]['transaction'] = {
+                'from_user':True, 
+                'amount':loss_coins,
+                'description':descriptions_pass
+                }
+            player_data_list[pos1]['transaction'] = {
+                'to_user':True,
+                'amount':coins_to_receive,
+                'description':descriptions_passed
             }
-        player_data_list[pos1]['transaction'] = {
-            'to_user':True,
-            'amount':coins_to_receive,
-            'description':descriptions_passed
-        }
+        elif game.with_coins:
+            # Actualización de estadísticas en memoria
+            summ_pass['owner_pass'] = summ_pass.get('owner_pass', 0) + 1
+            summ_passed['pass_player'] = summ_passed.get('pass_player', 0) + 1
+        else:
+            # Actualización de estadísticas en memoria
+            summ_pass['free_owner_pass'] = summ_pass.get('free_owner_pass', 0) + 1
+            summ_passed['free_pass_player'] = summ_passed.get('free_pass_player', 0) + 1
 
 def move1(game_id: int, player_request: Player, tile: str):
     start_time = timezone.now()

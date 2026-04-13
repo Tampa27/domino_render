@@ -479,7 +479,6 @@ class PlayerOnListGameSerializer(serializers.ModelSerializer):
         model = Player
         fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "lastTimeInSystem", "url"]
 
-
 class BankAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = BankAccount
