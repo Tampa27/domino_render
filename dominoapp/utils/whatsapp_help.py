@@ -50,3 +50,13 @@ Has ganado un premio por ser el jugador con más {reward_type} en {f'la última 
 """    
     texto_codificado = urllib.parse.quote(texto_original)
     return f"https://wa.me/{player_phone}/?text={texto_codificado}"
+
+
+def get_whatsapp_tournament_notify(player: Player, player_phone:str, message:str):
+    texto_original = f"""
+    Hola *{player.name}*,
+                
+Has terminado en {message}.
+"""    
+    texto_codificado = urllib.parse.quote(texto_original)
+    return f"https://wa.me/{player_phone}/?text={texto_codificado}"
