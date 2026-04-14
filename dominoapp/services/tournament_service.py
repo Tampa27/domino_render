@@ -8,6 +8,7 @@ from django.db import transaction
 from dominoapp.serializers import TournamentCreateSerializer
 from dominoapp.models import Player, BlockPlayer, Tournament, Round, Pair, DominoGame, Match_Game, Bank
 from dominoapp.utils.transactions import create_transactions
+from dominoapp.utils.async_task_helper import safe_async_task
 
 logger = logging.getLogger('django')
 
@@ -314,8 +315,7 @@ class TournamentService:
    
     @staticmethod
     def process_pay_winners(tournament:Tournament, winner: Pair, second: Pair= None, third: Pair= None):
-        from dominoapp.tasks import async_send_fcm_message
-        from dominoapp.tasks import async_update_summarys
+        from dominoapp.tasks import async_send_fcm_message, async_update_summarys, async_save_place_tournament_notification
         
         tournament.first_place_object_id = winner.id
                 
@@ -326,6 +326,23 @@ class TournamentService:
         bank_data = {'tournament_coins': 0}
         player_data_list = []
         
+        place_1_notification = {
+            "users_id" : None,
+            "title" : "🏅 Campeón del Torneo",
+            "message" : None
+        }
+
+        place_2_notification = {
+            "users_id" : None,
+            "title" : "🎊 Subcampeón del Torneo",
+            "message" : None
+        }
+
+        place_3_notification = {
+            "users_id" : None,
+            "title" : "👏 Tercer Lugar del Torneo",
+            "message" : None
+        }
 
         if tournament.winner_payout > 0:
                       
@@ -363,14 +380,9 @@ class TournamentService:
                     }
                 })
             
-            try:
-                async_send_fcm_message.delay(
-                    users_id=[winner.player1.user.id, winner.player2.user.id],
-                    title= "🏅 Campeón del Torneo",
-                    message= f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
-                    )
-            except Exception as error:
-                logger.error(f'Error al enviar notificacion FCM de ganador del torneo" => {str(error)}')
+            
+            place_1_notification["users_id"] = [winner.player1.user.id, winner.player2.user.id]
+            place_1_notification["message"]= f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
 
         if second:
             tournament.second_place_object_id = second.id
@@ -404,14 +416,8 @@ class TournamentService:
                         }
                     })
 
-                try:
-                    async_send_fcm_message.delay(
-                        users_id=[second.player1.user.id, second.player2.user.id],
-                        title= "🎊 Subcampeón del Torneo",
-                        message= f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
-                        )
-                except Exception as error:
-                    logger.error(f'Error al enviar notificacion FCM de subcampeón del torneo" => {str(error)}')
+                place_2_notification["users_id"] = [second.player1.user.id, second.player2.user.id]
+                place_2_notification["message"] = f"¡2do lugar en Dominó Club! 🥈 Premio: {player_coins} monedas. ¡Sigue así! ⭐"
                                 
         if third:
             tournament.third_place_object_id = third.id
@@ -445,18 +451,24 @@ class TournamentService:
                         }
                     })
                 
-                try:
-                    async_send_fcm_message.delay(
-                        users_id=[third.player1.user.id, third.player2.user.id],
-                        title= "👏 Tercer Lugar del Torneo",
-                        message= f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones! 🎉"
-                        )
-                except Exception as error:
-                    logger.error(f'Error al enviar notificacion FCM de tercer lugar del torneo" => {str(error)}')
-        
+                place_3_notification["users_id"] = [third.player1.user.id, third.player2.user.id]
+                place_3_notification["message"] = f"¡3er lugar en Dominó Club! 🥉 Premio: {player_coins} monedas. ¡Felicitaciones! 🎉"
+
+        if place_1_notification["users_id"]:
+            try:
+                safe_async_task(
+                    async_save_place_tournament_notification,
+                    place_1_notification,
+                    place_2_notification = place_2_notification if place_2_notification["users_id"] else None,
+                    place_3_notification = place_3_notification if place_3_notification["users_id"] else None
+                )
+            except Exception as error:
+                logger.error(f'Error al procesar las notificaciones de los ganadores del torneo" => {str(error)}')
+
         if bank_data.get('tournament_coins', 0) > 0 or len(player_data_list)>0:
             try:
-                async_update_summarys.delay(
+                safe_async_task(
+                    async_update_summarys,
                     player_data_list = player_data_list,
                     bank_update_data = bank_data
                 )

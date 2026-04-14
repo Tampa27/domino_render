@@ -1,6 +1,7 @@
 from celery import shared_task
 import logging
-from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, MoveRegister
+import os
+from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, Notification
 from django.db import transaction
 from django.db.models import F
 from dominoapp.utils.transactions import create_game_transactions, create_transactions
@@ -8,6 +9,7 @@ from dominoapp.utils.players_tools import get_summary_model
 from dominoapp.utils.move_register_utils import movement_register
 from dominoapp.utils.checktables import procesar_logica_de_mesa, automatic_tournament
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
+from dominoapp.utils.whatsapp_help import get_whatsapp_tournament_notify
 logger = logging.getLogger('django')
 
 @shared_task(name="task_maestra_domino", ignore_result=True)
@@ -149,5 +151,110 @@ def async_send_global_fcm_message(title: str, message: str):
         title = title,
         body = message
     )
+
+    return
+
+@shared_task(name="", ignore_result=True)
+def async_save_place_tournament_notification(place_1_notification: dict, place_2_notification: dict, place_3_notification: dict):
+    """
+    Procesa las notificaciones de los lugares en un torneo.
+    """ 
+    admin_phone = os.environ.get('ADMIN_PHONE', None)
+    if not admin_phone:
+        admin_phone = "+5352459418"
+        logger.critical("ADMIN_PHONE no está configurado en las variables de entorno.")
+
+    if not place_1_notification:
+        logger.error("Error: place_1_notification debe ser un diccionario.")
+        return
+    
+    users_1er_place = place_1_notification.get('users_id')
+    if not users_1er_place:
+        logger.error("Error: place_1_notification debe contener 'users_id'.")
+        return
+    
+    message_1er_place = place_1_notification.get("message")
+    if message_1er_place:
+        FCMNOTIFICATION.send_fcm_message_by_users_list(
+            users = users_1er_place,
+            title = place_1_notification.get('title'),
+            body = message_1er_place
+        )
+    
+    try:
+        players_1er_place = Player.objects.filter(user__id = users_1er_place)
+        for player in players_1er_place:            
+            whatsapp_url = get_whatsapp_tournament_notify(
+                player=player,
+                player_phone=admin_phone,
+                message=message_1er_place
+            )
+
+            Notification.objects.create(
+                player=player,
+                title=place_1_notification.get('title'),
+                message=f"{message_1er_place}. Tienes 10 días para reclamar tu premio.",
+                whatsapp_url = whatsapp_url
+            )
+    except Exception as error:
+        logger.error(f"Error al crear las notificaciones del Torneo para el 1er lugar, error: {error}")
+
+    if place_2_notification:
+        users_2nd_place = place_2_notification.get('users_id')
+        if users_2nd_place:
+            message_2nd_place = place_2_notification.get("message")
+            if message_2nd_place:
+                FCMNOTIFICATION.send_fcm_message_by_users_list(
+                    users = users_2nd_place,
+                    title = place_2_notification.get('title'),
+                    body = message_2nd_place
+                )
+            
+            try:
+                players_2nd_place = Player.objects.filter(user__id = users_2nd_place)
+                for player in players_2nd_place:
+                    whatsapp_url = get_whatsapp_tournament_notify(
+                        player=player,
+                        player_phone=admin_phone,
+                        message=message_2nd_place
+                    )
+
+                    Notification.objects.create(
+                        player= player,
+                        title= place_2_notification.get('title'),
+                        message=f"{message_2nd_place}. Tienes 10 días para reclamar tu premio.",
+                        whatsapp_url = whatsapp_url
+                    )
+            except Exception as error:
+                logger.error(f"Error al crear las notificaciones del Torneo para el 2do lugar, error: {error}")
+
+    if place_3_notification:
+        users_3th_place = place_3_notification.get('users_id')
+        if users_3th_place:
+            message_3th_place = place_3_notification.get("message")
+            if message_3th_place:
+                FCMNOTIFICATION.send_fcm_message_by_users_list(
+                    users = users_3th_place,
+                    title = place_3_notification.get('title'),
+                    body = message_3th_place
+                )
+            
+            try:
+                players_3th_place = Player.objects.filter(user__id = users_3th_place)
+                for player in players_3th_place:
+                    whatsapp_url = get_whatsapp_tournament_notify(
+                        player=player,
+                        player_phone=admin_phone,
+                        message=message_3th_place
+                    )
+
+                    Notification.objects.create(
+                        player= player,
+                        title= place_3_notification.get('title'),
+                        message=f"{message_3th_place}. Tienes 10 días para reclamar tu premio.",
+                        whatsapp_url = whatsapp_url
+                    )
+            except Exception as error:
+                logger.error(f"Error al crear las notificaciones del Torneo para el 3er lugar, error: {error}")
 
     return
