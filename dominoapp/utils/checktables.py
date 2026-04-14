@@ -275,6 +275,50 @@ def procesar_logica_de_mesa(game_id: int):
                             game_block.board = ""
                             game_block.save(update_fields=['board'])
                 
+                #### Fuera de la transaccion atomica
+                active_players = game_tools.playersCount(game)
+                if game.status == 'wt' and 1<= len(active_players) < 4 and (not game.password or game.password == ""):
+                    players_id = []
+                    if game.player3 is not None:
+                        diff_time = timezone.now() - game.player3.lastTimeInGame
+                        players_id.append(game.player3.id)
+                        players_id.append(game.player2.id)
+                        players_id.append(game.player1.id)
+                    elif game.player2 is not None:
+                        diff_time = timezone.now() - game.player2.lastTimeInGame
+                        players_id.append(game.player2.id)
+                        players_id.append(game.player1.id)
+                    elif game.player1 is not None:
+                        diff_time = timezone.now() - game.player1.lastTimeInGame
+                        players_id.append(game.player1.id)
+
+                    if diff_time.seconds > ApiConstants.NOTIFICATION_TIME:
+                        players_list = None
+                        if game.inPairs:
+                            players_list = Player.objects.filter(
+                                isPlaying = False,
+                                send_in_pair_notifications = True
+                                ).exclude(id__in = players_id).order_by("last_notifications", "-lastTimeInSystem")
+                        else:
+                            last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)
+                            players_list = Player.objects.filter(
+                                isPlaying = False,
+                                last_notifications__lte = last_notifications,
+                                send_game_notifications = True
+                                ).exclude(id__in = players_id).order_by("-lastTimeInSystem")
+                        
+                        print("players_list: ", players_list)
+                        if players_list:
+                            from dominoapp.tasks import async_send_fcm_message
+                            players_notify = players_list[:10]
+                            players_user_id = [player.user.id for player in players_notify]
+                            players_list.filter(user__id__in = players_user_id).update(last_notifications = timezone.now())
+                            async_send_fcm_message.delay(
+                                users_id = players_user_id,
+                                title= "🎮 Mesa de Domino Activa",
+                                message= f"Hay jugadores esperando para jugar, únete a esta partida en Domino Club."
+                            )
+
             except Exception as error:
                 logger.critical(f'Ocurrio una excepcion dentro del automatico de la mesa {game.id} para expulsar un player, error: {str(error)}')
     except DominoGame.DoesNotExist:
