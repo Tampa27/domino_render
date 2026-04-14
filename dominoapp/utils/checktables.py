@@ -300,12 +300,14 @@ def automatic_tournament(tournament_id: int):
                        
             from dominoapp.tasks import async_send_fcm_message
             # Enviamos UNA tarea para cada mensaje pq depende de la zona horario del player
-            for player in player_list:
+            timezone_list = player_list.order_by("timezone").distinct("timezone").values_list("timezone", flat=True)
+            for player_timezone in timezone_list:
+                players_id = player_list.filter(timezone=player_timezone).values_list("user__id", flat=True)
                 try:
                     async_send_fcm_message.delay(
-                        users_id=[player.user.id],
+                        users_id=players_id,
                         title= "⏰ Recordatorio de inicio",
-                        message=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player.timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
+                        message=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player_timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
                     )
                 except Exception as error:
                     logger.error(f'Error al enviar notificacion FCM de recordatorio de inicio de torneo" => {str(error)}')
