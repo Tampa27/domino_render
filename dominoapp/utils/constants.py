@@ -163,6 +163,9 @@ class WSActions:
     PLAYER_LEFT = "PL"
     STARTER_CHANGE = "SC"
     UPDATE_PATNER = "UP"
+    ERROR = "E"
+    PING = "ping"
+    CHAT_MESSAGE = "CM"
 
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'

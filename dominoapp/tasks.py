@@ -182,7 +182,7 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
         )
     
     try:
-        players_1er_place = Player.objects.filter(user__id = users_1er_place)
+        players_1er_place = Player.objects.filter(user__id__in = users_1er_place)
         for player in players_1er_place:            
             whatsapp_url = get_whatsapp_tournament_notify(
                 player=player,
@@ -211,7 +211,7 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
                 )
             
             try:
-                players_2nd_place = Player.objects.filter(user__id = users_2nd_place)
+                players_2nd_place = Player.objects.filter(user__id__in = users_2nd_place)
                 for player in players_2nd_place:
                     whatsapp_url = get_whatsapp_tournament_notify(
                         player=player,
@@ -240,7 +240,7 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
                 )
             
             try:
-                players_3th_place = Player.objects.filter(user__id = users_3th_place)
+                players_3th_place = Player.objects.filter(user__id__in = users_3th_place)
                 for player in players_3th_place:
                     whatsapp_url = get_whatsapp_tournament_notify(
                         player=player,

@@ -240,7 +240,7 @@ class GameService:
                 if not game_in_round and player.registered_in_tournament:
                     tournament = player.registered_in_tournament
                     if tournament.start_at - timedelta(minutes=30) <= timezone.now() and timezone.now() < tournament.start_at + timedelta(minutes=5):
-                        return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
+                        return Response({'status': 'error',"message":"Estás participando en un torneo que comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
 
                 if player.play_tournament and not game_in_round:
                     return Response({'status': 'error',"message":"Estás participando en un torneo."}, status=status.HTTP_409_CONFLICT)

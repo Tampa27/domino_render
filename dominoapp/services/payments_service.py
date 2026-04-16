@@ -194,31 +194,18 @@ class PaymentService:
                 whatsapp_url=whatsapp_url,
                 paymentmethod=request.data.get('paymentmethod', None)
                 )
-            
-            send_request = DiscordConnector.send_transaction_request(
-                ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
-                {   
-                    'player_name': player.name,
-                    'player_alias': player.alias,
-                    'amount': request.data["coins"],
-                    'player_phone': request.data["phone"],
-                    'transaction_id': transaction_id,
-                    'whatsapp_url': whatsapp_url
-                }
-            )
-
-            ## No se estan usando y estan demorando los request       
-            # PushNotificationConnector.push_notification(
-            #     channel= f"transaction_{new_transaction.id}",
-            #     event_name="new_transaction",
-            #     data_notification={
-            #         'status': 'p',
-            #         'amount': new_transaction.amount,
-            #         'type': 'rl',
-            #         'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-            #         'admin': None
-            #     }
-            # )
+            if new_transaction:
+                send_request = DiscordConnector.send_transaction_request(
+                    ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+                    {   
+                        'player_name': player.name,
+                        'player_alias': player.alias,
+                        'amount': request.data["coins"],
+                        'player_phone': request.data["phone"],
+                        'transaction_id': transaction_id,
+                        'whatsapp_url': whatsapp_url
+                    }
+                )
         
         if send_request or transactions_exist:
             admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
@@ -231,7 +218,7 @@ class PaymentService:
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
             }, status=status.HTTP_200_OK)
         
-        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_promotions(request):
@@ -429,32 +416,20 @@ class PaymentService:
                 whatsapp_url=whatsapp_url
                 )
             
-            send_request = DiscordConnector.send_transaction_request(
-                ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
-                {   
-                    'player_name': player.name,
-                    'player_alias': player.alias,
-                    'amount': request.data["coins"],
-                    'coins':request.data["coins"],
-                    'card_number': request.data["card_number"],
-                    'player_phone': request.data["phone"],
-                    'transaction_id': transaction_id,
-                    'whatsapp_url': whatsapp_url
-                }
-            )
-            
-            ## No se estan usando y estan demorando los request       
-            # PushNotificationConnector.push_notification(
-            #     channel= f"transaction_{new_transaction.id}",
-            #     event_name="new_transaction",
-            #     data_notification={
-            #         'status': 'p',
-            #         'amount': new_transaction.amount,
-            #         'type': 'ex',
-            #         'time': new_transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-            #         'admin': None
-            #     }
-            # )
+            if new_transaction:
+                send_request = DiscordConnector.send_transaction_request(
+                    ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+                    {   
+                        'player_name': player.name,
+                        'player_alias': player.alias,
+                        'amount': request.data["coins"],
+                        'coins':request.data["coins"],
+                        'card_number': request.data["card_number"],
+                        'player_phone': request.data["phone"],
+                        'transaction_id': transaction_id,
+                        'whatsapp_url': whatsapp_url
+                    }
+                )
         
         if send_request or transactions_exist:
             # player.earned_coins -= int(request.data["coins"])
@@ -482,7 +457,7 @@ class PaymentService:
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
                 }, status=status.HTTP_200_OK)
         
-        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_transfer(request):
