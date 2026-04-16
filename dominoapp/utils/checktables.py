@@ -349,7 +349,7 @@ def automatic_tournament(tournament_id: int):
                 players_id = player_list.filter(timezone=player_timezone).values_list("user__id", flat=True)
                 try:
                     async_send_fcm_message.delay(
-                        users_id=players_id,
+                        users_id=list(players_id),
                         title= "⏰ Recordatorio de inicio",
                         message=f"Recordatorio: El torneo comienza en 5 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player_timezone)).strftime('%H:%M')}. ¡Nos vemos pronto en la mesa!"
                     )

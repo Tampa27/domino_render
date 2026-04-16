@@ -37,7 +37,7 @@ class Command(BaseCommand):
                     try:                        
                         safe_async_task(
                             async_send_fcm_message,
-                            players_id, 
+                            list(players_id), 
                             "⏰ Fechas del Torneo Corridas",
                             f"El torneo se pospuso para el {tournament.start_at.astimezone(pytz.timezone(player_timezone)).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {tournament.deadline.astimezone(pytz.timezone(player_timezone)).strftime('%d-%m-%Y, %H:%M')}."
                         )
@@ -78,7 +78,7 @@ class Command(BaseCommand):
                     try:
                         safe_async_task(
                             async_send_fcm_message,
-                            players_id,
+                            list(players_id),
                             "⏰ Recordatorio de inicio",
                             f"Recordatorio: El torneo comienza el {tournament.start_at.astimezone(pytz.timezone(player_timezone)).strftime('%d de %B')} a las {tournament.start_at.astimezone(pytz.timezone(player_timezone)).strftime('%H:%M')}. Te esperamos puntual."
                         )
@@ -96,7 +96,7 @@ class Command(BaseCommand):
                     try:
                         safe_async_task(
                             async_send_fcm_message,
-                            players_id,
+                            list(players_id),
                             "⏰ Recordatorio de inicio",
                             f"Recordatorio: El torneo comienza en 30 minutos, a las {tournament.start_at.astimezone(pytz.timezone(player_timezone)).strftime('%H:%M')}. ¡Prepárate para jugar!"
                         )
