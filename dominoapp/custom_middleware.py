@@ -5,7 +5,6 @@ from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from channels.middleware import BaseMiddleware
 from rest_framework_simplejwt.tokens import AccessToken
-from channels.auth import AuthMiddlewareStack
 from django.contrib.auth import get_user_model
 import logging
 
@@ -49,4 +48,4 @@ class JwtAuthMiddleware(BaseMiddleware):
 
 
 def JwtAuthMiddlewareStack(inner):
-    return JwtAuthMiddleware(AuthMiddlewareStack(inner))
+    return JwtAuthMiddleware(inner)
