@@ -9,7 +9,7 @@ import logging
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
-from dominoapp.utils.websocket_consumers import send_ws_notification
+from dominoapp.utils.websocket_utils import send_ws_notification
 from dominoapp.utils.constants import WSActions
 
 

@@ -11,7 +11,7 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_consumers import send_ws_notification
+from dominoapp.utils.websocket_utils import send_ws_notification
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')

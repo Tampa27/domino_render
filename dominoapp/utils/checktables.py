@@ -11,7 +11,7 @@ from django.db import connection, transaction
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
-from dominoapp.utils.websocket_consumers import send_ws_notification
+from dominoapp.utils.websocket_utils import send_ws_notification
 from dominoapp.utils.constants import WSActions
 import logging
 import pytz
