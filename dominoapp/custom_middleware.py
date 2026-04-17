@@ -2,19 +2,18 @@
 """
 
 from channels.db import database_sync_to_async
-from django.contrib.auth.models import AnonymousUser
 from channels.middleware import BaseMiddleware
 from rest_framework_simplejwt.tokens import AccessToken
-from django.contrib.auth import get_user_model
 import logging
 
 logger = logging.getLogger(__name__)
 
-User = get_user_model()
-
 
 @database_sync_to_async
 def get_user(user_id):
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.models import AnonymousUser
+    User = get_user_model()
     try:
         return User.objects.get(id=user_id)
     except:
@@ -26,6 +25,7 @@ class JwtAuthMiddleware(BaseMiddleware):
         self.inner = inner
 
     async def __call__(self, scope, receive, send):
+        from django.contrib.auth.models import AnonymousUser
         
         if scope["type"] != "websocket":
             return await self.inner(scope, receive, send)
