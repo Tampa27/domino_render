@@ -50,6 +50,3 @@ class JwtAuthMiddleware(BaseMiddleware):
         scope['user'] = user
         return await self.inner(scope, receive, send)
 
-
-def JwtAuthMiddlewareStack(inner):
-    return JwtAuthMiddleware(inner)
