@@ -20,7 +20,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         try:
             # 1. Verificar si el usuario está autenticado
             self.user = self.scope["user"]
-            print("user: ", self.user)
             
             if self.user.is_anonymous:
                 # Si no está autenticado, cerramos la conexión (código 4003 es común para política)

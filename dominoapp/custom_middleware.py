@@ -26,6 +26,10 @@ class JwtAuthMiddleware(BaseMiddleware):
         self.inner = inner
 
     async def __call__(self, scope, receive, send):
+        
+        if scope["type"] != "websocket":
+            return await self.inner(scope, receive, send)
+
         # Los subprotocolos vienen en una lista dentro del scope
         subprotocols = scope.get("subprotocols", [])
         user = AnonymousUser()
