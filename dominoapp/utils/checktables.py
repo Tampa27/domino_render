@@ -307,7 +307,6 @@ def procesar_logica_de_mesa(game_id: int):
                                 send_game_notifications = True
                                 ).exclude(id__in = players_id).order_by("-lastTimeInSystem")
                         
-                        print("players_list: ", players_list)
                         if players_list:
                             from dominoapp.tasks import async_send_fcm_message
                             players_notify = players_list[:10]
