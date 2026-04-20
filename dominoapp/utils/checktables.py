@@ -627,9 +627,13 @@ def automaticStart(game:DominoGame, blocked_players:list[Player]):
             if len(blocked_players) < 2 or (game.inPairs and len(blocked_players) < 4):
                 logger.error(f"Error en el reinicio automático de la mesa {game.id}, player_len: {len(blocked_players)}")
                 return False
-            else:
-                game_tools.startGame1(game, blocked_players)
-                return True
+            
+            if game.status == 'ru' and game.board != '':
+                logger.error(f" Ya hay un juego en marcha, abortar reinicio duplicado en la mesa {game.id}")
+                return False
+            
+            game_tools.startGame1(game, blocked_players)
+            return True
 
         except Exception as error:
             logger.critical(f"Error en el reinicio automático de la mesa {game.id}, error: {str(error)}")
