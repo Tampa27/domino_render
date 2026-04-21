@@ -176,9 +176,19 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     socket_payload = {
         "a": WSActions.TILE_MOVED,
         "d": {
-            "st": game.status
+            "st": game.status,
+            "t": tile,
+            "cs": [p.total_coins for p in players],
+            "np": game.next_player,
         }
     }
+    if game.status in ["fg", "fi"]:
+        socket_payload["d"]["w"] = game.winner
+        socket_payload["d"]["str"] = game.starter
+        if game.perPoints:
+            socket_payload["d"]["st1"] = game.scoreTeam1
+            socket_payload["d"]["st2"] = game.scoreTeam2
+            socket_payload["d"]["sp"] = [p.points for p in players]
 
     try:
         from dominoapp.tasks import async_update_summarys

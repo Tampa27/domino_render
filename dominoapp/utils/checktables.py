@@ -64,33 +64,30 @@ def procesar_logica_de_mesa(game_id: int):
                             if game_block.status == 'fg':
                                 now_time = timezone.now()
                                 start_in_30_min = now_time + timedelta(minutes=30)
-                                needs_update = False
                                 for player in active_players:                                
                                     diff_time = now_time - player.lastTimeInGame
                                     if not game_block.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game_block,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                         try:
                                             success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
-                                                needs_update = True
+                                                try:
+                                                    transaction.on_commit(lambda p=player: send_ws_notification(
+                                                        game_id= game_block.id,
+                                                        payload={
+                                                            "a": WSActions.PLAYER_LEFT,
+                                                            "d": {
+                                                                "st": game_block.status,
+                                                                "p": p.id
+                                                            } 
+                                                        }
+                                                    ))
+                                                except Exception as error:
+                                                    logger.error(f"Error al enviar el WS en el exit del automatico: {error}")
                                                 # Actualizamos la lista local para que la siguiente iteración vea el cambio
                                                 active_players = game_tools.playersCount(game_block)
                                         except Exception as e:
                                             logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
                                 
-                                if needs_update:
-                                    try:
-                                        transaction.on_commit(lambda: send_ws_notification(
-                                            game_id= game_block.id,
-                                            payload={
-                                                "a": WSActions.PLAYER_LEFT,
-                                                "d": {
-                                                    "st": game_block.status
-                                                } 
-                                            }
-                                        ))
-                                    except Exception as error:
-                                        logger.error(f"Error al enviar el WS en el exit del automatico: {error}")
-
                                 if len(active_players)<2:
                                     restargame = False
                                 if game_block.in_tournament:
@@ -123,28 +120,26 @@ def procesar_logica_de_mesa(game_id: int):
                                                 except Exception as error:
                                                     logger.error(f'Error al enviar notificacion FCM de partido completado" => {str(error)}')
                                         
-                                        needs_update = False
                                         for player in active_players:
                                             success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
-                                                needs_update = True
+                                                try:
+                                                    transaction.on_commit(lambda p=player: send_ws_notification(
+                                                        game_id= game_block.id,
+                                                        payload={
+                                                            "a": WSActions.PLAYER_LEFT,
+                                                            "d": {
+                                                                "st": game_block.status,
+                                                                "p": p.id
+                                                            } 
+                                                        }
+                                                    ))
+                                                except Exception as error:
+                                                    logger.error(f"Error enviando el ws en el Start automatico. Error: {error}")
+                                                
                                                 # Actualizamos la lista local para que la siguiente iteración vea el cambio
                                                 active_players = game_tools.playersCount(game_block)
-                                        
-                                        if needs_update:
-                                            try:
-                                                transaction.on_commit(lambda: send_ws_notification(
-                                                    game_id= game_block.id,
-                                                    payload={
-                                                        "a": WSActions.PLAYER_LEFT,
-                                                        "d": {
-                                                            "st": game_block.status
-                                                        } 
-                                                    }
-                                                ))
-                                            except Exception as error:
-                                                logger.error(f"Error enviando el ws en el Start automatico. Error: {error}")
-                                        
+                                                                                
                                         match.end_at = timezone.now()
                                         match.save(update_fields=["end_at"])
                                         
@@ -252,25 +247,27 @@ def procesar_logica_de_mesa(game_id: int):
                                 success = game_tools.exitPlayer(game_block, player, active_players, len(active_players))
                                 if success:
                                     needs_update = True
+                                    try:
+                                        transaction.on_commit(lambda p=player: send_ws_notification(
+                                            game_id= game_block.id,
+                                            payload={
+                                                "a": WSActions.PLAYER_LEFT,
+                                                "d": {
+                                                    "st": game_block.status,
+                                                    "p": p.id
+                                                } 
+                                            }
+                                        ))
+                                    except Exception as error:
+                                        logger.error(f"Error al enviar el WS en el exit del automatico: {error}")
+                                    
                                     # Actualizamos la lista local para que la siguiente iteración vea el cambio
                                     active_players = game_tools.playersCount(game_block)
                             except Exception as e:
                                 logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
 
                     # Solo guardamos si realmente hubo un cambio
-                    if needs_update:
-                        try:
-                            transaction.on_commit(lambda: send_ws_notification(
-                                game_id= game_block.id,
-                                payload={
-                                    "a": WSActions.PLAYER_LEFT,
-                                    "d": {
-                                        "st": game_block.status
-                                    } 
-                                }
-                            ))
-                        except Exception as error:
-                            logger.error(f"Error al enviar el WS en el exit del automatico: {error}")
+                    if needs_update:                        
                         if game_block.status == 'wt' and len(active_players)<2:
                             game_block.board = ""
                             game_block.save(update_fields=['board'])
