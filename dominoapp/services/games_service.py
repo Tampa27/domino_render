@@ -283,7 +283,11 @@ class GameService:
                             payload={
                                 "a": WSActions.PLAYER_JOINED,
                                 "d": {
-                                    "st": game.status
+                                    "st": game.status,
+                                    "pn": player.name,
+                                    "pc": player.total_coins,
+                                    "pp": player.photo_url,
+                                    "pi": player.isPlaying
                                 }
                             }
                         ))
@@ -455,7 +459,8 @@ class GameService:
                             payload={
                                 "a": WSActions.PLAYER_LEFT,
                                 "d": {
-                                    "st": game.status
+                                    "st": game.status,
+                                    "p": player.id
                                 } 
                             }
                         ))
