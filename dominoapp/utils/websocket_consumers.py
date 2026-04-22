@@ -12,6 +12,9 @@ logger = logging.getLogger('django')
 
 class GameConsumer(AsyncWebsocketConsumer):
     connected_players = {}  # Mapeo game_id -> set de usuarios conectados
+
+    def get_redis_key(self):
+        return f"count_g_{self.game_id}"
     
     async def connect(self):
 
@@ -21,16 +24,18 @@ class GameConsumer(AsyncWebsocketConsumer):
             # 1. Verificar si el usuario está autenticado
             self.user = self.scope["user"]
             
-            if self.user.is_anonymous:
-                # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
-                # await self.close(code=4003)
-                # return
-                pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación
+        #     if self.user.is_anonymous:
+        #         # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
+        #         # await self.close(code=4003)
+        #         # return
+        #         pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación
             
-            self.connected_players.setdefault(self.game_id, set()).add(self.user)
+        #     self.connected_players.setdefault(self.game_id, set()).add(self.user)
         except Exception as error:
             pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación 
         
+        self.connected_players.setdefault(self.game_id, set()).add(self.channel_name)
+
         # 1. Identificar si el cliente envió subprotocolos
         subprotocols = self.scope.get("subprotocols", [])
 
@@ -49,7 +54,22 @@ class GameConsumer(AsyncWebsocketConsumer):
         )
     
     async def disconnect(self, close_code):
-        self.connected_players[self.game_id].discard(self.user)
+        room_players = self.connected_players.get(self.game_id)
+    
+        if room_players is not None:
+            # Eliminamos el socket específico, no el objeto user
+            room_players.discard(self.channel_name)
+            
+            # 2. Si el set está vacío, es que ya no hay nadie en esta sala (en este worker)
+            if not room_players:
+                # Limpiamos el diccionario para no dejar llaves huérfanas en memoria RAM
+                if self.game_id in self.connected_players:
+                    del self.connected_players[self.game_id]
+                
+                # 3. Borrar el contador de Redis
+                async with self.channel_layer.connection(0) as conn:
+                    await conn.delete(self.get_redis_key())
+
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
@@ -121,8 +141,5 @@ class GameConsumer(AsyncWebsocketConsumer):
         }))
 
     async def game_update(self, event):
-        # Envía el mensaje de actualización a los clientes conectados a esta mesa
-        payload = event['payload']
-        await self.send(text_data=json.dumps(payload))
-
-
+        """"Envia el mensaje de actualizacion al WS."""
+        await self.send(text_data=json.dumps(event['payload']))
