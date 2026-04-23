@@ -367,7 +367,8 @@ class GameService:
                             payload={
                                 "a": WSActions.GAME_STARTED,
                                 "d": {
-                                    "st": game.status
+                                    "st": game.status,
+                                    "ps": [{"pi": p.isPlaying, "ts": p.tiles} for p in players]
                                 } 
                             }
                         ))

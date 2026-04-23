@@ -95,7 +95,8 @@ class GameView(viewsets.ModelViewSet):
                 fields={
                     "status": CharField(default="success"),
                     "game": GameSerializer(),
-                    "players": PlayerGameSerializer(many=True)
+                    "players": PlayerGameSerializer(many=True),
+                    "count_g": IntegerField()
                     },
             ),
             
