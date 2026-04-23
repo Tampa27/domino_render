@@ -190,7 +190,8 @@ def procesar_logica_de_mesa(game_id: int):
                                             payload={
                                                 "a": WSActions.GAME_STARTED,
                                                 "d": {
-                                                    "st": game_block.status
+                                                    "st": game_block.status,
+                                                    "ps": [{"pi": p.isPlaying, "ts": p.tiles} for p in active_players]
                                                 } 
                                             }
                                         ))
