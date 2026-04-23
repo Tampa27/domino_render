@@ -285,7 +285,9 @@ class GameService:
                                 "a": WSActions.PLAYER_JOINED,
                                 "d": {
                                     "st": game.status,
+                                    "p": player.id,
                                     "pn": player.name,
+                                    "pa": player.alias,
                                     "pc": player.total_coins,
                                     "pp": player.photo_url,
                                     "pi": player.isPlaying
