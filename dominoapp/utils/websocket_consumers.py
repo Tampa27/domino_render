@@ -77,7 +77,7 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         """Maneja los mensajes recibidos desde la APK"""
-        print("players_connected: ", self.connected_players.get(self.game_id, set()))
+        
         try:
             data = json.loads(text_data)
             message_type = data.get('type')

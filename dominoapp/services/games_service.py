@@ -11,7 +11,7 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_utils import send_ws_notification
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
@@ -151,7 +151,8 @@ class GameService:
         return Response({
             'status': 'success', 
             "game": serializer.data, 
-            "players": players_data
+            "players": players_data,
+            "count_g": get_count_key(game_id)  # Obtenemos el contador actual de esta mesa
         }, status=status.HTTP_200_OK)
     
     @staticmethod
