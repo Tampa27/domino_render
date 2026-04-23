@@ -545,7 +545,10 @@ class GameService:
                     payload={
                         "a": WSActions.STARTER_CHANGE,
                         "d": {
-                            "st": game.status
+                            "st": game.status,
+                            "str": game.starter,
+                            "w": game.winner,
+                            "np": game.next_player
                         } 
                     }
                 ))
@@ -590,13 +593,15 @@ class GameService:
                     game.player3 = patner
                 game.save(update_fields= ["player2", "player3", "player4"])
 
+                new_players_orders = game_tools.playersCount(game)
                 try:
                     transaction.on_commit(lambda: send_ws_notification(
                         game_id= game.id,
                         payload={
                             "a": WSActions.UPDATE_PATNER,
                             "d": {
-                                "st": game.status
+                                "st": game.status,
+                                "ps": [p.id for p in new_players_orders]
                             } 
                         }
                     ))
