@@ -273,7 +273,7 @@ class GameService:
                     if game.inPairs:
                         game.status = "ready" if num_players == 4 and game.status == "wt" else "wt"
                     else:
-                        if num_players >= 2 and game.status not in ["ru", "fi"]:
+                        if num_players >= 2 and game.status not in ["ru", "fi", "fg"]:
                             game.status = "ready"
                         elif num_players < 2:
                             game.status = "wt"

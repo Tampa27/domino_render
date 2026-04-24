@@ -631,7 +631,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
 
     isStarter = (game.starter == pos)
     starter_original = game.starter
-    
+
     # 2. Determinar inactividad (Fast Check)
     lastTimeMove = getLastMoveTime(game, player)
     noActivity = False
@@ -717,7 +717,6 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
                     )
             except Exception as e:
                 logger_discord.error(f"Error lanzando async_update_summarys en exitPlayer: {e}")
-
 
         # 5. Actualizar estado del juego tras la salida
         if totalPlayers <= 2 or game.inPairs:
