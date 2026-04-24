@@ -11,7 +11,7 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key, delete_count_key
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
@@ -193,6 +193,8 @@ class GameService:
             if not game_tools.ready_to_play(game,player1):
                 players = game_tools.playersCount(game)
                 game_tools.exitPlayer(game,player1,players,len(players))
+    
+                delete_count_key(game.id)
                 return Response({"status": "error", "message": "No tienes suficientes monedas para crear esta mesa"}, status=status.HTTP_409_CONFLICT)
                         
         except serializers.ValidationError as e:
@@ -340,7 +342,7 @@ class GameService:
                         return Response(data={"status":"error","message":"No se pudieron bloquear a todos los jugadores"}, status=status.HTTP_409_CONFLICT)
 
                 # IMPORTANTE: Según tu lógica, el juego solo arranca si NO está en "wt" (waiting)
-                if game.status != "wt":
+                if game.status in ['ready', 'fg', 'fi']:
                     # 3. Obtenemos los jugadores bloqueados directamente desde la instancia 'game'
                     players = game_tools.playersCount(game)
                     
@@ -356,6 +358,8 @@ class GameService:
                     # 5. Re-validamos la cantidad de jugadores después de las posibles salidas
                     if change_players_list:
                         players = game_tools.playersCount(game)
+                        if len(players) == 0:
+                            delete_count_key(game.id)
                     
                     if (game.inPairs and len(players) < 4) or len(players) < 2:
                         return Response({"status": 'error', "message": "No hay players suficientes para jugar esta partida."}, status=status.HTTP_409_CONFLICT)
@@ -383,7 +387,7 @@ class GameService:
 
                     
                     return Response({'status': 'success', "game":serializerGame.data,"players":playerSerializer.data}, status=200)
-            # Si el status es "wt", significa que aún no cumple requisitos para iniciar
+            # Si el status no es correcto significa que aún no cumple requisitos para iniciar
             return Response ({'status': 'error', "message": "Ya el juego ha comenzado."},status=status.HTTP_409_CONFLICT)
         except DatabaseError as error:
             # Si alguien más está intentando iniciar el juego o uniéndose justo ahora
@@ -470,6 +474,10 @@ class GameService:
                         ))
                     except Exception as error:
                         logger.error(f"Error enviando el WS en el ExitGame. Error: {error}")
+
+                    players = game_tools.playersCount(game)
+                    if len(players) == 0:
+                        delete_count_key(game.id)
 
                     return Response({'status': 'success'}, status=200)
                 return Response({'status': 'error', "message":'No estas en esta mesa.'}, status=409)

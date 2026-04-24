@@ -67,3 +67,25 @@ def get_count_key(game_id):
     
     # Ejecutamos la función asíncrona en un entorno síncrono y devolvemos el resultado
     return async_to_sync(_get_count)()
+
+def delete_count_key(game_id):
+    """Elimina el contador de la cache."""
+
+    async def _delete_count():
+        try:
+            channel_layer = get_channel_layer()
+            redis_key = f"count_g_{game_id}"
+            
+            # 3. Borrar el contador de Redis
+            async with channel_layer.connection(0) as conn:
+                await conn.delete(redis_key)
+                    
+                return True
+        except Exception as e:
+            logger.error(f"Error en delete_key para mesa {game_id}: {e}", exc_info=True)
+            return False
+    
+    # Ejecutamos la función asíncrona en un entorno síncrono y devolvemos el resultado
+    return async_to_sync(_delete_count)()
+
+    
