@@ -23,6 +23,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         try:
             # 1. Verificar si el usuario está autenticado
             self.user = self.scope["user"]
+            logger.error(f"Usuario autenticado: {self.user}")
             
         #     if self.user.is_anonymous:
         #         # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
@@ -109,7 +110,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             
             if self.user.is_anonymous:
                 logger.error(f"No se puede hacer el movimiento de pq el usuario esta anonimo")
-                await self.send_error(f"El player no esta autenticado")
+                await self.send_error(f"El player no está autenticado")
                 return
             
             # Validar el movimiento con tu lógica de negocio
@@ -125,6 +126,7 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def perform_move(self, game_id, user_id, move_tile):
         try:
+            print("user_id: ", user_id)
             player =  Player.objects.get(user__id=user_id)
         except Player.DoesNotExist:
             return "Debe autenticarse para realizar esta acción"
