@@ -65,10 +65,6 @@ class GameConsumer(AsyncWebsocketConsumer):
                 # Limpiamos el diccionario para no dejar llaves huérfanas en memoria RAM
                 if self.game_id in self.connected_players:
                     del self.connected_players[self.game_id]
-                
-                # 3. Borrar el contador de Redis
-                async with self.channel_layer.connection(0) as conn:
-                    await conn.delete(self.get_redis_key())
 
         await self.channel_layer.group_discard(
             self.room_group_name,

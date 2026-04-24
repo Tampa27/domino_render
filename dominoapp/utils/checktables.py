@@ -11,7 +11,7 @@ from django.db import connection, transaction
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
-from dominoapp.utils.websocket_utils import send_ws_notification
+from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key
 from dominoapp.utils.constants import WSActions
 import logging
 import pytz
@@ -90,6 +90,9 @@ def procesar_logica_de_mesa(game_id: int):
                                 
                                 if len(active_players)<2:
                                     restargame = False
+                                    if len(active_players) == 0:
+                                        delete_count_key(game_block.id)
+
                                 if game_block.in_tournament:
                                     from dominoapp.tasks import async_send_fcm_message
                                     match = Match_Game.objects.get(game__id = game_block.id)
@@ -139,6 +142,9 @@ def procesar_logica_de_mesa(game_id: int):
                                                 
                                                 # Actualizamos la lista local para que la siguiente iteración vea el cambio
                                                 active_players = game_tools.playersCount(game_block)
+
+                                        if len(active_players) == 0:
+                                            delete_count_key(game_block.id)
                                                                                 
                                         match.end_at = timezone.now()
                                         match.save(update_fields=["end_at"])
@@ -268,7 +274,10 @@ def procesar_logica_de_mesa(game_id: int):
                                 logger.critical(f"Error al expulsar al jugador {player.alias} de la mesa {game.id}, error: {str(e)}")
 
                     # Solo guardamos si realmente hubo un cambio
-                    if needs_update:                        
+                    if needs_update:
+                        if len(active_players) == 0:
+                            delete_count_key(game_block.id)
+                        
                         if game_block.status == 'wt' and len(active_players)<2:
                             game_block.board = ""
                             game_block.save(update_fields=['board'])
