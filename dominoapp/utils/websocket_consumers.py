@@ -23,7 +23,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         try:
             # 1. Verificar si el usuario está autenticado
             self.user = self.scope["user"]
-            logger.error(f"Usuario autenticado: {self.user}")
             
         #     if self.user.is_anonymous:
         #         # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
@@ -79,10 +78,8 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         """Maneja los mensajes recibidos desde la APK"""
         try:
-            logger.error(f"entro al receive del WS: {text_data}")
             data = json.loads(text_data)
             message_type = data.get('type')
-            logger.error(f"tipo de mensaje en WS: {message_type}")
             
             # Manejar diferentes tipos de mensajes
             if message_type == WSActions.TILE_MOVED:
@@ -106,19 +103,16 @@ class GameConsumer(AsyncWebsocketConsumer):
             # Aquí procesas el movimiento
             game_id = self.scope['url_route']['kwargs']['game_id']
             move_tile = data.get('tile')
-            logger.error(f"Se procesa el movimiento de la ficha {move_tile} del game {game_id} en el WS")
             
             if self.user.is_anonymous:
-                logger.error(f"No se puede hacer el movimiento de pq el usuario esta anonimo")
                 await self.send_error(f"El player no está autenticado")
                 return
             
             # Validar el movimiento con tu lógica de negocio
             error = await self.perform_move(game_id, self.user.id, move_tile)
             if error:
-                logger.error(f"No se puede hacer el movimiento, error: {error}")
                 await self.send_error(error)
-            logger.error(f"Se termino de hacer el movimiento.")
+
         except Exception as e:
             logger.error(f"No se puede hacer el movimiento, error: {str(e)}")
             await self.send_error(f"Error al procesar movimiento: {str(e)}")
@@ -126,7 +120,6 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def perform_move(self, game_id, user_id, move_tile):
         try:
-            print("user_id: ", user_id)
             player =  Player.objects.get(user__id=user_id)
         except Player.DoesNotExist:
             return "Debe autenticarse para realizar esta acción"
