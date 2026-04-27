@@ -17,23 +17,20 @@ class GoogleTokenVerifier:
     @staticmethod
     def verify(token):
         GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+        ## Version Nueva para Google Play
+        GOOGLE_CLIENT_ID_2 = os.getenv('GOOGLE_CLIENT_ID_2')
         try:
             # Especifica el CLIENT_ID de la app que accede al backend
             idinfo = id_token.verify_oauth2_token(
                 token, 
                 requests.Request(), 
-                GOOGLE_CLIENT_ID
-            )
-                
-        except ValueError as e:
+                [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_ID_2]
+            )                
+        except:
             logger.critical(f'Google Token is wront => {str(e)}')
             return None, e
         
-        try:
-            # Verifica que el token sea emitido para tu cliente
-            if idinfo['aud'] != GOOGLE_CLIENT_ID:
-                raise ValueError("El token no fue emitido para este cliente")
-            
+        try:            
             # Verifica que el email esté verificado
             if not idinfo.get('email_verified', False):
                 raise ValueError("Email no verificado por Google")

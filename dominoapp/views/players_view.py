@@ -209,7 +209,7 @@ class PlayerView(viewsets.ModelViewSet):
     @extend_schema(
             operation_id="players_login",
             request={
-                200: inline_serializer(
+                "application/json": inline_serializer(
                 name="Login Player Request",
                 fields={
                     "token": CharField(),
