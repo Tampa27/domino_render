@@ -197,6 +197,9 @@ def procesar_logica_de_mesa(game_id: int):
                                                 "a": WSActions.GAME_STARTED,
                                                 "d": {
                                                     "st": game_block.status,
+                                                    "np": game_block.next_player,
+                                                    "w": game_block.winner,
+                                                    "str": game_block.starter,
                                                     "ps": [{"pi": p.isPlaying, "ts": p.tiles} for p in active_players]
                                                 } 
                                             }
@@ -379,7 +382,11 @@ def automatic_tournament(tournament_id: int):
                             payload={
                                 "a": WSActions.GAME_STARTED,
                                 "d": {
-                                    "st": game.status
+                                    "st": game.status,
+                                    "np": game.next_player,
+                                    "w": game.winner,
+                                    "str": game.starter,
+                                    "ps": [{"pi": p.isPlaying, "ts": p.tiles} for p in players]
                                 } 
                             }
                         )
@@ -414,7 +421,11 @@ def automatic_tournament(tournament_id: int):
                                     payload={
                                         "a": WSActions.GAME_STARTED,
                                         "d": {
-                                            "st": game.status
+                                            "st": game.status,
+                                            "np": game.next_player,
+                                            "w": game.winner,
+                                            "str": game.starter,
+                                            "ps": [{"pi": p.isPlaying, "ts": p.tiles} for p in players]
                                         } 
                                     }
                                 )

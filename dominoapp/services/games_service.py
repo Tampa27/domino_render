@@ -142,17 +142,18 @@ class GameService:
                 pass
 
         # 3. Serializar el juego
-        serializer = GameSerializer(game)
+        game_data = GameSerializer(game).data
 
         # 4. Construir la lista de jugadores filtrando los None de forma elegante
         players = [p for p in [game.player1, game.player2, game.player3, game.player4] if p is not None]
         players_data = PlayerGameSerializer(players, many=True).data
 
+        game_data["count_g"]= get_count_key(game_id)  # Obtenemos el contador actual de esta mesa]  
+
         return Response({
             'status': 'success', 
-            "game": serializer.data, 
-            "players": players_data,
-            "count_g": get_count_key(game_id)  # Obtenemos el contador actual de esta mesa
+            "game": game_data,
+            "players": players_data
         }, status=status.HTTP_200_OK)
     
     @staticmethod
@@ -374,6 +375,9 @@ class GameService:
                                 "a": WSActions.GAME_STARTED,
                                 "d": {
                                     "st": game.status,
+                                    "np": game.next_player,
+                                    "w": game.winner,
+                                    "str": game.starter,
                                     "ps": [{"pi": p.isPlaying, "ts": p.tiles} for p in players]
                                 } 
                             }
