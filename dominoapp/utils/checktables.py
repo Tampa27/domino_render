@@ -188,6 +188,7 @@ def procesar_logica_de_mesa(game_id: int):
                                                     logger.error(f'Error al enviar notificacion FCM de recordatorio de inicio" => {str(error)}')
                                                 
                             if restargame:
+                                active_players = game_tools.playersCount(game_block)
                                 success = automaticStart(game_block, active_players)
                                 if success:
                                     try:
