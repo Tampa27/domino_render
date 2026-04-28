@@ -188,6 +188,7 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
         socket_payload["d"]["w"] = game.winner
         socket_payload["d"]["str"] = game.starter
         if game.perPoints:
+            socket_payload["d"]["r"] = game.rounds
             socket_payload["d"]["st1"] = game.scoreTeam1
             socket_payload["d"]["st2"] = game.scoreTeam2
             socket_payload["d"]["sp"] = [p.points for p in players]
