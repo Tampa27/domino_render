@@ -26,7 +26,7 @@ class GoogleTokenVerifier:
                 requests.Request(), 
                 [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_ID_2]
             )                
-        except:
+        except Exception as e:
             logger.critical(f'Google Token is wront => {str(e)}')
             return None, e
         
