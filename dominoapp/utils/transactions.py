@@ -15,7 +15,7 @@ def create_transactions(amount,from_user:Player=None, to_user:Player=None, statu
         if not status in ["p", "cp", "cc"]:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: status is not correct")
             return None
-        if not type in ["rl", "ex", "gm", "pro", "tr"]:
+        if not type in ["rl", "ex", "gm", "pro", "pro_mov", "tr"]:
             logger.error(f"Transaction of {amount} pesos failed of {from_user} for {to_user}, error: type is not correct")
             return None
         
