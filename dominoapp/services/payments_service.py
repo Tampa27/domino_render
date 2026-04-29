@@ -1029,21 +1029,22 @@ class PaymentService:
         if player.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
 
-        ## validar que el token es correcto
-        secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2024")
-        text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
-        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
-        
-        token = request.data.get("token", None)
-        if not token or token != token_hash_sha256:
-            return Response(data={'status': 'error', "message":'Token no valido'}, status=status.HTTP_403_FORBIDDEN)        
-
         ## Validar que sea una vez al dia
         if player.promotion_movie:
             return Response(
                 data={'status': 'error', "message":'Ya has utilizado esta promoción hoy.'},
                 status=status.HTTP_409_CONFLICT
             )
+
+        ## validar que el token es correcto
+        secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2025")
+        text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
+        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()    
+        
+        token = request.data.get("token", None)
+        
+        if not token or token != token_hash_sha256:
+            return Response(data={'status': 'error', "message":'Token no valido'}, status=status.HTTP_403_FORBIDDEN)        
 
         player.recharged_coins+= int(request.data["coins"])
         player.save(update_fields=["recharged_coins"])
