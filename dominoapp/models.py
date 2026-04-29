@@ -109,7 +109,14 @@ class Player(models.Model):
     def registered_in_tournament(self):
         tournaments_registered = Tournament.objects.filter(player_list=self, active=True).order_by("-start_at").first()
         return tournaments_registered
-        
+
+    @property
+    def promotion_movie(self):
+        """Verificar si tiene alguna promocion por video en el dia"""
+        now = timezone_dj.now().replace(hour=0,minute=0, second=0)
+        return Transaction.objects.filter(type = "pro_mov", time__gte = now).exists()
+
+
     def __str__(self):
         return self.alias
     

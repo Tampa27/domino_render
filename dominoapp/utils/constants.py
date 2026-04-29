@@ -135,6 +135,7 @@ class TransactionTypes:
     TRANSACTION_EXTRACTION = ("ex", "extraction")
     TRANSATIONS_IN_GAMES = ("gm", "game")
     TRANSACTION_PROMOTION = ("pro", "promotion")
+    TRANSACTION_PROMOTION_MOVIE = ("pro_mov", "promotion by movie")
     TRANSACTION_TRANSFER = ("tr", "transfer")
     TRANSACTION_REWARD = ("rw", "reward")
 
@@ -143,6 +144,7 @@ class TransactionTypes:
         TRANSACTION_EXTRACTION,
         TRANSATIONS_IN_GAMES,
         TRANSACTION_PROMOTION,
+        TRANSACTION_PROMOTION_MOVIE,
         TRANSACTION_TRANSFER,
         TRANSACTION_REWARD
     ]

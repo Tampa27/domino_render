@@ -1,4 +1,5 @@
 import shortuuid
+import hashlib
 import os
 import logging
 from rest_framework import status
@@ -9,7 +10,7 @@ from django.shortcuts import redirect
 from datetime import datetime, timedelta
 from dominoapp.models import Player, Bank, Transaction, Payment, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer, PackageCoins
 from dominoapp.serializers import PackageCoinsSerializer
-from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions
+from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions, create_transactions
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
@@ -1011,7 +1012,71 @@ class PaymentService:
                 "message": "Fallo al completar el pago"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+    @staticmethod
     def process_list_package_coins(request):
         queryset = PackageCoins.objects.all()
         serializer = PackageCoinsSerializer(queryset, many=True)
         return Response(data= serializer.data, status=status.HTTP_200_OK)
+    
+    @staticmethod
+    def process_promotion_movies(request):
+
+        try:
+            player = Player.objects.get(id=request.data["player_id"])
+        except Player.DoesNotExist:
+            return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if player.is_block:
+            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+
+        ## validar que el token es correcto
+        secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2024")
+        text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
+        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
+        
+        token = request.data.get("token", None)
+        if not token or token != token_hash_sha256:
+            return Response(data={'status': 'error', "message":'Token no valido'}, status=status.HTTP_403_FORBIDDEN)        
+
+        ## Validar que sea una vez al dia
+        if player.promotion_movie:
+            return Response(
+                data={'status': 'error', "message":'Ya has utilizado esta promoción hoy.'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        player.recharged_coins+= int(request.data["coins"])
+        player.save(update_fields=["recharged_coins"])
+
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.promotion_coins+=int(request.data["coins"])
+        bank.save(update_fields=['promotion_coins'])  
+        
+        create_transactions(
+            amount= int(request.data["coins"]),
+            to_user= player,
+            status="cp",
+            type="pro_mov",
+            descriptions=f"El player {player.alias} ha ganado {request.data['coins']} por la promoción de videos."
+        )
+        
+        DiscordConnector.send_event(
+            "Promoción",
+            {
+                'player': player.alias,
+                "amount": request.data["coins"]
+            }
+        )
+
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Promoción en Domino Club",
+            body = f"{player.name} usted ha recibido una promoción en su cuenta de Domino Club con {request.data["coins"]} monedas."
+            )
+        
+        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+    
