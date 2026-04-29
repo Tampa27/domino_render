@@ -114,7 +114,7 @@ class Player(models.Model):
     def promotion_movie(self):
         """Verificar si tiene alguna promocion por video en el dia"""
         now = timezone_dj.now().replace(hour=0,minute=0, second=0)
-        return Transaction.objects.filter(type = "pro_mov", time__gte = now).exists()
+        return Transaction.objects.filter(to_user__id=self.id, type = "pro_mov", time__gte = now).exists()
 
 
     def __str__(self):
