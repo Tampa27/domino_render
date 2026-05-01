@@ -216,7 +216,7 @@ def procesar_logica_de_mesa(game_id: int):
         # 3. Lógica de Limpieza/Expulsión (Antiguo automatic_exit_player / clear_game)
         if game.status in ['fg', 'wt', 'ready'] and not game.in_tournament:
             now_time = timezone.now()
-            start_in_30_min = now_time + timedelta(minutes=30)
+            start_in_15_min = now_time + timedelta(minutes=15)
             try:
                 with transaction.atomic():
                     try:
@@ -249,7 +249,7 @@ def procesar_logica_de_mesa(game_id: int):
                         lost_connection = diff_time.seconds >= ApiConstants.EXIT_GAME_TIME
                         is_inactive = diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME
                         not_enough_money = not game_tools.ready_to_play(game_block, player)
-                        tournament_soon = player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min
+                        tournament_soon = player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_15_min and (player.registered_in_tournament.start_at + timedelta(10)) > now_time
 
                         if (lost_connection and player.isPlaying) or (is_inactive)  or tournament_soon  or not_enough_money:
                             # 2. EJECUTAR LÓGICA DE SALIDA

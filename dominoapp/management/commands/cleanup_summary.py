@@ -11,7 +11,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         now = timezone.now()
         start_of_current_week = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-        
+        end_of_current_week = start_of_current_week + timedelta(days=6, hours=23, minutes=59, seconds=59)
+
         # 1. Obtener todos los jugadores que tienen datos
         player_ids = SummaryPlayer.objects.values_list('player_id', flat=True).distinct()
         player_ids = Player.objects.filter(id__in=player_ids).values_list('id', flat=True).distinct()
@@ -21,13 +22,15 @@ class Command(BaseCommand):
                 # --- FASE 1: AGRUPAR MESES ANTERIORES AL MES ACTUAL ---
                 # Buscamos registros de meses pasados que no estén ya en el día 1 del mes
                 first_day_current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                old_records = SummaryPlayer.objects.filter(
-                    player_id=player_id,
-                    created_at__lt=first_day_current_month
-                )
+                
+                if now >= end_of_current_week:
+                    old_records = SummaryPlayer.objects.filter(
+                        player_id=player_id,
+                        created_at__lt=first_day_current_month
+                    )
 
-                if old_records.exists():
-                    self.aggregate_by_period(player_id, old_records, period='month')
+                    if old_records.exists():
+                        self.aggregate_by_period(player_id, old_records, period='month')
 
                 # --- FASE 2: AGRUPAR SEMANAS DEL MES ACTUAL (EXCEPTO LA ACTUAL) ---
                 # Buscamos registros entre el inicio del mes y el inicio de esta semana
