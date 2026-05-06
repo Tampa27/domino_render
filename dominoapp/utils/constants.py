@@ -181,7 +181,7 @@ class ApiConstants:
     REFER_REWARD = os.environ.get('REFER_REWARD',10) # Monedas ganadas al referido hacer su primera recarga
     INACTIVE_PlAYER_DAYS = 9    
     AUTO_MOVE_WAIT = 3          # Tiempo para que juego el automatico
-    WAIT_FOR_PLAYER = 120       # Tiempo que el automatico espera por un jugador para jugar rapido
+    WAIT_FOR_PLAYER = 180       # Tiempo que el automatico espera por un jugador para jugar rapido
     AUTO_WAIT_PATNER = 7        # Tiempo que el automatico espera por la entrada de los compañeros antes de comenzar
     AUTO_WAIT_WINNER = 7        # Tiempo que espera el automatico para que decida el ganador quien entre el y su pareja va a salir
     AUTO_PASS_WAIT = 2          # Tiempo del automatico para pasar a un jugador
