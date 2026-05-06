@@ -68,6 +68,7 @@ def procesar_logica_de_mesa(game_id: int):
                                     diff_time = now_time - player.lastTimeInGame
                                     if not game_block.in_tournament and (diff_time.seconds >= ApiConstants.EXIT_GAME_TIME or not game_tools.ready_to_play(game_block,player) or player.play_tournament or (player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_30_min and now_time < player.registered_in_tournament.start_at + timedelta(minutes=5))) and player.isPlaying:
                                         try:
+                                            active_players = game_tools.playersCount(game_block)
                                             success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
                                                 try:
@@ -124,6 +125,7 @@ def procesar_logica_de_mesa(game_id: int):
                                                     logger.error(f'Error al enviar notificacion FCM de partido completado" => {str(error)}')
                                         
                                         for player in active_players:
+                                            active_players = game_tools.playersCount(game_block)
                                             success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
                                                 try:
@@ -255,6 +257,7 @@ def procesar_logica_de_mesa(game_id: int):
                             # 2. EJECUTAR LÓGICA DE SALIDA
                             # Ojo: exitPlayer debe recibir el objeto bloqueado (game_block)
                             try:
+                                active_players = game_tools.playersCount(game_block)
                                 success = game_tools.exitPlayer(game_block, player, active_players, len(active_players))
                                 if success:
                                     needs_update = True
