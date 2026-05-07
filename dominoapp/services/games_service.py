@@ -11,7 +11,7 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key, delete_count_key
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key, delete_count_key, get_count_and_up
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
@@ -282,10 +282,12 @@ class GameService:
                     game.save(update_fields=["status", "player1", "player2", "player3", "player4"])
                     
                     try:
-                        transaction.on_commit(lambda: send_ws_notification(
+                        count_key = get_count_and_up(game.id)
+                        transaction.on_commit(lambda ck=count_key: send_ws_notification(
                             game_id= game.id,
                             payload={
                                 "a": WSActions.PLAYER_JOINED,
+                                "cg": ck,
                                 "d": {
                                     "st": game.status,
                                     "p": player.id,
@@ -369,10 +371,12 @@ class GameService:
                     # startGame1 ahora es seguro porque tiene el candado de los 4 players y la mesa
                     game_tools.startGame1(game, players)
                     try:
-                        transaction.on_commit(lambda: send_ws_notification(
+                        count_key = get_count_and_up(game.id)
+                        transaction.on_commit(lambda ck=count_key: send_ws_notification(
                             game_id= game.id,
                             payload={
                                 "a": WSActions.GAME_STARTED,
+                                "cg": ck,
                                 "d": {
                                     "st": game.status,
                                     "np": game.next_player,
@@ -465,11 +469,13 @@ class GameService:
                 players = game_tools.playersCount(game)
                 exited = game_tools.exitPlayer(game,player,players,len(players))
                 if exited:
-                    try: 
-                        transaction.on_commit(lambda: send_ws_notification(
+                    try:
+                        count_key = get_count_and_up(game.id)
+                        transaction.on_commit(lambda ck=count_key: send_ws_notification(
                             game_id= game.id,
                             payload={
                                 "a": WSActions.PLAYER_LEFT,
+                                "cg": ck,
                                 "d": {
                                     "st": game.status,
                                     "p": player.id
@@ -554,10 +560,12 @@ class GameService:
             game_tools.setWinnerStarterNext1(game,request.data["winner"],request.data["starter"],request.data["next_player"])
             game.save(update_fields= ["starter", "winner", "next_player", "start_time"])
             try:
-                transaction.on_commit(lambda: send_ws_notification(
+                count_key = get_count_and_up(game.id)
+                transaction.on_commit(lambda ck=count_key: send_ws_notification(
                     game_id= game.id,
                     payload={
                         "a": WSActions.STARTER_CHANGE,
+                        "cg": ck,
                         "d": {
                             "st": game.status,
                             "str": game.starter,
@@ -609,10 +617,12 @@ class GameService:
 
                 new_players_orders = game_tools.playersCount(game)
                 try:
-                    transaction.on_commit(lambda: send_ws_notification(
+                    count_key = get_count_and_up(game.id)
+                    transaction.on_commit(lambda ck=count_key: send_ws_notification(
                         game_id= game.id,
                         payload={
                             "a": WSActions.UPDATE_PATNER,
+                            "cg": ck,
                             "d": {
                                 "st": game.status,
                                 "ps": [p.id for p in new_players_orders]

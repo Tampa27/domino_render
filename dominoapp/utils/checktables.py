@@ -11,7 +11,7 @@ from django.db import connection, transaction
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
-from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key
+from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key, get_count_and_up
 from dominoapp.utils.constants import WSActions
 import logging
 import pytz
@@ -72,10 +72,12 @@ def procesar_logica_de_mesa(game_id: int):
                                             success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
                                                 try:
-                                                    transaction.on_commit(lambda p=player: send_ws_notification(
+                                                    count_key = get_count_and_up(game_block.id)
+                                                    transaction.on_commit(lambda p=player, ck=count_key: send_ws_notification(
                                                         game_id= game_block.id,
                                                         payload={
                                                             "a": WSActions.PLAYER_LEFT,
+                                                            "cg": ck,
                                                             "d": {
                                                                 "st": game_block.status,
                                                                 "p": p.id
@@ -129,10 +131,12 @@ def procesar_logica_de_mesa(game_id: int):
                                             success = game_tools.exitPlayer(game_block,player,active_players,len(active_players))
                                             if success:
                                                 try:
-                                                    transaction.on_commit(lambda p=player: send_ws_notification(
+                                                    count_key = get_count_and_up(game_block.id)
+                                                    transaction.on_commit(lambda p=player, ck=count_key: send_ws_notification(
                                                         game_id= game_block.id,
                                                         payload={
                                                             "a": WSActions.PLAYER_LEFT,
+                                                            "cg": ck,
                                                             "d": {
                                                                 "st": game_block.status,
                                                                 "p": p.id
@@ -194,10 +198,12 @@ def procesar_logica_de_mesa(game_id: int):
                                 success = automaticStart(game_block, active_players)
                                 if success:
                                     try:
-                                        transaction.on_commit(lambda: send_ws_notification(
+                                        count_key = get_count_and_up(game_block.id)
+                                        transaction.on_commit(lambda ck=count_key: send_ws_notification(
                                             game_id= game_block.id,
                                             payload={
                                                 "a": WSActions.GAME_STARTED,
+                                                "cg": ck,
                                                 "d": {
                                                     "st": game_block.status,
                                                     "np": game_block.next_player,
@@ -262,10 +268,12 @@ def procesar_logica_de_mesa(game_id: int):
                                 if success:
                                     needs_update = True
                                     try:
-                                        transaction.on_commit(lambda p=player: send_ws_notification(
+                                        count_key = get_count_and_up(game_block.id)
+                                        transaction.on_commit(lambda p=player, ck=count_key: send_ws_notification(
                                             game_id= game_block.id,
                                             payload={
                                                 "a": WSActions.PLAYER_LEFT,
+                                                "cg": ck,
                                                 "d": {
                                                     "st": game_block.status,
                                                     "p": p.id
@@ -385,6 +393,7 @@ def automatic_tournament(tournament_id: int):
                             game_id= game.id,
                             payload={
                                 "a": WSActions.GAME_STARTED,
+                                "cg": get_count_and_up(game.id),
                                 "d": {
                                     "st": game.status,
                                     "np": game.next_player,
@@ -424,6 +433,7 @@ def automatic_tournament(tournament_id: int):
                                     game_id= game.id,
                                     payload={
                                         "a": WSActions.GAME_STARTED,
+                                        "cg": get_count_and_up(game.id),
                                         "d": {
                                             "st": game.status,
                                             "np": game.next_player,
