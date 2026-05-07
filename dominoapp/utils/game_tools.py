@@ -9,7 +9,7 @@ import logging
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
-from dominoapp.utils.websocket_utils import send_ws_notification
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_and_up
 from dominoapp.utils.constants import WSActions
 
 
@@ -175,6 +175,7 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     
     socket_payload = {
         "a": WSActions.TILE_MOVED,
+        "cg": get_count_and_up(game.id), # Contador actualizado para sincronización
         "d": {
             "st": game.status,
             "t": tile,

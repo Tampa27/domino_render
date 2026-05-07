@@ -7,11 +7,28 @@ logger = logging.getLogger('django')
 def send_ws_notification(game_id, payload):
     try:
         channel_layer = get_channel_layer()
-        redis_key = f"count_g_{game_id}"
-        
-        # 1. Obtener la conexión a Redis directamente
-        # Usamos la conexión de la capa de canales o una directa para el incremento
-        async def get_count_and_send():
+                        
+        async_to_sync(channel_layer.group_send)(
+            f'g_{game_id}',
+            {
+                "type": "game_update",
+                "payload": payload
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error en send_ws_notification: {e}")
+
+def get_count_and_up(game_id:int):
+    """
+    Obtiene el conteo de actualizaciones y lo incrementa en una mesa de forma síncrona.
+    """
+    async def _get_count_up():
+        try:
+            channel_layer = get_channel_layer()
+            redis_key = f"count_g_{game_id}"
+
+            # 1. Obtener la conexión a Redis directamente
+            # Usamos la conexión de la capa de canales o una directa para el incremento     
             async with channel_layer.connection(0) as conn:
                 # Incrementa una sola vez para toda la sala
                 current_count = await conn.incr(redis_key)
@@ -19,24 +36,15 @@ def send_ws_notification(game_id, payload):
                 # Configurar expiración de 10 minutos (600 segundos)
                 # Cada vez que hay un mensaje, el cronómetro de 10 min se reinicia
                 await conn.expire(redis_key, 600)
-                
-                # Agregamos el contador al payload antes de enviarlo
-                payload['cg'] = current_count
-                
-                await channel_layer.group_send(
-                    f'g_{game_id}',
-                    {
-                        "type": "game_update",
-                        "payload": payload
-                    }
-                )
-        
-        async_to_sync(get_count_and_send)()
 
-    except Exception as e:
-        logger.error(f"Error en send_ws_notification: {e}")
+                return current_count
+        except Exception as e:
+            logger.error(f"Error en get_count_and_up para mesa {game_id}: {e}", exc_info=True)
+            return 0
+            
+    return async_to_sync(_get_count_up)()
 
-def get_count_key(game_id):
+def get_count_key(game_id:int):
     """
     Obtiene el conteo de actualizaciones en una mesa de forma síncrona.
     """
@@ -46,7 +54,7 @@ def get_count_key(game_id):
             redis_key = f"count_g_{game_id}"
             
             # 1. Obtener la conexión a Redis directamente
-            # Usamos la conexión de la capa de canales o una directa para el incremento
+            # Usamos la conexión de la capa de canales
             async with channel_layer.connection(0) as conn:
                 redis_key = f"count_g_{game_id}"
                 
