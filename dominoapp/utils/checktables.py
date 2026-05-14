@@ -206,6 +206,7 @@ def procesar_logica_de_mesa(game_id: int):
                                                 "cg": ck,
                                                 "d": {
                                                     "st": game_block.status,
+                                                    "r" : game_block.rounds,
                                                     "np": game_block.next_player,
                                                     "w": game_block.winner,
                                                     "str": game_block.starter,
@@ -396,6 +397,7 @@ def automatic_tournament(tournament_id: int):
                                 "cg": get_count_and_up(game.id),
                                 "d": {
                                     "st": game.status,
+                                    "r" : game.rounds,
                                     "np": game.next_player,
                                     "w": game.winner,
                                     "str": game.starter,
@@ -436,6 +438,7 @@ def automatic_tournament(tournament_id: int):
                                         "cg": get_count_and_up(game.id),
                                         "d": {
                                             "st": game.status,
+                                            "r" : game.rounds,
                                             "np": game.next_player,
                                             "w": game.winner,
                                             "str": game.starter,

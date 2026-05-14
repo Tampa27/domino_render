@@ -379,6 +379,7 @@ class GameService:
                                 "cg": ck,
                                 "d": {
                                     "st": game.status,
+                                    "r" : game.rounds,
                                     "np": game.next_player,
                                     "w": game.winner,
                                     "str": game.starter,
