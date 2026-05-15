@@ -4,10 +4,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
 
 from dominoapp.utils import game_tools
-from dominoapp.models import DominoGame, Tournament, Match_Game, Round, Player
+from dominoapp.models import DominoGame, Tournament, Match_Game, Round, Player, SummaryPlayer
 from django.utils import timezone
 from django.utils.timezone import timedelta
 from django.db import connection, transaction
+from django.db.models import F, Count, Value, Subquery, OuterRef, Sum
+from django.db.models.functions import Coalesce
 from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
@@ -302,34 +304,94 @@ def procesar_logica_de_mesa(game_id: int):
                 active_players = game_tools.playersCount(game)
                 if game.status == 'wt' and 1<= len(active_players) < 4 and (not game.password or game.password == ""):
                     players_id = []
+                    number_players = 0
                     if game.player3 is not None:
                         diff_time = timezone.now() - game.player3.lastTimeInGame
                         players_id.append(game.player3.id)
                         players_id.append(game.player2.id)
                         players_id.append(game.player1.id)
+                        number_players = 3
                     elif game.player2 is not None:
                         diff_time = timezone.now() - game.player2.lastTimeInGame
                         players_id.append(game.player2.id)
                         players_id.append(game.player1.id)
+                        number_players = 2
                     elif game.player1 is not None:
                         diff_time = timezone.now() - game.player1.lastTimeInGame
                         players_id.append(game.player1.id)
+                        number_players = 1
 
                     if diff_time.seconds > ApiConstants.NOTIFICATION_TIME:
                         players_list = None
+                        min_amount_coins = game_tools.get_game_coins(game)
+                        last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)
+                        message= f"Hay jugadores esperando para jugar, únete a esta partida en Domino Club."
                         if game.inPairs:
+                            # 1. Subconsulta para obtener el total de juegos en pareja
+                            pairs_count_subquery = SummaryPlayer.objects.filter(
+                                player=OuterRef('pk')
+                            ).values('player').annotate(
+                                total=Sum('play_in_pairs')
+                            ).values('total')
+                            # 2. Consulta principal con el nuevo orden de prioridad
                             players_list = Player.objects.filter(
                                 isPlaying = False,
                                 send_in_pair_notifications = True
-                                ).exclude(id__in = players_id).order_by("last_notifications", "-lastTimeInSystem")
-                        else:
-                            last_notifications = timezone.now() - timedelta(hours=ApiConstants.NOTIFICATION_PLAYER_TIME)
+                                ).annotate(
+                                    total_coins=(
+                                            Coalesce(F('earned_coins'), Value(0)) + 
+                                            Coalesce(F('recharged_coins'), Value(0))
+                                        ),
+                                        # Contamos en cuántos juegos en pareja ha participado
+                                        in_pairs_played=Coalesce(Subquery(pairs_count_subquery), Value(0))
+                                ).filter(total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-in_pairs_played","last_notifications", "-lastTimeInSystem")
+                            
+                            message= f"Hay {number_players} {"jugadores" if number_players != 1 else 'jugador'} esperando para jugar en parejas, únete a esta partida en Domino Club."
+                        elif game.perPoints:
+                            # 1. Subconsulta para obtener el total de juegos en pareja
+                            per_point_count_subquery = SummaryPlayer.objects.filter(
+                                player=OuterRef('pk')
+                            ).values('player').annotate(
+                                total=Sum('play_by_points')
+                            ).values('total')
+                            # 2. Consulta principal con el nuevo orden de prioridad
                             players_list = Player.objects.filter(
                                 isPlaying = False,
                                 last_notifications__lte = last_notifications,
                                 send_game_notifications = True
-                                ).exclude(id__in = players_id).order_by("-lastTimeInSystem")
-                        
+                                ).annotate(
+                                    total_coins=(
+                                            Coalesce(F('earned_coins'), Value(0)) + 
+                                            Coalesce(F('recharged_coins'), Value(0))
+                                        ),
+                                        # Contamos en cuántos juegos por puntos ha participado
+                                        per_point_played=Coalesce(Subquery(per_point_count_subquery), Value(0))
+                                ).filter(total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-lastTimeInSystem","-per_point_played")
+                            
+                            message= f"Hay jugadores esperando para jugar, únete a esta partida a {game.maxScore} puntos en Domino Club."
+                        else:
+                            # 1. Subconsulta para obtener el total de juegos en pareja
+                            without_points_count_subquery = SummaryPlayer.objects.filter(
+                                player=OuterRef('pk')
+                            ).values('player').annotate(
+                                total=Sum('play_without_points')
+                            ).values('total')
+                            # 2. Consulta principal con el nuevo orden de prioridad
+                            players_list = Player.objects.filter(
+                                isPlaying = False,
+                                last_notifications__lte = last_notifications,
+                                send_game_notifications = True
+                                ).annotate(
+                                    total_coins=(
+                                            Coalesce(F('earned_coins'), Value(0)) + 
+                                            Coalesce(F('recharged_coins'), Value(0))
+                                        ),
+                                        # Contamos en cuántos juegos de pase y gane ha participado
+                                        without_points_played=Coalesce(Subquery(without_points_count_subquery), Value(0))
+                                ).filter(total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-lastTimeInSystem","-without_points_played")
+                            
+                            message= f"Hay jugadores esperando para jugar, únete a esta partida de pase y gane en Domino Club."
+
                         if players_list:
                             from dominoapp.tasks import async_send_fcm_message
                             players_notify = players_list[:10]
@@ -338,7 +400,7 @@ def procesar_logica_de_mesa(game_id: int):
                             async_send_fcm_message.delay(
                                 users_id = players_user_id,
                                 title= "🎮 Mesa de Domino Activa",
-                                message= f"Hay jugadores esperando para jugar, únete a esta partida en Domino Club."
+                                message= message
                             )
 
             except Exception as error:

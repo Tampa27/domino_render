@@ -629,14 +629,12 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
     # 1. Identificar posición de forma rápida
     pos = getPlayerIndex(players, player)
     list_ids = [p.id for p in players]
-    logger_discord.error(f"Se va de la mesa {game.table_no} ({game.id}) el player {player.id} en la posicion {pos}. Lista de players {list_ids}")
+    
     if pos == -1:
         return False
 
-    isStarter = (game.starter == pos)
     starter_original = game.starter
     starter_id = list_ids[starter_original] if starter_original != -1 else "null"
-    logger_discord.error(f"El salidor esta en la posicion {starter_original} con el id {starter_id}")
 
     # 2. Determinar inactividad (Fast Check)
     lastTimeMove = getLastMoveTime(game, player)
@@ -738,13 +736,9 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
             game.status = "wt"
             game.board = ""
 
-    logger_discord.error(f"El salidor esta en la posicion {game.starter} con el id {list_ids[game.starter]}")
     # 6. Reordenar y Persistir
     reorderPlayers(game, player, players, starter_original)
     list_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
-    if game.starter == -1 or starter_id != list_ids[game.starter]:
-        logger_discord.error(f"El salidor ahora esta en la posicion {game.starter} con el id {list_ids[game.starter] if game.starter != -1 else  "null"} y era la posicion {starter_original} con el id {starter_id}. Lista de players {list_ids}")
-    logger_discord.error(f"El salidor ahora esta en la posicion {game.starter} con el id {list_ids[game.starter] if game.starter != -1 else  "null"}. Lista de players {list_ids}\n #########################")
     
     now = timezone.now()
     player.points = 0
@@ -787,7 +781,7 @@ def reorderPlayers(game: DominoGame, player_who_left: Player, players: list[Play
             if p.id == player_who_left.id:
                 left_idx = i
                 break
-        logger_discord.error(f"El que se va de la mesa tiene la posicion {left_idx}")
+        
         if starter_idx == left_idx:
             game.starter = -1
         elif starter_idx > left_idx:
@@ -1102,21 +1096,28 @@ def havepoints(game: DominoGame):
             have_points = game.player4.points>0
     return have_points
 
-def ready_to_play(game: DominoGame, player: Player)->bool:
+def get_game_coins(game: DominoGame)->int:
     '''
-        Comprueba si el player tiene suficientes monedas para jugar en la mesa
+        Calcula el minimo de monedas para jugar en la mesa
     '''
     
     min_amount = 0
-    
-    pass_number = 5
-    if game.variant == 'd6':
-        pass_number = 3
+        
+    pass_number = 3 if game.variant == 'd6' else 5
 
     if game.perPoints and game.payMatchValue>0:
         min_amount = game.payMatchValue
     elif not game.perPoints and (game.payPassValue>0 or game.payWinValue>0):
         min_amount = game.payWinValue + (game.payPassValue * pass_number)
+    
+    return min_amount
+
+def ready_to_play(game: DominoGame, player: Player)->bool:
+    '''
+        Comprueba si el player tiene suficientes monedas para jugar en la mesa
+    '''
+    
+    min_amount = get_game_coins(game)
     
     if player.total_coins >= min_amount:
         return True
