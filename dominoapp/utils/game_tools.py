@@ -1102,21 +1102,28 @@ def havepoints(game: DominoGame):
             have_points = game.player4.points>0
     return have_points
 
-def ready_to_play(game: DominoGame, player: Player)->bool:
+def get_game_coins(game: DominoGame)->int:
     '''
-        Comprueba si el player tiene suficientes monedas para jugar en la mesa
+        Calcula el minimo de monedas para jugar en la mesa
     '''
     
     min_amount = 0
-    
-    pass_number = 5
-    if game.variant == 'd6':
-        pass_number = 3
+        
+    pass_number = 3 if game.variant == 'd6' else 5
 
     if game.perPoints and game.payMatchValue>0:
         min_amount = game.payMatchValue
     elif not game.perPoints and (game.payPassValue>0 or game.payWinValue>0):
         min_amount = game.payWinValue + (game.payPassValue * pass_number)
+    
+    return min_amount
+
+def ready_to_play(game: DominoGame, player: Player)->bool:
+    '''
+        Comprueba si el player tiene suficientes monedas para jugar en la mesa
+    '''
+    
+    min_amount = get_game_coins(game)
     
     if player.total_coins >= min_amount:
         return True
