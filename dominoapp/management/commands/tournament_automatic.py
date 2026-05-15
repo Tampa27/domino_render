@@ -146,7 +146,7 @@ class Command(BaseCommand):
             if tournament.status == TournamentStatus.WAITING_PLAYERS[0] and player_in_tournament < tournament.max_player and  target_hour is not None and current_hour == target_hour and 0 <= current_minute < 10:
                 free_places = tournament.max_player - player_in_tournament
                 player_out_tournament = Player.objects.filter(send_game_notifications=True).annotate(
-                                                                total_coins=(
+                                                                calculated_total_coins=(
                                                                     Coalesce(F('earned_coins'), Value(0)) + 
                                                                     Coalesce(F('recharged_coins'), Value(0))
                                                                 ),
@@ -156,10 +156,10 @@ class Command(BaseCommand):
                 
                 if player_out_tournament.exists():
                     if free_places == 1:
-                        players_to_notify_qs = player_out_tournament.filter(total_coins__gte=tournament.registration_fee).order_by("-tournament_played","-lastTimeInSystem")[:4]
+                        players_to_notify_qs = player_out_tournament.filter(calculated_total_coins__gte=tournament.registration_fee).order_by("-tournament_played","-lastTimeInSystem")[:4]
                     else:
                         # Tomamos los más recientes y algunos aleatorios para completar
-                        top_players_ids = list(player_out_tournament.filter(total_coins__gte=tournament.registration_fee).order_by("-tournament_played","-lastTimeInSystem")[:free_places].values_list('id', flat=True))
+                        top_players_ids = list(player_out_tournament.filter(calculated_total_coins__gte=tournament.registration_fee).order_by("-tournament_played","-lastTimeInSystem")[:free_places].values_list('id', flat=True))
                         others_ids = list(player_out_tournament.exclude(id__in=top_players_ids).order_by("?")[:free_places].values_list('id', flat=True))
                         all_selected_ids = top_players_ids + others_ids
                         players_to_notify_qs = Player.objects.filter(id__in=all_selected_ids)
