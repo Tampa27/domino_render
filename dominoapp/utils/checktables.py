@@ -338,13 +338,13 @@ def procesar_logica_de_mesa(game_id: int):
                                 isPlaying = False,
                                 send_in_pair_notifications = True
                                 ).annotate(
-                                    total_coins=(
+                                    calculated_total_coins=(
                                             Coalesce(F('earned_coins'), Value(0)) + 
                                             Coalesce(F('recharged_coins'), Value(0))
                                         ),
                                         # Contamos en cuántos juegos en pareja ha participado
                                         in_pairs_played=Coalesce(Subquery(pairs_count_subquery), Value(0))
-                                ).filter(total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-in_pairs_played","last_notifications", "-lastTimeInSystem")
+                                ).filter(calculated_total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-in_pairs_played","last_notifications", "-lastTimeInSystem")
                             
                             message= f"Hay {number_players} {"jugadores" if number_players != 1 else 'jugador'} esperando para jugar en parejas, únete a esta partida en Domino Club."
                         elif game.perPoints:
@@ -360,13 +360,13 @@ def procesar_logica_de_mesa(game_id: int):
                                 last_notifications__lte = last_notifications,
                                 send_game_notifications = True
                                 ).annotate(
-                                    total_coins=(
+                                    calculated_total_coins=(
                                             Coalesce(F('earned_coins'), Value(0)) + 
                                             Coalesce(F('recharged_coins'), Value(0))
                                         ),
                                         # Contamos en cuántos juegos por puntos ha participado
                                         per_point_played=Coalesce(Subquery(per_point_count_subquery), Value(0))
-                                ).filter(total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-lastTimeInSystem","-per_point_played")
+                                ).filter(calculated_total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-lastTimeInSystem","-per_point_played")
                             
                             message= f"Hay jugadores esperando para jugar, únete a esta partida a {game.maxScore} puntos en Domino Club."
                         else:
@@ -382,13 +382,13 @@ def procesar_logica_de_mesa(game_id: int):
                                 last_notifications__lte = last_notifications,
                                 send_game_notifications = True
                                 ).annotate(
-                                    total_coins=(
+                                    calculated_total_coins=(
                                             Coalesce(F('earned_coins'), Value(0)) + 
                                             Coalesce(F('recharged_coins'), Value(0))
                                         ),
                                         # Contamos en cuántos juegos de pase y gane ha participado
                                         without_points_played=Coalesce(Subquery(without_points_count_subquery), Value(0))
-                                ).filter(total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-lastTimeInSystem","-without_points_played")
+                                ).filter(calculated_total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-lastTimeInSystem","-without_points_played")
                             
                             message= f"Hay jugadores esperando para jugar, únete a esta partida de pase y gane en Domino Club."
 
