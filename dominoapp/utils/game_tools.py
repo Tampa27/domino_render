@@ -654,7 +654,11 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
         have_points = havepoints(game)
         
         # ¿Debe pagar por abandonar?
-        game_in_progress = (game.status == "fi" or (game.status == "ru" and (have_points or game.board != "")))
+        game_running = not game.perPoints and game.board != ""  ## En los juegos sin puntos, penalizamos si ya se han jugado fichas (evita penalizar abandonos tempranos)
+        game_per_points = game.perPoints and have_points  ## En los juegos por puntos, solo penalizamos si ya se han anotado puntos (evita penalizar abandonos tempranos)
+        ## Verificamos si el juego esta en progreso, con status fi (fin de una data) o ru (en juego) pero solo si es por puntos y ya se anotaron puntos, o si es sin puntos y la mesa aun esta sin fichas
+        game_in_progress = (game.status == "fi" or (game.status == "ru" and (game_per_points or game_running)))
+        ## Debe pagar si el juego esta en progreso, y tiene valores de pago, y no es por inactividad (para evitar penalizar a los que se van por timeout)
         should_pay = game_in_progress and (game.payWinValue > 0 or game.payMatchValue > 0) and not noActivity
 
         if should_pay:
@@ -1084,17 +1088,21 @@ def havepoints(game: DominoGame):
     """
     Retorna si algun jugador tiene puntos en una mesa por puntos
     """
-    have_points = False
-    if game.perPoints:
-        if game.player1 is not None and not have_points:
-            have_points = game.player1.points>0
-        elif game.player2 is not None and not have_points:
-            have_points = game.player2.points>0
-        elif game.player3 is not None and not have_points:
-            have_points = game.player3.points>0
-        elif game.player4 is not None and  not have_points:
-            have_points = game.player4.points>0
-    return have_points
+    if not game.perPoints:
+        return False
+
+    # Revisamos a cada jugador de forma independiente
+    if game.player1 is not None and game.player1.points > 0:
+        return True
+    if game.player2 is not None and game.player2.points > 0:
+        return True
+    if game.player3 is not None and game.player3.points > 0:
+        return True
+    if game.player4 is not None and game.player4.points > 0:
+        return True
+
+    # Si revisó a todos y ninguno cumplió la condición
+    return False
 
 def get_game_coins(game: DominoGame)->int:
     '''
