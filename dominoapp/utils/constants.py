@@ -83,6 +83,19 @@ class TournamentStatus:
         GAME_PAUSED,
     ]
 
+class MatchTypes:
+    
+    NORMAL = ('normal', 'Ronda Normal / Clasificatoria')
+    FINAL = ('final', 'Gran Final (1er y 2do Lugar)')
+    THIRD = ('third', 'Definición de 3er Lugar')
+
+    match_types_choices = [
+        NORMAL,
+        FINAL,
+        THIRD
+    ]
+
+
 class TransactionStatus:
     TRANSACTION_PENDING = ("p", "pending")
     TRANSACTION_IN_PROCESS = ("ip", "in_process")

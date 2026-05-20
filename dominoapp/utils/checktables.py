@@ -118,7 +118,7 @@ def procesar_logica_de_mesa(game_id: int):
                                         
                                         if match.winner_pair_2:
                                             round.winner_pair_list.add(match.pair_list.last())
-                                            if not round.final_round:
+                                            if not round.end_round:
                                                 try:
                                                     async_send_fcm_message.delay(
                                                         users_id=[match.pair_list.last().player1.user.id, match.pair_list.last().player2.user.id],
@@ -182,7 +182,24 @@ def procesar_logica_de_mesa(game_id: int):
                                                                                                                                     
                                                 ##### asignar premios a los ganadores ############
                                                 second_pair = round.pair_list.exclude(id=winner_pair.id).first()
-                                                TournamentService.process_pay_winners(game_block.tournament,winner_pair, second_pair)
+
+                                                third_pair = None
+                                                try:
+                                                    # Obtenemos la ronda inmediatamente anterior (la Semifinal)
+                                                    previous_round = Round.objects.filter(
+                                                        tournament=game_block.tournament
+                                                    ).exclude(id=round.id).order_by('-id').first()
+
+                                                    if previous_round:                                                    
+                                                        # Los eliminados en la semifinal son las parejas que jugaron allí pero no avanzaron a la final
+                                                        semi_losers = previous_round.pair_list.exclude(id__in=round.pair_list.all())
+
+                                                        # (Añadir lógica para desempatar por puntos si tus modelos guardan el score final)                                                        
+                                                        third_pair = TournamentService.get_third_place_by_stats(game_block.tournament, semi_losers)
+                                                except Exception as error:
+                                                        logger.error(f'Error obteniendo el tercer lugar del torneo {game_block.tournament.id} => {str(error)}')
+
+                                                TournamentService.process_pay_winners(game_block.tournament,winner_pair, second_pair, third_pair)
                                                 ##################################################
                                             else:
                                                 players_ids = list(round.winner_pair_list.values_list('player1__user_id', flat=True)) + list(round.winner_pair_list.values_list('player2__user_id', flat=True))
