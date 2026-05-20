@@ -1,4 +1,5 @@
 import os
+import random
 import logging
 from rest_framework import status
 from rest_framework.response import Response
@@ -476,3 +477,73 @@ class TournamentService:
                 logger.error(f'Error al actualizar resumenes de jugadores y banco de torneo de forma asincrona" => {str(error)}')
         
         tournament.save(update_fields=["first_place_object_id", "second_place_object_id", "third_place_object_id"])
+
+    @staticmethod
+    def get_third_place_by_stats(tournament, losers_pairs):
+        """
+        Calcula estadísticamente el 3er lugar entre las parejas que perdieron la semifinal.
+        """
+
+        stats_parejas = []
+
+        for pareja in losers_pairs:
+            puntos_anotados = 0
+            puntos_permitidos = 0
+            games_win = 0
+            games_lose = 0
+
+            # 2. Buscar TODOS los matches del torneo donde haya participado esta pareja
+            # Filtramos por cualquiera de los dos jugadores de la pareja (ya que juegan juntos)
+            matches = Match_Game.objects.filter(
+                round__tournament=tournament,
+                pair_list=pareja
+            ).select_related('game')
+
+            for match in matches:
+                game = match.game
+                if not game:
+                    continue
+
+                # Determinar si la pareja era Team 1 o Team 2 en esta mesa
+                # Team 1 está compuesto por player1 y player3
+                if game.player1_id == pareja.player1.id or game.player3_id == pareja.player1.id:
+                    anotados = game.scoreTeam1
+                    permitidos = game.scoreTeam2
+                    win = match.games_win_team_1
+                    lose = match.games_win_team_2
+                else:
+                    anotados = game.scoreTeam2
+                    permitidos = game.scoreTeam1
+                    win = match.games_win_team_2
+                    lose = match.games_win_team_1
+
+                puntos_anotados += anotados
+                puntos_permitidos += permitidos
+                games_win += win
+                games_lose += lose
+
+            balance = puntos_anotados - puntos_permitidos
+
+            stats_parejas.append({
+                'pareja': pareja,
+                'balance': balance,
+                'permitidos': puntos_permitidos,
+                'match_win': games_win,
+                'match_lose': games_lose,
+                'random_id': random.random()  # Para desempate aleatorio si todo lo demás es igual
+            })
+
+        if not stats_parejas:
+            return None
+        if len(stats_parejas) == 1:
+            return stats_parejas[0]['pareja']
+
+        # 3. Aplicar el criterio de desempate ordenando la lista
+        # -balance -> Primero el que tenga mayor balance (positivo)
+        # permitidos -> Primero el que tenga MENOS puntos permitidos
+        # -match_win -> Primero el que tenga MÁS partidos ganados
+        # -match_lose -> Primero el que tenga MENOS partidos perdidos
+        stats_parejas.sort(key=lambda x: (-x['balance'], x['permitidos'], -x['match_win'], x['match_lose'], x['random_id']))
+
+        # El primero de la lista ordenada es el ganador oficial del 3er puesto
+        return stats_parejas[0]['pareja']

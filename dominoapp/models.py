@@ -9,7 +9,7 @@ from django.utils import timezone as timezone_dj
 import uuid
 from shortuuid.django_fields import ShortUUIDField
 from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, \
-    TransactionPaymentMethod, PaymentStatus, PaymentCURRENCY, TournamentStatus, ChatRoomTypes
+    TransactionPaymentMethod, PaymentStatus, PaymentCURRENCY, TournamentStatus, ChatRoomTypes, MatchTypes
 # Create your models here.
 
 class Player(models.Model):
@@ -458,6 +458,11 @@ class Match_Game(models.Model):
     game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)
     round = models.ForeignKey(Round, related_name="match_round", on_delete=models.CASCADE, null=True, blank=True)
     count_game = models.IntegerField(default=1)
+    type_game = models.CharField(
+        max_length=10, 
+        choices=MatchTypes.match_types_choices, 
+        default='normal'
+    )
     player_list = models.ManyToManyField(Player, related_name="players_in_game") # Lista de player en la ronda
     pair_list = models.ManyToManyField(Pair, related_name="pairs_in_game") # Lista de parejas en la ronda
     games_win_team_1 = models.IntegerField(default=0)

@@ -1039,7 +1039,7 @@ class PaymentService:
         ## validar que el token es correcto
         secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2025")
         text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
-        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()    
+        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
         
         token = request.data.get("token", None)
         
