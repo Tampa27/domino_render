@@ -626,7 +626,7 @@ class GameService:
                             "cg": ck,
                             "d": {
                                 "st": game.status,
-                                "ps": [p.id for p in new_players_orders]
+                                "pids": [p.id for p in new_players_orders]
                             } 
                         }
                     ))
