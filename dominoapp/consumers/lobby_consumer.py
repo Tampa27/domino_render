@@ -10,31 +10,30 @@ from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
 
-class GameConsumer(AsyncWebsocketConsumer):
-    connected_players = {}  # Mapeo game_id -> set de usuarios conectados
+class LobbyConsumer(AsyncWebsocketConsumer):
+    connected_players = {}  # Mapeo lobby -> set de usuarios conectados
 
     def get_redis_key(self):
-        return f"count_g_{self.game_id}"
+        return f"count_lobby"
     
     async def connect(self):
 
-        self.game_id = self.scope['url_route']['kwargs']['game_id']
-        self.room_group_name = f'g_{self.game_id}'
+        self.room_group_name = f'lobby_group'
         try:
             # 1. Verificar si el usuario está autenticado
             self.user = self.scope["user"]
             
-        #     if self.user.is_anonymous:
-        #         # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
-        #         # await self.close(code=4003)
-        #         # return
-        #         pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación
+            if self.user.is_anonymous:
+                # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
+                await self.close(code=4003, reason="Debe autenticarse")
+                return
             
-        #     self.connected_players.setdefault(self.game_id, set()).add(self.user)
+            self.connected_players.setdefault("lobby", set()).add(self.channel_name)
         except Exception as error:
-            pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación 
+            logger.error(f"Error al autenticar en el lobby.\n Error: {error}")
+            await self.close(code=4003, reason="Algo falló en la autenticación. Vuelva a intentar.")
+            return        
         
-        self.connected_players.setdefault(self.game_id, set()).add(self.channel_name)
 
         # 1. Identificar si el cliente envió subprotocolos
         subprotocols = self.scope.get("subprotocols", [])
@@ -43,9 +42,15 @@ class GameConsumer(AsyncWebsocketConsumer):
         accepted_protocol = None
         if "access_token" in subprotocols:
             accepted_protocol = "access_token"
+        else:
+            await self.close(code=4003, reason="El parámetro 'access_token' es obligatorio")
+            return
+
 
         # 3. Importante: Pasar el protocolo al método accept
         await self.accept(subprotocol=accepted_protocol)
+
+        print("connected_players: ", self.connected_players)
 
         # Unirse al grupo de la mesa
         await self.channel_layer.group_add(
@@ -54,7 +59,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         )
     
     async def disconnect(self, close_code):
-        room_players = self.connected_players.get(self.game_id)
+        room_players = self.connected_players.get("lobby")
     
         if room_players is not None:
             # Eliminamos el socket específico, no el objeto user
@@ -62,10 +67,12 @@ class GameConsumer(AsyncWebsocketConsumer):
             
             # 2. Si el set está vacío, es que ya no hay nadie en esta sala (en este worker)
             if not room_players:
+                redis_key = self.get_redis_key()
+                await self.channel_layer.connection(0).delete(redis_key)
                 # Limpiamos el diccionario para no dejar llaves huérfanas en memoria RAM
-                if self.game_id in self.connected_players:
-                    del self.connected_players[self.game_id]
-
+                if "lobby" in self.connected_players:
+                    del self.connected_players["lobby"]
+        
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
@@ -78,9 +85,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             message_type = data.get('type')
             
             # Manejar diferentes tipos de mensajes
-            if message_type == WSActions.TILE_MOVED:
-                await self.handle_move(data)
-            elif message_type == WSActions.CHAT_MESSAGE:
+            if message_type == WSActions.CHAT_MESSAGE:
                 pass
             elif message_type == WSActions.PING:
                 await self.handle_ping()
@@ -92,35 +97,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error en receive: {e}")
             await self.send_error(f"Error interno: {str(e)}")
-
-    async def handle_move(self, data):
-        """Maneja un movimiento de ficha"""
-        try:
-            # Aquí procesas el movimiento
-            game_id = self.scope['url_route']['kwargs']['game_id']
-            move_tile = data.get('tile')
-            
-            if self.user.is_anonymous:
-                await self.send_error(f"El player no está autenticado")
-                return
-            
-            # Validar el movimiento con tu lógica de negocio
-            error = await self.perform_move(game_id, self.user.id, move_tile)
-            if error:
-                await self.send_error(error)
-
-        except Exception as e:
-            logger.error(f"No se puede hacer el movimiento, error: {str(e)}")
-            await self.send_error(f"Error al procesar movimiento: {str(e)}")
-
-    @database_sync_to_async
-    def perform_move(self, game_id, user_id, move_tile):
-        try:
-            player =  Player.objects.get(user__id=user_id)
-        except Player.DoesNotExist:
-            return "Debe autenticarse para realizar esta acción"
-        
-        return game_tools.move1(game_id, player, move_tile)
 
     async def handle_ping(self):
         """Maneja ping para mantener la conexión viva"""
@@ -136,6 +112,6 @@ class GameConsumer(AsyncWebsocketConsumer):
             "d": {"mg": error_message}
         }))
 
-    async def game_update(self, event):
+    async def lobby_update(self, event):
         """"Envia el mensaje de actualizacion al WS."""
         await self.send(text_data=json.dumps(event['payload']))
