@@ -19,12 +19,13 @@ class GoogleTokenVerifier:
         GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
         ## Version Nueva para Google Play
         GOOGLE_CLIENT_ID_2 = os.getenv('GOOGLE_CLIENT_ID_2')
+        GOOGLE_CLIENT_ID_3 = os.getenv('GOOGLE_CLIENT_ID_3')
         try:
             # Especifica el CLIENT_ID de la app que accede al backend
             idinfo = id_token.verify_oauth2_token(
                 token, 
                 requests.Request(), 
-                [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_ID_2]
+                [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_ID_2, GOOGLE_CLIENT_ID_3]
             )                
         except Exception as e:
             logger.critical(f'Google Token is wront => {str(e)}')
