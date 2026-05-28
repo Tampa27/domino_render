@@ -181,6 +181,10 @@ class WSActions:
     ERROR = "E"
     PING = "ping"
     CHAT_MESSAGE = "CM"
+    GAME_UPDATE = "GU"
+    NEW_GAME = "NG"
+    TORNAMENT_UPDATE = "TU"
+    NOTIFICATION_UPDATE = "NU"
 
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'
