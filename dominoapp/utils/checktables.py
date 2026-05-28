@@ -277,7 +277,7 @@ def procesar_logica_de_mesa(game_id: int):
                         lost_connection = diff_time.seconds >= ApiConstants.EXIT_GAME_TIME
                         is_inactive = diff_time.seconds >= ApiConstants.AUTO_EXIT_GAME
                         not_enough_money = not game_tools.ready_to_play(game_block, player)
-                        tournament_soon = player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_15_min and (player.registered_in_tournament.start_at + timedelta(10)) > now_time
+                        tournament_soon = player.registered_in_tournament and player.registered_in_tournament.start_at <= start_in_15_min and (player.registered_in_tournament.start_at + timedelta(minutes = 5)) > now_time
 
                         if (lost_connection and player.isPlaying) or (is_inactive)  or tournament_soon  or not_enough_money:
                             # 2. EJECUTAR LÓGICA DE SALIDA
