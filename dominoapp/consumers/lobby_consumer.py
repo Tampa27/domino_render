@@ -50,8 +50,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         # 3. Importante: Pasar el protocolo al método accept
         await self.accept(subprotocol=accepted_protocol)
 
-        print("connected_players: ", self.connected_players)
-
         # Unirse al grupo de la mesa
         await self.channel_layer.group_add(
             self.room_group_name,

@@ -379,6 +379,19 @@ class DominoGame(models.Model):
             return True
         return False
 
+    @property
+    def count_players(self) -> int:
+        total_player = 0
+        if self.player1:
+            total_player += 1
+        if self.player2:
+            total_player += 1
+        if self.player3:
+            total_player += 1
+        if self.player4:
+            total_player += 1
+        return total_player
+
     class Meta:
         indexes = [
             # Optimiza DominoGame.objects.filter(player1__isnull=False)

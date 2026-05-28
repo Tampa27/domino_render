@@ -9,7 +9,7 @@ import logging
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
-from dominoapp.utils.websocket_utils import send_ws_notification, get_count_and_up
+from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_and_up, get_count_lobby_and_up
 from dominoapp.utils.constants import WSActions
 
 
@@ -109,6 +109,23 @@ def startGame1(game: DominoGame, players: list[Player]):
         except Exception as e:
             logger_discord.error(f"Error lanzando async_update_summarys para banco en startGame1: {e}")
 
+        try:
+            count_key = get_count_lobby_and_up()
+            transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                payload={
+                    "a": WSActions.GAME_UPDATE,
+                    "cg": ck,
+                    "d": {
+                        "gid": game.id,
+                        "st": game.status,
+                        "number_player": game.count_players
+                    } 
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error enviando el ws del lobby en el start. Error: {error}")
+
+
     except Exception as e:
         logger_discord.critical(f"Error crítico en startGame1, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
 
@@ -193,6 +210,23 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
             socket_payload["d"]["st1"] = game.scoreTeam1
             socket_payload["d"]["st2"] = game.scoreTeam2
             socket_payload["d"]["sp"] = [p.points for p in players]
+        
+        try:
+            count_key = get_count_lobby_and_up()
+            transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                payload={
+                    "a": WSActions.GAME_UPDATE,
+                    "cg": ck,
+                    "d": {
+                        "gid": game.id,
+                        "st": game.status,
+                        "number_player": game.count_players
+                    } 
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error enviando el ws del lobby en el movement. Error: {error}")
+
 
     try:
         from dominoapp.tasks import async_update_summarys
@@ -755,6 +789,22 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
     player.save(update_fields=['points', 'tiles', 'isPlaying', 'earned_coins', 'recharged_coins', 'lastTimeInGame', 'lastTimeInSystem'])
     game.save(update_fields=['player1', 'player2', 'player3', 'player4', 'status', 'starter', 'winner', 'board'])
     
+    try:
+        count_key = get_count_lobby_and_up()
+        transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+            payload={
+                "a": WSActions.GAME_UPDATE,
+                "cg": ck,
+                "d": {
+                    "gid": game.id,
+                    "st": game.status,
+                    "number_player": game.count_players
+                } 
+            }
+        ))
+    except Exception as error:
+        logger.error(f"Error enviando el ws del lobby en el join. Error: {error}")
+
     return True
 
 def reorderPlayers(game: DominoGame, player_who_left: Player, players: list[Player], starter_idx: int):
