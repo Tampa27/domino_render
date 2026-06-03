@@ -11,7 +11,7 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key, delete_count_key, get_count_and_up
+from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
@@ -207,7 +207,34 @@ class GameService:
             return Response({'status': 'error', "message":"Something is wrong at save game"}, status=409)
 
         game_tools.updateLastPlayerTime(game,player1.alias)
-                
+
+        try:
+            count_key = get_count_lobby_and_up()
+            transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                payload={
+                    "a": WSActions.NEW_GAME,
+                    "cg": ck,
+                    "d": {
+                        "gn": game.table_no,
+                        "st": game.status,
+                        "gid": game.id,
+                        "inPairs": game.inPairs,
+                        "privated": game_serializer.data.get("is_privated", False),
+                        "maxScore": game.max_score,
+                        "number_player": game_serializer.data.get("number_player", 0),
+                        "password": game.password,
+                        "payMatchValue": game.payMatchValue,
+                        "payPassValue": game.payPassValue,
+                        "payWinValue": game.payWinValue,
+                        "perPoints": game.perPoints,
+                        "variant": game.variant
+                    } 
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error enviando el ws del lobby en el create game. Error: {error}")
+
+
         return Response({'status': 'success', "game":game_serializer.data}, status=200)
     
     @staticmethod
@@ -301,6 +328,23 @@ class GameService:
                         ))
                     except Exception as error:
                         logger.error(f"Error al enviar el WS en el join. Error: {error}")
+
+                    try:
+                        count_key = get_count_lobby_and_up()
+                        transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                            payload={
+                                "a": WSActions.GAME_UPDATE,
+                                "cg": ck,
+                                "d": {
+                                    "gid": game.id,
+                                    "st": game.status,
+                                    "number_player": game.count_players
+                                } 
+                            }
+                        ))
+                    except Exception as error:
+                        logger.error(f"Error enviando el ws del lobby en el join. Error: {error}")
+
 
                 player.inactive_player = False
                 player.send_delete_email = False
