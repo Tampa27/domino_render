@@ -175,7 +175,7 @@ class PaymentService:
         transactions_exist = transactions.exists()
         
         send_request = False
-        if not transactions_exist or player.phone != request.data["phone"]:
+        if not transactions_exist:
               
             player.phone = request.data["phone"]
             player.save(update_fields=["phone"])
@@ -208,7 +208,6 @@ class PaymentService:
                     }
                 )
         
-        if send_request or transactions_exist:
             admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
             FCMNOTIFICATION.send_fcm_message_by_users_list(
                 users = admins_id,
@@ -218,8 +217,8 @@ class PaymentService:
             
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
             }, status=status.HTTP_200_OK)
-        
-        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
+        else:
+            return Response({'status': 'error', "message":'Ya tienes una solicitud en proceso. Espere ser atendido.'}, status=status.HTTP_403_FORBIDDEN)
     
     @staticmethod
     def process_promotions(request):
@@ -401,7 +400,7 @@ class PaymentService:
         transactions_exist = transactions.exists()
         send_request = False
         
-        if not transactions_exist or new_bank:
+        if not transactions_exist:
             transaction_id= shortuuid.random(length=6)               
             
             whatsapp_url = get_whatsapp_extraction_text(
@@ -431,21 +430,6 @@ class PaymentService:
                         'whatsapp_url': whatsapp_url
                     }
                 )
-        
-        if send_request or transactions_exist:
-            # player.earned_coins -= int(request.data["coins"])
-            # if player.earned_coins<0:
-            #     player.recharged_coins += player.earned_coins
-            #     player.earned_coins = 0
-            # player.save(update_fields=['earned_coins', 'recharged_coins'])
-            
-            # try:
-            #     bank = Bank.objects.all().first()
-            # except:
-            #     bank = Bank.objects.create()
-
-            # bank.extracted_coins+=int(request.data["coins"])
-            # bank.save(update_fields=['extracted_coins'])
             
             admins_list = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
             
@@ -457,8 +441,8 @@ class PaymentService:
             
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
                 }, status=status.HTTP_200_OK)
-        
-        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
+        else:
+            return Response({'status': 'error', "message":'Ya tienes una solicitud en proceso. Espere ser atendido.'}, status=status.HTTP_403_FORBIDDEN)
     
     @staticmethod
     def process_transfer(request):
