@@ -214,11 +214,12 @@ class PaymentService:
                 title = "🚨Solicitud de Recarga🚨",
                 body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰."
                 )
-            
+        
+        if send_request or transactions_exist:            
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
             }, status=status.HTTP_200_OK)
-        else:
-            return Response({'status': 'error', "message":'Ya tienes una solicitud en proceso. Espere ser atendido.'}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_promotions(request):
@@ -438,11 +439,12 @@ class PaymentService:
                 title = "🚨Solicitud de Extracción🚨",
                 body = f"👤 {player.alias} solicita retirar {request.data['coins']} monedas 💰."
                 )
-            
+        
+        if send_request or transactions_exist:            
             return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
                 }, status=status.HTTP_200_OK)
-        else:
-            return Response({'status': 'error', "message":'Ya tienes una solicitud en proceso. Espere ser atendido.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_transfer(request):
