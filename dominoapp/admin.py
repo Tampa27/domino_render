@@ -448,7 +448,6 @@ class PaymentAdmin(admin.ModelAdmin):
     actions = []
 
     def status(self, obj):
-        print(obj)
         return obj.status_list.last().status if obj.status_list.count()>0 else None
 
 

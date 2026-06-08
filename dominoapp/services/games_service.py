@@ -220,7 +220,7 @@ class GameService:
                         "gid": game.id,
                         "inPairs": game.inPairs,
                         "privated": game_serializer.data.get("is_privated", False),
-                        "maxScore": game.max_score,
+                        "maxScore": game.maxScore,
                         "number_player": game_serializer.data.get("number_player", 0),
                         "password": game.password,
                         "payMatchValue": game.payMatchValue,
