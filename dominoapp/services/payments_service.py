@@ -37,13 +37,108 @@ class PaymentService:
             recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
         
         player = Player.objects.get(alias=request.data["alias"])
-        player.recharged_coins+= recharged_coins
-        player.save(update_fields=["recharged_coins"])
-
+        
         try:
             bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
+
+        transaction = Transaction.objects.filter(
+            to_user__alias=request.data["alias"], type='rl'
+        ).annotate(
+            latest_status_name=Subquery(
+                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
+        ).order_by('-created_at').values('status')[:1])
+        ).filter(latest_status_name='p').order_by('-time').first()
+
+        try:
+            admin = Player.objects.get(user__id = request.user.id)
+        except:
+            admin = None
+        
+        if admin and admin.user.is_superuser:
+            player.recharged_coins+= recharged_coins
+            player.save(update_fields=["recharged_coins"])
+
+            bank.buy_coins+=int(request.data["coins"])
+            bank.save(update_fields=['buy_coins'])
+
+            if transaction:
+                transaction.amount = recharged_coins
+                transaction.admin = admin
+                transaction.paymentmethod=request.data.get('paymentmethod', None)
+                transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+            else:
+                transaction = create_reload_transactions(
+                    to_user=player, amount=int(recharged_coins), status="cp", 
+                    admin=admin,
+                    external_id=request.data.get('external_id', None),
+                    paymentmethod=request.data.get('paymentmethod', None)
+                    )
+
+            payment = Payment.objects.create(
+                external_id = transaction.external_id,
+                transaction = transaction,
+                user = player,
+                amount = request.data["coins"],
+                paid_time = datetime.now(),
+                currency = "USD" if request.data.get('paymentmethod', None) == "zelle" else "CUP"
+            )
+            payment_status = Status_Payment.objects.create(status = 'paid')
+            payment.status_list.add(payment_status)
+
+            DiscordConnector.send_event(
+                ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+                {
+                    'player': request.data["alias"],
+                    "amount": recharged_coins,
+                    "pay": request.data["coins"],
+                    "paymentmethod": request.data.get('paymentmethod', None),
+                    'admin': admin.alias
+                }
+            )
+        else:            
+            if admin.total_coins< recharged_coins:
+                return Response(data={'status': 'error', "message":"No tienes suficientes monedas."}, status=status.HTTP_409_CONFLICT)
+            
+            PaymentService.make_transfer(admin, player, recharged_coins, recharged_coins)
+            
+            if transaction:
+                transaction.amount = recharged_coins
+                transaction.admin = admin
+                transaction.paymentmethod=request.data.get('paymentmethod', None)
+                transaction.descriptions= f"El manager {admin.alias} le ha realizado una transferencia de {recharged_coins} monedas."
+                transaction.save(update_fields=['amount', 'admin', 'paymentmethod', 'descriptions'])
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+            else:                
+                transaction = create_reload_transactions(
+                    to_user=player, amount=int(recharged_coins), status="cp", 
+                    admin=admin,
+                    external_id=request.data.get('external_id', None),
+                    paymentmethod=request.data.get('paymentmethod', None),
+                    descriptions= f"El manager {admin.alias} le ha realizado una transferencia de {recharged_coins} monedas."
+                    )
+                
+            create_transfer_transactions(
+                amount= recharged_coins,
+                from_user=admin, status="cp",
+                descriptions= f"Le ha realizado una transferencia de {recharged_coins} monedas al player {player.alias}."
+                )
+        
+            FCMNOTIFICATION.send_fcm_message(
+                user = admin.user,
+                title = "Transferencia realizada en Domino Club",
+                body = f"{admin.name} usted ha realizado de su cuenta de Domino Club una transferencia de {recharged_coins} monedas al player {player.name}. Se le descontó de su saldo {recharged_coins} monedas."
+                )
+        
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Recarga en Domino Club",
+            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {recharged_coins} monedas."
+            )
         
         if player.parent is not None and not player.reward_granted:
             try:
@@ -80,64 +175,6 @@ class PaymentService:
             except Exception as error:
                 logger.error(f"Error at pay promotion by referred user, exception={error}")
 
-        bank.buy_coins+=int(request.data["coins"])
-        bank.save(update_fields=['buy_coins'])
-
-        try:
-            admin = Player.objects.get(user__id = request.user.id)
-        except:
-            admin = None
-        
-        transaction = Transaction.objects.filter(
-            to_user__alias=request.data["alias"], type='rl'
-        ).annotate(
-            latest_status_name=Subquery(
-                Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
-        ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='p').order_by('-time').first()
-        
-        if transaction:
-            transaction.amount = recharged_coins
-            transaction.admin = admin
-            transaction.paymentmethod=request.data.get('paymentmethod', None)
-            transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
-            new_status = Status_Transaction.objects.create(status = 'cp')
-            transaction.status_list.add(new_status)
-        else:
-            transaction = create_reload_transactions(
-                to_user=player, amount=int(recharged_coins), status="cp", 
-                admin=admin,
-                external_id=request.data.get('external_id', None),
-                paymentmethod=request.data.get('paymentmethod', None)
-                )
-
-        payment = Payment.objects.create(
-            external_id = transaction.external_id,
-            transaction = transaction,
-            user = player,
-            amount = request.data["coins"],
-            paid_time = datetime.now(),
-            currency = "USD" if request.data.get('paymentmethod', None) == "zelle" else "CUP"
-        )
-        payment_status = Status_Payment.objects.create(status = 'paid')
-        payment.status_list.add(payment_status)
-
-        FCMNOTIFICATION.send_fcm_message(
-            user = player.user,
-            title = "Nueva Recarga en Domino Club",
-            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {recharged_coins} monedas."
-            )
-        DiscordConnector.send_event(
-            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
-            {
-                'player': request.data["alias"],
-                "amount": recharged_coins,
-                "pay": request.data["coins"],
-                "paymentmethod": request.data.get('paymentmethod', None),
-                'admin': admin.alias
-            }
-        )
-        
         return Response({'status': 'success', 
                          "message":'Balance recharged',
                          "data":{
@@ -278,22 +315,11 @@ class PaymentService:
         
         if player.total_coins < int(request.data["coins"]):
             return Response(data={'status': 'error', "message":"No tienes suficientes monedas"}, status=status.HTTP_409_CONFLICT)
-        
-        player.earned_coins -= int(request.data["coins"])
-        if player.earned_coins<0:
-            player.recharged_coins += player.earned_coins
-            player.earned_coins = 0
-
-        player.save(update_fields=['earned_coins', 'recharged_coins'])
-        
+                
         try:
             bank = Bank.objects.all().first()
         except:
             bank = Bank.objects.create()
-
-        bank.extracted_coins+=int(request.data["coins"])
-        bank.save(update_fields=['extracted_coins'])
-        
                 
         transaction = Transaction.objects.filter(
             from_user__alias=request.data["alias"], type='ex',
@@ -304,45 +330,86 @@ class PaymentService:
         ).order_by('-created_at').values('status')[:1])
         ).filter(latest_status_name='p').order_by('-time').first()
         
-        if transaction:
-            transaction.admin = admin
-            transaction.paymentmethod=request.data.get('paymentmethod', None)
-            transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
-            new_status = Status_Transaction.objects.create(status = 'cp')
-            transaction.status_list.add(new_status)
+        if admin is None or admin.user.is_superuser:
+            player.earned_coins -= int(request.data["coins"])
+            if player.earned_coins<0:
+                player.recharged_coins += player.earned_coins
+                player.earned_coins = 0
+
+            player.save(update_fields=['earned_coins', 'recharged_coins'])
+            
+            bank.extracted_coins+=int(request.data["coins"])
+            bank.save(update_fields=['extracted_coins'])
+        
+            if transaction:
+                transaction.admin = admin
+                transaction.paymentmethod=request.data.get('paymentmethod', None)
+                transaction.save(update_fields=['amount', 'admin', 'paymentmethod'])
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+            else:
+                transaction = create_extracted_transactions(
+                    from_user=player, amount=int(request.data["coins"]), status="cp",
+                    admin=admin,
+                    external_id=request.data.get('external_id', None),
+                    paymentmethod=request.data.get('paymentmethod', None)
+                    )
+
+            payment = Payment.objects.create(
+                external_id = transaction.external_id,
+                transaction = transaction,
+                user = admin,
+                amount = request.data["coins"],
+                paid_time = datetime.now()
+            )
+            payment_status = Status_Payment.objects.create(status = 'paid')
+            payment.status_list.add(payment_status)
+
+            DiscordConnector.send_event(
+                ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+                {
+                    'player': request.data["alias"],
+                    "amount": request.data["coins"],
+                    'admin': admin.alias
+                }
+            )
         else:
-            transaction = create_extracted_transactions(
-                from_user=player, amount=int(request.data["coins"]), status="cp",
-                admin=admin,
-                external_id=request.data.get('external_id', None),
-                paymentmethod=request.data.get('paymentmethod', None)
+            coins_to_extract = int(request.data["coins"])
+            PaymentService.make_transfer(player, admin, coins_to_extract, coins_to_extract)
+
+            if transaction:
+                transaction.admin = admin
+                transaction.paymentmethod=request.data.get('paymentmethod', None)
+                transaction.descriptions= f"Le ha realizado una transferencia de {coins_to_extract} monedas al manager {admin.alias}."
+                transaction.save(update_fields=['amount', 'admin', 'paymentmethod', 'descriptions'])
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+            else:
+                transaction = create_extracted_transactions(
+                    from_user=player, amount=int(request.data["coins"]), status="cp",
+                    admin=admin,
+                    external_id=request.data.get('external_id', None),
+                    paymentmethod=request.data.get('paymentmethod', None),
+                    descriptions= f"Le ha realizado una transferencia de {coins_to_extract} monedas al manager {admin.alias}."
+                    )
+
+            create_transfer_transactions(
+                amount= coins_to_extract,
+                to_user=admin, status="cp",
+                descriptions= f"Ha recibido una transferencia de {coins_to_extract} monedas del player {player.alias}."
                 )
-
-        payment = Payment.objects.create(
-            external_id = transaction.external_id,
-            transaction = transaction,
-            user = admin,
-            amount = request.data["coins"],
-            paid_time = datetime.now()
-        )
-        payment_status = Status_Payment.objects.create(status = 'paid')
-        payment.status_list.add(payment_status)
-
+            
+            FCMNOTIFICATION.send_fcm_message(
+                user = admin.user,
+                title = "Transferencia realizada en Domino Club",
+                body = f"{admin.name} usted ha recibido en su cuenta de Domino Club una transferencia de {coins_to_extract} monedas."
+                )
 
         FCMNOTIFICATION.send_fcm_message(
             user = player.user,
             title = "Nueva Extracción en Domino Club",
             body = f"Felicidades {player.name} 🎉, usted ha extraido {request.data['coins']} monedas de su cuenta en Domino Club."
             )
-
-        DiscordConnector.send_event(
-            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
-            {
-                'player': request.data["alias"],
-                "amount": request.data["coins"],
-                'admin': admin.alias
-            }
-        )
         
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
@@ -476,15 +543,7 @@ class PaymentService:
         if from_user.total_coins< transfer_amount:
             return Response(data={'status': 'error', "message":"You don't have enough amount."}, status=status.HTTP_409_CONFLICT)
         
-        to_user.recharged_coins+= transfer_coins
-        to_user.save(update_fields=["recharged_coins"])
-        
-        from_user.earned_coins -= transfer_amount
-        if from_user.earned_coins<0:
-            from_user.recharged_coins += from_user.earned_coins
-            from_user.earned_coins = 0
-
-        from_user.save(update_fields=['earned_coins', 'recharged_coins'])
+        PaymentService.make_transfer(from_user, to_user, transfer_coins, transfer_amount)
 
         try:
             bank = Bank.objects.all().first()
@@ -521,6 +580,21 @@ class PaymentService:
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
     @staticmethod
+    def make_transfer(from_user: Player, to_user: Player, coins_to_transfer: int, transfer_amount: int):
+        
+        to_user.recharged_coins+= coins_to_transfer
+        to_user.save(update_fields=["recharged_coins"])
+        
+        from_user.earned_coins -= transfer_amount
+        if from_user.earned_coins<0:
+            from_user.recharged_coins += from_user.earned_coins
+            from_user.earned_coins = 0
+
+        from_user.save(update_fields=['earned_coins', 'recharged_coins'])
+                
+        return
+
+    @staticmethod
     def process_select(request, transactions_id):
         try:
             transaction = Transaction.objects.get(id = transactions_id)
@@ -538,25 +612,16 @@ class PaymentService:
         except:
             return Response({'status': 'error', 'message': "Admin not found"}, status=status.HTTP_401_UNAUTHORIZED) 
         
+        if transaction.type == 'rw' and not admin.user.is_superuser:
+            return Response({'status': 'error', 'message': "No tienes permisos suficientes, contacta algun administrador."}, status=status.HTTP_409_CONFLICT)
+        
+
         transaction.admin = admin
         transaction.save(update_fields=['admin'])
         
         new_status = Status_Transaction.objects.create(status = 'ip')
         transaction.status_list.add(new_status)
-        
-        ## No se estan usando y estan demorando los request       
-        # PushNotificationConnector.push_notification(
-        #         channel= f"transaction_{transaction.id}",
-        #         event_name="update_transaction",
-        #         data_notification={
-        #             'status': 'ip',
-        #             'amount': str(transaction.amount),
-        #             'type': transaction.type,
-        #             'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-        #             'admin': admin.alias
-        #         }
-        #     )
-        
+              
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     @staticmethod
@@ -684,67 +749,186 @@ class PaymentService:
             admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
         except:
             return Response({'status': 'error', 'message': "Admin not found"}, status=status.HTTP_401_UNAUTHORIZED) 
-        
-        transaction.admin = admin
-        transaction.save(update_fields=['admin'])
-        
-        new_status = Status_Transaction.objects.create(status = 'cp')
-        transaction.status_list.add(new_status)
-        
-        ## No se estan usando y estan demorando los request       
-        # PushNotificationConnector.push_notification(
-        #         channel= f"transaction_{transaction.id}",
-        #         event_name="update_transaction",
-        #         data_notification={
-        #             'status': 'cp',
-        #             'amount': str(transaction.amount),
-        #             'type': transaction.type,
-        #             'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-        #             'admin': admin.alias
-        #         }
-        #     )
+                
         if transaction.type == 'rl':
-            recharged_coins = PaymentService.reload_coins(transaction)
+            if admin.user.is_superuser:
+                transaction.admin = admin
+                transaction.save(update_fields=['admin'])
+                
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+
+                recharged_coins = PaymentService.reload_coins(transaction)
             
-            payment = Payment.objects.create(
-                external_id = transaction.external_id,
-                transaction = transaction,
-                user = transaction.to_user,
-                amount = transaction.amount,
-                paid_time = datetime.now(),
-                currency = "USD" if transaction.paymentmethod == "zelle" else "CUP"
-            )
-            payment_status = Status_Payment.objects.create(status = 'paid')
-            payment.status_list.add(payment_status)
+                payment = Payment.objects.create(
+                    external_id = transaction.external_id,
+                    transaction = transaction,
+                    user = transaction.to_user,
+                    amount = transaction.amount,
+                    paid_time = datetime.now(),
+                    currency = "USD" if transaction.paymentmethod == "zelle" else "CUP"
+                )
+                payment_status = Status_Payment.objects.create(status = 'paid')
+                payment.status_list.add(payment_status)
 
-            transaction.amount = recharged_coins
-            transaction.save(update_fields=["amount"])
+                transaction.amount = recharged_coins
+                transaction.save(update_fields=["amount"])
 
-            return Response({
-                'status': 'success',
-                "message":'Reload confirm',
-                "data":{
-                    'player': transaction.to_user.alias,
-                    "amount": str(transaction.amount),
-                    "pay": str(payment.amount),
-                    "paymentmethod": transaction.paymentmethod,
-                         }                             
-                             }, status=status.HTTP_200_OK)
+                return Response({
+                    'status': 'success',
+                    "message":'Reload confirm',
+                    "data":{
+                        'player': transaction.to_user.alias,
+                        "amount": str(transaction.amount),
+                        "pay": str(payment.amount),
+                        "paymentmethod": transaction.paymentmethod,
+                            }                             
+                                }, status=status.HTTP_200_OK)
+            else:
+                recharged_coins = int(transaction.amount)
+                if admin.total_coins< recharged_coins:
+                    return Response(data={'status': 'error', "message":"No tienes suficientes monedas."}, status=status.HTTP_409_CONFLICT)
+
+                player = transaction.to_user
+                
+                currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
+                if currency_rate:
+                    recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
+
+                PaymentService.make_transfer(admin, player, recharged_coins, recharged_coins)
+
+                transaction.admin = admin
+                transaction.descriptions= f"El manager {admin.alias} le ha realizado una transferencia de {recharged_coins} monedas."
+                transaction.save(update_fields=['admin', 'descriptions'])
+                
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+
+                if player.parent is not None and not player.reward_granted:
+                    try:
+                        try:
+                            bank = Bank.objects.all().first()
+                        except:
+                            bank = Bank.objects.create()
+                        player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
+                        player.parent.save(update_fields=["earned_coins"])
+
+                        player.reward_granted = True
+                        player.save(update_fields=["reward_granted"])
+
+                        create_promotion_transactions(
+                            amount= int(ApiConstants.REFER_REWARD),
+                            from_user=player,
+                            to_user= player.parent,
+                            status="cp",
+                            descriptions=f"El player {player.parent.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
+                        )
+                        
+                        bank.promotion_coins+=int(ApiConstants.REFER_REWARD)
+                        bank.save(update_fields=['promotion_coins'])
+                        
+                        FCMNOTIFICATION.send_fcm_message(
+                        user = player.parent.user,
+                        title = "Nueva Recarga en Domino Club",
+                        body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                        )
+                        DiscordConnector.send_event(
+                            "Promoción",
+                            {
+                                'player': str(player.parent.alias),
+                                "amount": ApiConstants.REFER_REWARD,
+                                "referred_user": str(player.alias)
+                            }
+                        )   
+                    except Exception as error:
+                        logger.error(f"Error at pay promotion by referred user, exception={error}")
+
+                FCMNOTIFICATION.send_fcm_message(
+                    user = player.user,
+                    title = "Nueva Recarga en Domino Club",
+                    body = f"{player.name} usted ha recargado su cuenta en Domino Club con {recharged_coins} monedas."
+                    )
+                
+                create_transfer_transactions(
+                    amount= recharged_coins,
+                    from_user=admin, status="cp",
+                    descriptions= f"Le ha realizado una transferencia de {recharged_coins} monedas al player {player.alias}."
+                    )
+        
+                FCMNOTIFICATION.send_fcm_message(
+                    user = admin.user,
+                    title = "Transferencia realizada en Domino Club",
+                    body = f"{admin.name} usted ha realizado de su cuenta de Domino Club una transferencia de {recharged_coins} monedas al player {player.name}. Se le descontó de su saldo {recharged_coins} monedas."
+                    )
+                
+                return Response({
+                    'status': 'success',
+                    "message":'Reload confirm',
+                    "data":{
+                        'player': transaction.to_user.alias,
+                        "amount": str(transaction.amount),
+                        "paymentmethod": transaction.paymentmethod,
+                            }                             
+                                }, status=status.HTTP_200_OK)
+
         elif transaction.type == 'ex':
-            PaymentService.extractions_coins(transaction)
+            if admin.user.is_superuser:
+                transaction.admin = admin
+                transaction.save(update_fields=['admin'])
+                
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
 
-            payment = Payment.objects.create(
-                external_id = transaction.external_id,
-                transaction = transaction,
-                user = admin,
-                amount = transaction.amount,
-                paid_time = datetime.now()
-            )
-            payment_status = Status_Payment.objects.create(status = 'paid')
-            payment.status_list.add(payment_status)
+                PaymentService.extractions_coins(transaction)
+
+                payment = Payment.objects.create(
+                    external_id = transaction.external_id,
+                    transaction = transaction,
+                    user = admin,
+                    amount = transaction.amount,
+                    paid_time = datetime.now()
+                )
+                payment_status = Status_Payment.objects.create(status = 'paid')
+                payment.status_list.add(payment_status)
+            else:
+                coins_to_extract = transaction.amount
+                player = transaction.from_user
+                PaymentService.make_transfer(player, admin, coins_to_extract, coins_to_extract)
+
+                transaction.admin = admin
+                transaction.descriptions= f"Le ha realizado una transferencia de {coins_to_extract} monedas al manager {admin.alias}."
+                transaction.save(update_fields=['admin', 'descriptions'])
+                
+                new_status = Status_Transaction.objects.create(status = 'cp')
+                transaction.status_list.add(new_status)
+
+                create_transfer_transactions(
+                    amount= coins_to_extract,
+                    to_user=admin, status="cp",
+                    descriptions= f"Ha recibido una transferencia de {coins_to_extract} monedas del player {player.alias}."
+                    )
+                
+                FCMNOTIFICATION.send_fcm_message(
+                    user = admin.user,
+                    title = "Transferencia realizada en Domino Club",
+                    body = f"{admin.name} usted ha recibido en su cuenta de Domino Club una transferencia de {coins_to_extract} monedas."
+                    )
+                
+                FCMNOTIFICATION.send_fcm_message(
+                    user = player.user,
+                    title = "Nueva Extracción en Domino Club",
+                    body = f"Felicidades {player.name} 🎉, usted ha extraido {coins_to_extract} monedas de su cuenta en Domino Club."
+                    )
 
             return Response({'status': 'success', "message":'Extraction confirm'}, status=status.HTTP_200_OK)
-        elif transaction.type == 'rw':
+        elif transaction.type == 'rw' and admin.user.is_superuser:
+            
+            transaction.admin = admin
+            transaction.save(update_fields=['admin'])
+            
+            new_status = Status_Transaction.objects.create(status = 'cp')
+            transaction.status_list.add(new_status)
+
             if transaction.amount and transaction.amount>0:
                 payment = Payment.objects.create(
                     external_id = transaction.external_id,
