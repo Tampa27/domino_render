@@ -131,7 +131,7 @@ class PaymentService:
             FCMNOTIFICATION.send_fcm_message(
                 user = admin.user,
                 title = "Transferencia realizada en Domino Club",
-                body = f"{admin.name} usted ha realizado de su cuenta de Domino Club una transferencia de {recharged_coins} monedas al player {player.name}. Se le descontó de su saldo {recharged_coins} monedas."
+                body = f"Ha realizado una transferencia de {recharged_coins} monedas al player {player.name}."
                 )
         
         FCMNOTIFICATION.send_fcm_message(
@@ -402,7 +402,7 @@ class PaymentService:
             FCMNOTIFICATION.send_fcm_message(
                 user = admin.user,
                 title = "Transferencia realizada en Domino Club",
-                body = f"{admin.name} usted ha recibido en su cuenta de Domino Club una transferencia de {coins_to_extract} monedas."
+                body = f"El player {player.name} le ha realizado una transferencia de {coins_to_extract} monedas."
                 )
 
         FCMNOTIFICATION.send_fcm_message(
@@ -786,20 +786,21 @@ class PaymentService:
                                 }, status=status.HTTP_200_OK)
             else:
                 recharged_coins = int(transaction.amount)
-                if admin.total_coins< recharged_coins:
-                    return Response(data={'status': 'error', "message":"No tienes suficientes monedas."}, status=status.HTTP_409_CONFLICT)
-
-                player = transaction.to_user
-                
                 currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
                 if currency_rate:
                     recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
 
+                if admin.total_coins< recharged_coins:
+                    return Response(data={'status': 'error', "message":"No tienes suficientes monedas."}, status=status.HTTP_409_CONFLICT)
+
+                player = transaction.to_user                
+                
                 PaymentService.make_transfer(admin, player, recharged_coins, recharged_coins)
 
                 transaction.admin = admin
+                transaction.amount = recharged_coins
                 transaction.descriptions= f"El manager {admin.alias} le ha realizado una transferencia de {recharged_coins} monedas."
-                transaction.save(update_fields=['admin', 'descriptions'])
+                transaction.save(update_fields=['admin', 'descriptions', 'amount'])
                 
                 new_status = Status_Transaction.objects.create(status = 'cp')
                 transaction.status_list.add(new_status)
@@ -858,7 +859,7 @@ class PaymentService:
                 FCMNOTIFICATION.send_fcm_message(
                     user = admin.user,
                     title = "Transferencia realizada en Domino Club",
-                    body = f"{admin.name} usted ha realizado de su cuenta de Domino Club una transferencia de {recharged_coins} monedas al player {player.name}. Se le descontó de su saldo {recharged_coins} monedas."
+                    body = f"Ha realizado una transferencia de {recharged_coins} monedas al player {player.name}."
                     )
                 
                 return Response({
@@ -911,7 +912,7 @@ class PaymentService:
                 FCMNOTIFICATION.send_fcm_message(
                     user = admin.user,
                     title = "Transferencia realizada en Domino Club",
-                    body = f"{admin.name} usted ha recibido en su cuenta de Domino Club una transferencia de {coins_to_extract} monedas."
+                    body = f"El player {player.name} le ha realizado una transferencia de {coins_to_extract} monedas."
                     )
                 
                 FCMNOTIFICATION.send_fcm_message(
