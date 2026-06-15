@@ -30,11 +30,11 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     search_fields = ['type', 'from_user__alias', 'from_user__name', 'to_user__alias', 'to_user__name', 'status_list__status']
 
     def get_permissions(self):
-        if self.action in ["recharge", "extract", "select", "confirm"]:
+        if self.action in ["select", "confirm"]:
             permission_classes = [IsAdminUser]
         elif self.action in ["resume_game", "send_test_message", "list_package", "up_coins_promotion"]:
             permission_classes = [AllowAny]
-        elif self.action in ['promotion']:
+        elif self.action in ['recharge', 'extract', 'promotion']:
             permission_classes = [IsSuperAdminUser]
         else:
             permission_classes = [IsAuthenticated]
