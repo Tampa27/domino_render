@@ -2,16 +2,16 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Q
+from django.db.models import Q, Count, F
 from django.db.utils import DatabaseError
 from django.db import transaction
 from django.conf import settings
-from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round
+from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round, Tournament
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGameSerializer, PlayerOnListGameSerializer
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up
+from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up, get_count_lobby_key
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
@@ -92,11 +92,47 @@ class GameService:
 
         serializer = ListGameSerializer(target_games, many=True)
         
+        ultimo_torneo = Tournament.objects.filter(status='tf').order_by('-end_at').first()
+        winner_tournament = []
+        if ultimo_torneo and ultimo_torneo.place_content_type.model == "pair":
+            if ultimo_torneo.first_place:
+                pair = ultimo_torneo.first_place
+                winner_data = {
+                    "name": pair.player1.name,
+                    "url_photo": pair.player1.photo_url
+                    }
+                winner_tournament.append(winner_data)
+                winner_data = {
+                    "name": pair.player2.name,
+                    "url_photo": pair.player2.photo_url
+                    }
+                winner_tournament.append(winner_data)
+        elif ultimo_torneo and ultimo_torneo.place_content_type.model == "player":
+            if ultimo_torneo.first_place:
+                player = ultimo_torneo.first_place
+                winner_data = {
+                    "name": player.name,
+                    "url_photo": player.photo_url
+                    }
+                winner_tournament.append(winner_data)
+
+        active_tournament = Tournament.objects.filter(
+                            active=True,
+                            status='wt'  # 'wt' representa WAITING_PLAYERS según tus constantes
+                        ).annotate(
+                            total_registrados=Count('player_list')
+                        ).filter(
+                            total_registrados__lt=F('max_player')  # __lt significa "menor que" (< max_player)
+                        ).count()
+
         return Response({
-            'status': 'success', 
+            'status': 'success',
             "games": serializer.data,
             "player": player_data,
             "game_id": game_id,
+            "winner_tournament": winner_tournament,
+            "active_tournament": active_tournament,
+            "count_g": get_count_lobby_key(),
             "update": False
         }, status=status.HTTP_200_OK)
     

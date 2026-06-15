@@ -6,10 +6,13 @@ from rest_framework.response import Response
 import pytz
 from datetime import datetime, timezone, timedelta
 from django.db import transaction
+from django.db.models import Count, F
 from dominoapp.serializers import TournamentCreateSerializer
-from dominoapp.models import Player, BlockPlayer, Tournament, Round, Pair, DominoGame, Match_Game, Bank
+from dominoapp.models import Player, BlockPlayer, Tournament, Round, Pair, DominoGame, Match_Game
 from dominoapp.utils.transactions import create_transactions
 from dominoapp.utils.async_task_helper import safe_async_task
+from dominoapp.utils.websocket_utils import send_ws_to_lobby, get_count_lobby_and_up
+from dominoapp.utils.constants import WSActions
 
 logger = logging.getLogger('django')
 
@@ -110,6 +113,29 @@ class TournamentService:
         try:
             if serializer.is_valid():
                 serializer.save()
+
+                active_tournament = Tournament.objects.filter(
+                        active=True,
+                        status='wt'  # 'wt' representa WAITING_PLAYERS según tus constantes
+                    ).annotate(
+                        total_registrados=Count('player_list')
+                    ).filter(
+                        total_registrados__lt=F('max_player')  # __lt significa "menor que" (< max_player)
+                    ).count()
+                try:
+                    count_key = get_count_lobby_and_up()
+                    transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                        payload={
+                            "a": WSActions.TORNAMENT_UPDATE,
+                            "cg": ck,
+                            "d": {
+                                "active_tournament": active_tournament
+                            } 
+                        }
+                    ))
+                except Exception as error:
+                    logger.error(f"Error enviando el ws del lobby en el create tournament. Error: {error}")
+
                 return Response(data={
                     "status": "success",
                     "tournament": serializer.data
@@ -181,7 +207,29 @@ class TournamentService:
                     type='gm',
                     status='cp',
                     descriptions=f"Inscripción al torneo {tournament.id}")
-            
+
+        active_tournament = Tournament.objects.filter(
+                active=True,
+                status='wt'  # 'wt' representa WAITING_PLAYERS según tus constantes
+            ).annotate(
+                total_registrados=Count('player_list')
+            ).filter(
+                total_registrados__lt=F('max_player')  # __lt significa "menor que" (< max_player)
+            ).count()
+        try:
+            count_key = get_count_lobby_and_up()
+            transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                payload={
+                    "a": WSActions.TORNAMENT_UPDATE,
+                    "cg": ck,
+                    "d": {
+                        "active_tournament": active_tournament
+                    } 
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error enviando el ws del lobby en el join tournament. Error: {error}")
+
         return Response({'status': 'success', "message":"Te has inscrito correctamente en el torneo."}, status=status.HTTP_200_OK)
 
     @staticmethod
@@ -239,7 +287,29 @@ class TournamentService:
                     type='gm',
                     status='cp',
                     descriptions=f"Por retirarse del torneo {tournament.id}")
-            
+
+        active_tournament = Tournament.objects.filter(
+                active=True,
+                status='wt'  # 'wt' representa WAITING_PLAYERS según tus constantes
+            ).annotate(
+                total_registrados=Count('player_list')
+            ).filter(
+                total_registrados__lt=F('max_player')  # __lt significa "menor que" (< max_player)
+            ).count()
+        try:
+            count_key = get_count_lobby_and_up()
+            transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                payload={
+                    "a": WSActions.TORNAMENT_UPDATE,
+                    "cg": ck,
+                    "d": {
+                        "active_tournament": active_tournament
+                    } 
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error enviando el ws del lobby en el leave tournament. Error: {error}")
+
         return Response({'status': 'success', "message":"Has dejado correctamente el torneo."}, status=status.HTTP_200_OK)
 
     @staticmethod
@@ -384,6 +454,31 @@ class TournamentService:
             
             place_1_notification["users_id"] = [winner.player1.user.id, winner.player2.user.id]
             place_1_notification["message"]= f"¡1er lugar en Dominó Club! 🥇 Premio: {player_coins} monedas. ¡Felicidades! 🎉"
+            
+            try:
+                winner_tournament = [
+                    {
+                        "name": winner.player1.name,
+                        "url_photo": winner.player1.photo_url
+                    },
+                    {
+                        "name": winner.player2.name,
+                        "url_photo": winner.player2.photo_url
+                    } 
+                ]
+                count_key = get_count_lobby_and_up()
+                transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                    payload={
+                        "a": WSActions.TORNAMENT_UPDATE,
+                        "cg": ck,
+                        "d": {
+                            "tid": tournament.id,
+                            "winner_tournament": winner_tournament                            
+                        } 
+                    }
+                ))
+            except Exception as error:
+                logger.error(f"Error enviando el ws del lobby en el winner tournament update. Error: {error}")
 
         if second:
             tournament.second_place_object_id = second.id
