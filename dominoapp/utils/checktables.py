@@ -15,6 +15,7 @@ from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
 from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key, get_count_and_up
 from dominoapp.utils.constants import WSActions
+from dominoapp.utils.cache_tools import lock_table_modification, unlock_table_modification
 import logging
 import pytz
 logger = logging.getLogger('django')
@@ -45,6 +46,7 @@ def procesar_logica_de_mesa(game_id: int):
                 if (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
                     try:
                         restargame = True
+                        lock_table_modification(game.id, timeout=9)
                         with transaction.atomic():    
                             try:
                                 game_block = DominoGame.objects.select_related(
@@ -95,6 +97,8 @@ def procesar_logica_de_mesa(game_id: int):
                                 
                                 if len(active_players)<2:
                                     restargame = False
+                                    # Súper importante: Liberar el bloqueo ocurra o no un error interno
+                                    unlock_table_modification(game.id)
                                     if len(active_players) == 0:
                                         delete_count_key(game_block.id)
 
@@ -103,6 +107,8 @@ def procesar_logica_de_mesa(game_id: int):
                                     match = Match_Game.objects.get(game__id = game_block.id)
                                     if match.is_final_match:
                                         restargame = False
+                                        # Súper importante: Liberar el bloqueo ocurra o no un error interno
+                                        unlock_table_modification(game.id)  
                                         round = Round.objects.get(tournament__id=game_block.tournament.id, game_list = game_block)
                                         if match.winner_pair_1:                                    
                                             round.winner_pair_list.add(match.pair_list.first())
@@ -235,6 +241,9 @@ def procesar_logica_de_mesa(game_id: int):
                                         ))
                                     except Exception as error:
                                         logger.error(f"Error enviando el ws en el Start automatico. Error: {error}")
+                                    
+                                # Súper importante: Liberar el bloqueo ocurra o no un error interno
+                                unlock_table_modification(game.id)                            
                     except Exception as e:
                         logger.critical(f'Ocurrio una excepcion comenzando el juego en la mesa {str(game.id)}, error: {str(e)}')    
 

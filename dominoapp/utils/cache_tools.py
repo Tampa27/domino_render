@@ -143,3 +143,33 @@ def lock_game_player(game_id: int, player_id: int):
     lock_key = f"g_{game_id}_p_{player_id}"
     backend = cache.client.get_client()
     return backend.lock(lock_key, timeout=10)
+
+def lock_table_modification(game_id: int, timeout: int = 7) -> bool:
+    """
+    Intenta adquirir un bloqueo en Redis usando el cliente nativo.
+    Retorna True si obtuvo el bloqueo, False si ya estaba bloqueada.
+    """
+    # Obtenemos el cliente nativo de Redis (redis.Redis)
+    redis_client = cache.client.get_client()
+    lock_key = f"lock:game_restart:{game_id}"
+    
+    # nx=True: Solo inserta si no existe.
+    # ex=timeout: Tiempo de expiración en segundos (evita bloqueos infinitos).
+    status = redis_client.set(lock_key, "blocked", nx=True, ex=timeout)
+    
+    # El cliente nativo devuelve True si se creó, o None si ya existía.
+    return status is True
+
+def is_table_modification_locked(game_id: int) -> bool:
+    """Verifica si la mesa tiene un bloqueo activo."""
+    redis_client = cache.client.get_client()
+    lock_key = f"lock:game_restart:{game_id}"
+    
+    # .exists() devuelve 1 si existe, 0 si no.
+    return bool(redis_client.exists(lock_key))
+
+def unlock_table_modification(game_id: int):
+    """Elimina manualmente el bloqueo en Redis."""
+    redis_client = cache.client.get_client()
+    lock_key = f"lock:game_restart:{game_id}"
+    redis_client.delete(lock_key)
