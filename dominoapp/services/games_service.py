@@ -13,6 +13,7 @@ from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
 from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up, get_count_lobby_key
 from dominoapp.utils.constants import WSActions
+from dominoapp.utils.cache_tools import is_table_modification_locked
 import logging
 logger = logging.getLogger('django')
 
@@ -276,6 +277,12 @@ class GameService:
     @staticmethod
     def process_join(request, game_id):
         try:
+            if is_table_modification_locked(game_id):
+                return Response({
+                    'status': 'error', 
+                    'message': 'La mesa se está reiniciando. Inténtalo de nuevo en unos segundos.'
+                }, status=status.HTTP_423_LOCKED)
+            
             with transaction.atomic():
                 # 1. Bloqueamos la mesa y traemos los datos de los jugadores en un JOIN
                 # Usamos select_related para traerlos en una sola consulta y bloquearlos con 'of'
@@ -506,6 +513,13 @@ class GameService:
 
     @staticmethod
     def process_exitGame(request, game_id):
+
+        # Verificar si la mesa está bloqueada por inicio inmediato
+        if is_table_modification_locked(game_id):
+            return Response({
+                'status': 'error',
+                'message': 'No puedes salir de la mesa mientras el juego está comenzando.'
+            }, status=status.HTTP_423_LOCKED)
 
         check_game = DominoGame.objects.filter(id = game_id).exists()
         if not check_game:
