@@ -207,7 +207,7 @@ class PaymentService:
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
         ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='p').filter(time__gte = min_20).order_by("-time")
+        ).filter(latest_status_name__in=['p', 'ip']).filter(time__gte = min_20).order_by("-time")
         
         transactions_exist = transactions.exists()
         
@@ -463,7 +463,7 @@ class PaymentService:
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
         ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='p').filter(time__gte = min_20).order_by('-time')
+        ).filter(latest_status_name__in=['p', 'ip']).filter(time__gte = min_20).order_by('-time')
         
         transactions_exist = transactions.exists()
         send_request = False
