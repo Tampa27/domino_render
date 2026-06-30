@@ -16,6 +16,7 @@ from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, Referr
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer, \
     PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
+from dominoapp.connectors.huawei_verifier import HuaweiTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import get_device_hash
@@ -98,43 +99,54 @@ class PlayerService:
     @staticmethod
     def process_login(request):
         token = request.data.get('token')
-
-        try:
-            google_user, error = GoogleTokenVerifier.verify(token)
-            
-            if error:
+        source = request.data.get('source', None)
+        if source == 'huawei':
+            try:
+                user_login_data = HuaweiTokenVerifier.verify(token)
+            except Exception as e:
                 return Response(
-                        {"status":'error',
-                        "message": str(error)}, 
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
-        except Exception as e:
-            return Response(
-                {"status":'error',
-                 "message": str(e)}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+                    {"status":'error',
+                    "message": str(e)}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        else:
+            try:
+                user_login_data, error = GoogleTokenVerifier.verify(token)
+                
+                if error:
+                    return Response(
+                            {"status":'error',
+                            "message": str(error)}, 
+                            status=status.HTTP_401_UNAUTHORIZED
+                        )
+            except Exception as e:
+                return Response(
+                    {"status":'error',
+                    "message": str(e)}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        
         try:
             with transaction.atomic():
-                is_block = BlockPlayer.objects.filter(player_blocked__email=google_user['email']).exists()
+                is_block = BlockPlayer.objects.filter(player_blocked__email=user_login_data['email']).exists()
                 if is_block:
                     return Response({'status': 'error', "message":"These user is block, contact suport"}, status=status.HTTP_409_CONFLICT)
                 
-                exist = Player.objects.filter(email=google_user['email']).exists()
+                exist = Player.objects.filter(email=user_login_data['email']).exists()
                 
                 if not exist:
                     # Busca o crea el usuario
                     user, created = User.objects.get_or_create(
-                            email=google_user['email'],
+                            email=user_login_data['email'],
                             defaults={
-                                'username': google_user['email'].split('@')[0],
+                                'username': user_login_data['email'].split('@')[0],
                                 'is_active': True
                             }
                         )
 
                     player = Player.objects.create(
-                        email=google_user['email'],                    
-                        alias= google_user['email'].split('@')[0],
+                        email=user_login_data['email'],                    
+                        alias= user_login_data['email'].split('@')[0],
                         user= user
                     )
 
@@ -163,19 +175,19 @@ class PlayerService:
                     DiscordConnector.send_event(
                         ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
                         {
-                            "email": google_user['email'],
-                            "name" : google_user['name']
+                            "email": user_login_data['email'],
+                            "name" : user_login_data['name']
                         }
                     )
                     
                 else:
-                    player = Player.objects.get(email=google_user['email'])
+                    player = Player.objects.get(email=user_login_data['email'])
 
-                photo_profile = google_user.get('picture', None)
+                photo_profile = user_login_data.get('picture', None)
                 if not photo_profile:
                     photo_profile = os.getenv('URL_PROFILE_PHOTO')
                 
-                player.name = google_user['name']
+                player.name = user_login_data['name']
                 player.photo_url = photo_profile
                 player.lastTimeInSystem = timezone.now()
                 player.inactive_player = False
@@ -205,7 +217,7 @@ class PlayerService:
                     'user': player_data
                 })
         except Exception as e:
-            logger.critical(f"No se completo la creación del player {google_user['email']}. Error => {str(e)}")
+            logger.critical(f"No se completo la creación del player {user_login_data['email']}. Error => {str(e)}")
             
             return Response(
                 {"status":'error',
