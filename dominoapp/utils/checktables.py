@@ -370,7 +370,7 @@ def procesar_logica_de_mesa(game_id: int):
                                         ),
                                         # Contamos en cuántos juegos en pareja ha participado
                                         in_pairs_played=Coalesce(Subquery(pairs_count_subquery), Value(0))
-                                ).filter(calculated_total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("-in_pairs_played","last_notifications", "-lastTimeInSystem")
+                                ).filter(calculated_total_coins__gte=min_amount_coins).exclude(id__in = players_id).order_by("last_notifications","-in_pairs_played","-lastTimeInSystem")
                             
                             message= f"Hay {number_players} {"jugadores" if number_players != 1 else 'jugador'} esperando para jugar en parejas, únete a esta partida en Domino Club."
                         elif game.perPoints:
