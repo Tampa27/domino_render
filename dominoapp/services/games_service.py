@@ -421,6 +421,9 @@ class GameService:
                 except DominoGame.DoesNotExist:
                     return Response({"status":'error',"message":"Mesa no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+                if game.in_tournament:
+                    return Response({"status":'error',"message":"No está permitida realizar esta operación."}, status=status.HTTP_409_CONFLICT)
+                
                 # 3. Bloqueamos a los jugadores que YA están sentados de forma independiente
                 # Esto evita el error de PostgreSQL
                 player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
