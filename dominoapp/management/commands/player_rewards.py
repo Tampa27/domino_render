@@ -52,11 +52,11 @@ class Command(BaseCommand):
                             Value(0, output_field=IntegerField())
                         )
                     ).annotate(
-                        balance_coins=F('win_coins') - F('loss_coins')
-                    ).order_by(f'-balance_coins')
+                        balance_value=F('win_coins') - F('loss_coins')
+                    ).order_by(f'-balance_value')
                 else:
                     player_list_order = players_list.annotate(
-                        sum_value=Coalesce(
+                        balance_value=Coalesce(
                             Subquery(
                                 subquery.values('player')
                                 .annotate(total=Sum(reward.reward_type))
@@ -64,7 +64,7 @@ class Command(BaseCommand):
                             ),
                             Value(0, output_field=IntegerField())
                         )
-                    ).order_by(f'-sum_value')                   
+                    ).order_by(f'-balance_value')                   
             elif reward.date_of_month is not None:
                 month_now = time_now.month
                 if month_now == 1:
@@ -90,7 +90,7 @@ class Command(BaseCommand):
             
             if player_list_order.exists():
                 summary_win = player_list_order[reward.place - 1]
-                               
+                
                 if summary_win:
                     types = "datas ganadas"
                     if reward.reward_type == "match_wins":
@@ -117,13 +117,14 @@ class Command(BaseCommand):
                             player=summary_win,
                             player_phone=summary_win.phone,
                             reward_type=types,
-                            period="semana" if reward.date_of_week is not None else "mes"
+                            period="semana" if reward.date_of_week is not None else "mes",
+                            place=reward.place
                         )
                     create_reward_transactions(
                         to_user=summary_win,
                         reward=reward,
                         amount=reward.amount,
-                        descriptions=f"Premio por {reward.place} lugar de {types}.",
+                        descriptions=f"Premio por {reward.place}° lugar de {types} con un total de {summary_win.balance_value}.",
                         whatsapp_url=whatsapp_url if summary_win.phone is not None else None
                     )                   
 
@@ -142,7 +143,8 @@ class Command(BaseCommand):
                         player=summary_win,
                         player_phone=admin_phone,
                         reward_type=types,
-                        period="semana" if reward.date_of_week is not None else "mes"
+                        period="semana" if reward.date_of_week is not None else "mes",
+                        place= reward.place
                     )
 
                     Notification.objects.create(
