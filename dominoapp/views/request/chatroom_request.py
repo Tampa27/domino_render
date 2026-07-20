@@ -44,8 +44,7 @@ class ChatRoomRequest:
         status_response = None
         
         required_keys = [
-            "title",
-            "users_list"
+            "title"
             ]
 
         is_valid, message = RequestValidator.validate_required_key(request, required_keys)

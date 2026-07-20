@@ -181,6 +181,7 @@ class WSActions:
     ERROR = "E"
     PING = "ping"
     CHAT_MESSAGE = "CM"
+    NEW_MESSAGE = "NM"
     GAME_UPDATE = "GU"
     NEW_GAME = "NG"
     TORNAMENT_UPDATE = "TU"

@@ -111,3 +111,30 @@ class ChatRoomView(viewsets.ModelViewSet):
             }, status = status_response)
         
         return ChatRoomService.process_create_message(request, pk)
+    
+
+    @action(methods=["POST"], detail=True)
+    def join(self, request, pk):
+        is_valid, message, status_response = ChatRoomRequest.validate_uuid(request, pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return ChatRoomService.process_join(request, pk)
+    
+
+    @action(methods=["POST"], detail=True)
+    def exit(self, request, pk):
+        is_valid, message, status_response = ChatRoomRequest.validate_uuid(request, pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return ChatRoomService.process_create_message(request, pk)
+    
