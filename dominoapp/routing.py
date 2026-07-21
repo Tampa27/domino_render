@@ -1,8 +1,10 @@
-from django.urls import re_path
-from dominoapp.consumers import games_consumer, lobby_consumer
+from django.urls import path
+from dominoapp.consumers import games_consumer, lobby_consumer, chat_consumer
 
 websocket_urlpatterns = [
     # El id de la mesa se pasa por la URL
-    re_path(r'ws/game/(?P<game_id>\w+)/$', games_consumer.GameConsumer.as_asgi()),
-    re_path(r'ws/lobby/$', lobby_consumer.LobbyConsumer.as_asgi()),
+    path('ws/game/<str:game_id>/', games_consumer.GameConsumer.as_asgi()),
+    path('ws/lobby/', lobby_consumer.LobbyConsumer.as_asgi()),
+    path('ws/chat/<uuid:chat_id>/', chat_consumer.ChatConsumer.as_asgi()),
+
 ]
