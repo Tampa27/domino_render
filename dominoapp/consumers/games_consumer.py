@@ -2,9 +2,13 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from datetime import datetime
-from dominoapp.models import Player
+from django.db import transaction
+from django.db.models import Q
+from dominoapp.models import Player, DominoGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.constants import WSActions
+from dominoapp.utils.api_http import RequestValidator
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_and_up
 import logging
 logger = logging.getLogger('django')
 
@@ -79,7 +83,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             if message_type == WSActions.TILE_MOVED:
                 await self.handle_move(data)
             elif message_type == WSActions.CHAT_MESSAGE:
-                pass
+                await self.send_message(data)
             elif message_type == WSActions.PING:
                 await self.handle_ping()
             else:
@@ -110,6 +114,64 @@ class GameConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"No se puede hacer el movimiento, error: {str(e)}")
             await self.send_error(f"Error al procesar movimiento: {str(e)}")
+
+    async def send_message(self, data):
+        """Maneja el envio de mensajes a un chat"""
+        try:            
+            # Aquí procesas el envio del mensaje
+            if self.user.is_anonymous:
+                await self.send_error(f"El player no está autenticado")
+                return
+            
+            game_id = self.scope['url_route']['kwargs']['game_id']
+            message = data.get('message')
+                                   
+            is_valid = RequestValidator.validate_text(message)
+
+            if not is_valid:
+                await self.send_error("El mensaje tiene caracteres que no están permitidos.")
+                return
+
+            # Validar el envio con tu lógica
+            error = await self.perform_send(game_id, self.user.id, message)
+            if error:
+                await self.send_error(error)
+
+        except Exception as e:
+            logger.error(f"No se puede enviar el mensaje, error: {str(e)}")
+            await self.send_error(f"Error al envial mensaje: {str(e)}")
+
+    @database_sync_to_async
+    def perform_send(self, game_id, user_id, message):
+        try:
+            player =  Player.objects.get(user__id=user_id)
+        except Player.DoesNotExist:
+            return "Debe autenticarse para realizar esta acción"
+        
+        check_in_game = DominoGame.objects.filter(id=game_id).filter(Q(player1__id=player.id)|Q(player2__id=player.id)|Q(player3__id=player.id)|Q(player4__id=player.id)).exists()
+        if not check_in_game:
+            return "No tienes permitido enviar mensajes en esta mesa"
+        
+        ws_data = {                
+            "p": player.id,
+            "mg": message
+        }
+
+        try:
+            count_key = get_count_and_up(game_id)
+            transaction.on_commit(lambda ck=count_key: send_ws_notification(
+                game_id= game_id,
+                payload= {
+                    "a": WSActions.NEW_MESSAGE,
+                    "cg": ck, # Contador actualizado para sincronización
+                    "d": ws_data
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error al enviar el WS en el chat de la mesa {game_id}. Error: {error}")
+            return "No se pudo enviar el mensaje, vuelva a intentarlo"
+
+        return None
 
     @database_sync_to_async
     def perform_move(self, game_id, user_id, move_tile):
