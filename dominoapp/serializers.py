@@ -113,7 +113,15 @@ class PlayerRetrieveSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField(read_only = True)
     unread_notification = serializers.SerializerMethodField(read_only = True)
     tournaments_wins = serializers.SerializerMethodField()
+    is_manager = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+        
+    def get_is_manager(self, obj:Player) -> bool:
+        return True if (obj.user.is_staff or obj.user.is_superuser) else False
     
+    def get_is_admin(self, obj:Player) -> bool:
+        return True if (obj.user.is_superuser) else False
+
     def get_coins(self, obj: Player) -> int:
         return obj.recharged_coins + obj.earned_coins
 
@@ -444,6 +452,14 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
     unread_notification = serializers.SerializerMethodField(read_only = True)
+    is_manager = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+
+    def get_is_manager(self, obj:Player) -> bool:
+        return True if (obj.user.is_staff or obj.user.is_superuser) else False
+
+    def get_is_admin(self, obj:Player) -> bool:
+        return True if (obj.user.is_superuser) else False
 
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
@@ -457,7 +473,7 @@ class PlayerLoginSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng", "unread_notification"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "earned_coins", "recharged_coins", "referral_code", "url", "lat", "lng", "unread_notification", "is_manager", "is_admin"]
 
 class PlayerOnListGameSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()

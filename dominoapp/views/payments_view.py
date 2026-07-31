@@ -30,7 +30,7 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     search_fields = ['type', 'from_user__alias', 'from_user__name', 'to_user__alias', 'to_user__name', 'status_list__status']
 
     def get_permissions(self):
-        if self.action in ["select", "confirm"]:
+        if self.action in ["select", "confirm", "cancel"]:
             permission_classes = [IsAdminUser]
         elif self.action in ["resume_game", "send_test_message", "list_package", "up_coins_promotion"]:
             permission_classes = [AllowAny]
@@ -45,6 +45,8 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
         user = self.request.user
         if not user.is_superuser and not user.is_staff:
             queryset = Transaction.objects.filter(Q(from_user__user__id = user.id) | Q(to_user__user__id = user.id)).order_by("-time")
+        elif not user.is_superuser and user.is_staff:
+            queryset = Transaction.objects.filter(Q(admin__user__id = user.id) | Q(admin__isnull=True)).exclude(type__in = ["gm","pro","tr","rw"]).exclude(paymentmethod__in=["zelle", "saldo"]).order_by("-time")
         else:
             queryset = Transaction.objects.all().exclude(type__in = ["gm","pro","tr"] ).order_by("-time")
         if self.action in ["select", "confirm", "cancel"]:

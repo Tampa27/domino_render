@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.decorators import action
-from dominoapp.models import Player, BlockPlayer
+from django.db.models import Q
+from dominoapp.models import Player, BlockPlayer, Manager
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, \
     PlayerNotificationSerializer, PlayerRetrieveSerializer, PlayerConfigSerializer, \
     PlayerListSerializer, PlayerPersonalRankinSerializer
@@ -41,6 +42,19 @@ class PlayerView(viewsets.ModelViewSet):
         if self.action in ["list_player_invitations"]:
             player_bloqued = BlockPlayer.objects.all().values_list("player_blocked__id", flat=True)
             queryset = Player.objects.filter(send_invitation_notifications=True).exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued)
+        elif self.action in ["list"]:
+            player_bloqued = BlockPlayer.objects.all().values_list("player_blocked__id", flat=True)
+            if self.request.user.is_superuser or self.request.user.is_staff:
+                queryset = Player.objects.exclude(user__id = self.request.user.id)
+            else:
+                managers = Manager.objects.filter(users_list=self.request.user)
+                if managers.exists():
+                    manager = managers.first()
+                    user_ids = manager.users_list.values_list('id', flat=True)
+                    queryset = Player.objects.filter(Q(user__id__in=user_ids) | Q(user__id = manager.user.id)).exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued)
+                else:
+                    user_ids_in_group = Manager.objects.all().values_list('users_list__id', flat=True)
+                    queryset = Player.objects.exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
         else:
             queryset = Player.objects.all()
         return queryset 
@@ -48,6 +62,8 @@ class PlayerView(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ["list_player_invitations"]:
             serializer_class = PlayerListSerializer
+        # elif self.action in ["list"]:
+        #     serializer_class = PlayerListSerializer
         else:
             serializer_class = PlayerSerializer
         return serializer_class
