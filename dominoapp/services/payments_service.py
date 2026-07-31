@@ -227,7 +227,7 @@ class PaymentService:
                 paymentmethod= request.data.get('paymentmethod', None)
             )
 
-            manager = Manager.objects.filter(users_list=player)
+            manager = Manager.objects.filter(users_list=player.user)
 
             admin = None
             if manager.exists():
