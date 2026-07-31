@@ -8,7 +8,7 @@ from django.db.models import Q, Sum, OuterRef, Subquery
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from datetime import datetime, timedelta
-from dominoapp.models import Player, Bank, Transaction, Payment, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer, PackageCoins
+from dominoapp.models import Player, Bank, Transaction, Payment, Status_Payment, Status_Transaction, BankAccount, CurrencyRate, BlockPlayer, PackageCoins, Manager
 from dominoapp.serializers import PackageCoinsSerializer
 from dominoapp.utils.transactions import create_reload_transactions, create_extracted_transactions, create_promotion_transactions, create_transfer_transactions, create_transactions
 from dominoapp.utils.constants import ApiConstants
@@ -209,7 +209,7 @@ class PaymentService:
         ).order_by('-created_at').values('status')[:1])
         ).filter(latest_status_name__in=['p', 'ip']).filter(time__gte = min_20).order_by("-time")
         
-        transactions_exist = transactions.exists()
+        transactions_exist = transactions.exists()    
         
         send_request = False
         if not transactions_exist:
@@ -226,11 +226,18 @@ class PaymentService:
                 player_phone= player.phone,
                 paymentmethod= request.data.get('paymentmethod', None)
             )
+
+            manager = Manager.objects.filter(users_list=player)
+
+            admin = None
+            if manager.exists():
+                admin = Player.objects.get(user__id=manager.first().user.id)
             
             new_transaction = create_reload_transactions(
                 to_user=player, amount=int(request.data["coins"]), status="p", external_id=transaction_id,
                 whatsapp_url=whatsapp_url,
-                paymentmethod=request.data.get('paymentmethod', None)
+                paymentmethod=request.data.get('paymentmethod', None),
+                admin=admin
                 )
             if new_transaction:
                 send_request = DiscordConnector.send_transaction_request(
@@ -244,8 +251,11 @@ class PaymentService:
                         'whatsapp_url': whatsapp_url
                     }
                 )
-        
-            admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
+
+            if admin:
+                admins_id = [admin.user.id]
+            else:
+                admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
             FCMNOTIFICATION.send_fcm_message_by_users_list(
                 users = admins_id,
                 title = "🚨Solicitud de Recarga🚨",
@@ -614,7 +624,9 @@ class PaymentService:
         
         if transaction.type == 'rw' and not admin.user.is_superuser:
             return Response({'status': 'error', 'message': "No tienes permisos suficientes, contacta algun administrador."}, status=status.HTTP_409_CONFLICT)
-        
+
+        if transaction.admin is not None and not admin.user.is_superuser and transaction.admin.id != admin.id:
+            return Response({'status': 'error', 'message': "Esta transacción ya fue seleccionada por otro administrador."}, status=status.HTTP_409_CONFLICT)
 
         transaction.admin = admin
         transaction.save(update_fields=['admin'])
@@ -634,7 +646,10 @@ class PaymentService:
         player = transaction.to_user
         if not package_coins:
             recharged_coins = int(transaction.amount)
-            currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
+            code = transaction.paymentmethod
+            if player.user.is_staff and transaction.paymentmethod == "transferencia":
+                code = f"{transaction.paymentmethod}_admin"
+            currency_rate = CurrencyRate.objects.filter(code=code)
             if currency_rate:
                 recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
         else:
@@ -786,7 +801,10 @@ class PaymentService:
                                 }, status=status.HTTP_200_OK)
             else:
                 recharged_coins = int(transaction.amount)
-                currency_rate = CurrencyRate.objects.filter(code=transaction.paymentmethod)
+                code = transaction.paymentmethod
+                if admin.user.is_staff and transaction.paymentmethod == "transferencia":
+                    code = f"{transaction.paymentmethod}_user"
+                currency_rate = CurrencyRate.objects.filter(code=code)
                 if currency_rate:
                     recharged_coins = int(recharged_coins*currency_rate.first().rate_exchange)
 

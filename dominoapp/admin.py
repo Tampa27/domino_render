@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
         MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
     BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward, Status_Transaction, \
-    Notification
+    Notification, Manager
 from dominoapp.utils.admin_helpers import AdminHelpers
 from dominoapp.utils.players_tools import get_reward_type_choices
 from dominoapp.utils.constants import TransactionStatus
@@ -733,3 +733,4 @@ admin.site.register(ChatRoom)
 admin.site.register(ChatMessage)
 admin.site.register(PlayerReward, PlayerRewardAdmin)
 admin.site.register(Notification, NotificationAdmin)
+admin.site.register(Manager)

@@ -135,6 +135,11 @@ class Player(models.Model):
             self.elo=0
         return super().save(*args, **kwargs)
 
+class Manager(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='manager')
+    users_list = models.ManyToManyField(User, related_name="users")
+    created_at = models.DateTimeField(auto_now_add=True)
+
 class SummaryPlayer(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="summary_player")
     created_at = models.DateTimeField(default=timezone_dj.now)
@@ -550,7 +555,7 @@ class Transaction(models.Model):
         return last_status.status if last_status else 'p'
 
 class CurrencyRate(models.Model):
-    code = models.CharField(max_length=15)
+    code = models.CharField(max_length=20)
     rate_exchange = models.DecimalField(default=0.00, decimal_places=6, max_digits=11)
     inverce_rate_exchange = models.DecimalField(default=0.00, decimal_places=6, max_digits=11, null=True, blank=True)
 
