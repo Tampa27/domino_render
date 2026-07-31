@@ -136,6 +136,8 @@ class Command(BaseCommand):
                     
                     admin_phone = os.environ.get('ADMIN_PHONE', None)
                     if not admin_phone:
+                        admin_phone = os.environ.get('ADMIN_PHONE_1', None)
+                    if not admin_phone:
                         admin_phone = "+5352459418"
                         logger.critical("ADMIN_PHONE no está configurado en las variables de entorno.")
                     
