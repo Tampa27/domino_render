@@ -3,9 +3,7 @@ from dominoapp.models import Player
 
 def get_whatsapp_reload_text(player: Player, amount: int, transaction_id:str, player_phone:str, paymentmethod:str=None):
     texto_original = f"""
-    Hola *{player.name}*,
-                
-Tu solicitud de recarga para la cuenta **{player.alias}** en Domino Club por un monto de {amount} pesos ha sido recibida con éxito.
+    Hola *{player.name}*, tu solicitud de recarga de {amount} monedas para la cuenta **{player.alias}** fue recibida.
     """
     if paymentmethod:
         if paymentmethod == "saldo":
@@ -23,7 +21,8 @@ Por favor, elige tu método de pago:
     💳 Transferencia Bancaria
     """
     texto_original += f"""
-**ID de tu solicitud**: {transaction_id}
+    *ID de tu solicitud*: {transaction_id}
+¿Le envío los datos?
     """
     
     texto_codificado = urllib.parse.quote(texto_original)
