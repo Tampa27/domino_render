@@ -611,18 +611,18 @@ class PaymentService:
         try:
             transaction = Transaction.objects.get(id = transactions_id)
         except:
-            return Response({'status': 'error', 'message': "Transaction not found"}, status=status.HTTP_404_NOT_FOUND) 
+            return Response({'status': 'error', 'message': "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND) 
     
         if transaction.get_status != "p" or transaction.type in ["gm","pro","tr"]:
-            return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+            return Response({'status': 'error', 'message': "Esta solicitud no esta disponible."}, status=status.HTTP_409_CONFLICT)
         
         if transaction.from_user and int(transaction.amount) > int(transaction.from_user.total_coins):
-            return Response(data={'status': 'error', "message":"The player don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+            return Response(data={'status': 'error', "message":"Este player no tiene suficientes monedas"}, status=status.HTTP_409_CONFLICT)
         
         try:
             admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
         except:
-            return Response({'status': 'error', 'message': "Admin not found"}, status=status.HTTP_401_UNAUTHORIZED) 
+            return Response({'status': 'error', 'message': "No tienes permisos de administrador"}, status=status.HTTP_401_UNAUTHORIZED) 
         
         if transaction.type == 'rw' and not admin.user.is_superuser:
             return Response({'status': 'error', 'message': "No tienes permisos suficientes, contacta algun administrador."}, status=status.HTTP_409_CONFLICT)
@@ -764,18 +764,18 @@ class PaymentService:
         try:
             transaction = Transaction.objects.get(id = transactions_id)
         except:
-            return Response({'status': 'error', 'message': "Transaction not found"}, status=status.HTTP_404_NOT_FOUND) 
+            return Response({'status': 'error', 'message': "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND) 
     
         if transaction.get_status != "ip" or transaction.type in ["gm","pro","tr"]:
-            return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+            return Response({'status': 'error', 'message': "Esta solicitud no esta disponible."}, status=status.HTTP_409_CONFLICT)
         
         if transaction.from_user and int(transaction.amount) > int(transaction.from_user.total_coins):
-            return Response(data={'status': 'error', "message":"The player don't have enough amount"}, status=status.HTTP_409_CONFLICT)
+            return Response(data={'status': 'error', "message":"Este player no tiene suficientes monedas"}, status=status.HTTP_409_CONFLICT)
         
         try:
             admin = Player.objects.get(user__id = request.user.id, user__is_staff=True)
         except:
-            return Response({'status': 'error', 'message': "Admin not found"}, status=status.HTTP_401_UNAUTHORIZED) 
+            return Response({'status': 'error', 'message': "No tienes permisos de administrador"}, status=status.HTTP_401_UNAUTHORIZED) 
                 
         if transaction.type == 'rl':
             if admin.user.is_superuser:
@@ -980,35 +980,22 @@ class PaymentService:
         try:
             transaction = Transaction.objects.get(id = transactions_id)
         except:
-            return Response({'status': 'error', 'message': "Transaction not found"}, status=status.HTTP_404_NOT_FOUND) 
+            return Response({'status': 'error', 'message': "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND) 
     
         if transaction.get_status in ["cc", "cp"] or transaction.type in ["gm","pro","tr"] or (not request.user.is_staff and transaction.get_status == "ip"):
-            return Response({'status': 'error', 'message': "This transaction is not available."}, status=status.HTTP_409_CONFLICT)
+            return Response({'status': 'error', 'message': "Esta solicitud no esta disponible."}, status=status.HTTP_409_CONFLICT)
         
         try:
             cancel_by = Player.objects.get(user__id = request.user.id)
         except:
-            return Response({'status': 'error', 'message': "User not found"}, status=status.HTTP_401_UNAUTHORIZED) 
+            return Response({'status': 'error', 'message': "Fayó la autenticacion, vuelva a intentarlo."}, status=status.HTTP_401_UNAUTHORIZED) 
         
         transaction.admin = cancel_by
         transaction.save(update_fields=['admin'])
         
         new_status = Status_Transaction.objects.create(status = 'cc')
         transaction.status_list.add(new_status)
-        
-        ## No se estan usando y estan demorando los request       
-        # PushNotificationConnector.push_notification(
-        #         channel= f"transaction_{transaction.id}",
-        #         event_name="update_transaction",
-        #         data_notification={
-        #             'status': 'cc',
-        #             'amount': str(transaction.amount),
-        #             'type': transaction.type,
-        #             'time': transaction.time.strftime("%d-%m-%Y %H:%M:%S"),
-        #             'cancel_by': cancel_by.alias
-        #         }
-        #     )
-         
+                
         return Response(status=status.HTTP_204_NO_CONTENT)
         
     @staticmethod
