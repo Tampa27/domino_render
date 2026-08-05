@@ -540,8 +540,8 @@ class PaymentService:
         if from_user.is_block or to_user.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
         
-        if not to_user.have_recharge:
-            return Response(data={'status': 'error', "message":'El usuario debe recargar su cuenta primero, contacta a los administradores.'}, status=status.HTTP_403_FORBIDDEN)
+        # if not to_user.have_recharge:
+        #     return Response(data={'status': 'error', "message":'El usuario debe recargar su cuenta primero, contacta a los administradores.'}, status=status.HTTP_403_FORBIDDEN)
         
         check, message = validate_tranfer(from_user, to_user, transfer_coins)
         if not check:

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.shortcuts import redirect
 from datetime import datetime
 from fcm_django.models import FCMDevice
-from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification
+from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification, Manager
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer, \
     PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
@@ -436,6 +436,15 @@ class PlayerService:
                 )
             ).filter(total_games__gte=20).order_by(order_by)
         elif order_by in ['coins', '-coins']:
+            user_request = request.user
+            if user_request.is_staff:
+                try:
+                    manager = Manager.objects.get(user__id = user_request.id)
+                    users_ids = manager.users_list.all().values_list('id', flat=True)
+                except:
+                    manager = None
+                if manager:
+                    queryset = queryset.filter(Q(user__id__in = users_ids)|Q(user__id = user_request.id))
             queryset = queryset.annotate(
                 coins=F('earned_coins') + F('recharged_coins')
             ).order_by(order_by)
