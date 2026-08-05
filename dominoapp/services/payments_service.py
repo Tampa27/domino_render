@@ -629,16 +629,7 @@ class PaymentService:
 
         if transaction.admin is not None and not admin.user.is_superuser and transaction.admin.id != admin.id:
             return Response({'status': 'error', 'message': "Esta transacción ya fue seleccionada por otro administrador."}, status=status.HTTP_409_CONFLICT)
-
-        if admin.user.is_staff:
-            try:
-                manager = Manager.objects.get(user__id = admin.user.id)
-            except:
-                manager = None
-
-            if manager and not manager.users_list.filter(id = transaction.to_user.user.id).exists():
-                manager.users_list.add(transaction.to_user.user)
-        
+       
 
         transaction.admin = admin
         transaction.save(update_fields=['admin'])
@@ -826,6 +817,15 @@ class PaymentService:
                 player = transaction.to_user                
                 
                 PaymentService.make_transfer(admin, player, recharged_coins, recharged_coins)
+
+                if admin.user.is_staff:
+                    try:
+                        manager = Manager.objects.get(user__id = admin.user.id)
+                    except:
+                        manager = None
+        
+                    if manager and not manager.users_list.filter(id = player.user.id).exists():
+                        manager.users_list.add(player.user)
 
                 transaction.admin = admin
                 transaction.amount = recharged_coins
