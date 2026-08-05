@@ -137,7 +137,7 @@ class Player(models.Model):
 
 class Manager(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='manager')
-    users_list = models.ManyToManyField(User, related_name="users")
+    users_list = models.ManyToManyField(User, related_name="users", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 class SummaryPlayer(models.Model):
