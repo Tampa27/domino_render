@@ -252,7 +252,9 @@ class PaymentService:
                     }
                 )
 
-            if admin:
+            if new_transaction and new_transaction.paymentmethod in ['zelle', 'saldo']:
+                admins_id = Player.objects.filter(user__is_superuser=True).values_list('user__id', flat=True)
+            elif admin:
                 admins_id = [admin.user.id]
             else:
                 admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
@@ -627,6 +629,16 @@ class PaymentService:
 
         if transaction.admin is not None and not admin.user.is_superuser and transaction.admin.id != admin.id:
             return Response({'status': 'error', 'message': "Esta transacción ya fue seleccionada por otro administrador."}, status=status.HTTP_409_CONFLICT)
+
+        if admin.user.is_staff:
+            try:
+                manager = Manager.objects.get(user__id = admin.user.id)
+            except:
+                manager = None
+
+            if manager and not manager.users_list.filter(id = transaction.to_user.user.id).exists():
+                manager.users_list.add(transaction.to_user.user)
+        
 
         transaction.admin = admin
         transaction.save(update_fields=['admin'])
