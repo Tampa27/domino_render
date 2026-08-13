@@ -14,12 +14,13 @@ from datetime import datetime
 from fcm_django.models import FCMDevice
 from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification, Manager
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer, \
-    PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer
+    PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer, Notification
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.huawei_verifier import HuaweiTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import get_device_hash
+from dominoapp.utils.transactions import create_promotion_transactions
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 import logging
 logger = logging.getLogger('django')
@@ -179,7 +180,26 @@ class PlayerService:
                             "name" : user_login_data['name']
                         }
                     )
-                    
+
+                    if user_login_data["client"] == "google_pay":
+                        Notification.objects.create(
+                            player=player,
+                            title="🎉 ¡Bienvenido a Domino Club!",
+                            message=f"""
+ ¡Qué bueno tenerte con nosotros! Has recibido 10 monedas para que juegues tus primeras partidas.
+¿Quieres seguir sumando monedas sin costo? Visita la tienda y mira los videos de marketing que tenemos para ti. 
+¡Cada video te da más monedas para seguir jugando y ganando!🔥
+"""
+                        )
+
+                        ## Se le ponen 10 monedas de promocion por entrar desde google play
+                        player.recharged_coins += 10
+                        player.save(update_fields=['recharged_coins'])
+
+                        create_promotion_transactions(
+                            amount=10, to_user=player, status='cp',
+                            descriptions= "Has recibido 10 monedas de promoción por acceder desde Google Play."
+                        )
                 else:
                     player = Player.objects.get(email=user_login_data['email'])
 

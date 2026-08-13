@@ -30,6 +30,16 @@ class GoogleTokenVerifier:
         except Exception as e:
             logger.critical(f'Google Token is wront => {str(e)}')
             return None, e
+
+         # Obtener el client_id usado
+        client_id_usado = idinfo.get('aud')
+        
+        # Mapear a un nombre descriptivo
+        clientes_map = {
+            GOOGLE_CLIENT_ID: 'general',
+            GOOGLE_CLIENT_ID_2: 'google_pay',
+            GOOGLE_CLIENT_ID_3: 'test'
+        }
         
         try:            
             # Verifica que el email esté verificado
@@ -41,6 +51,7 @@ class GoogleTokenVerifier:
                 'name': idinfo.get('name', ''),
                 'google_id': idinfo['sub'],
                 'picture': idinfo.get('picture', ''),
+                'client': clientes_map.get(client_id_usado, None)
             }, None
         except Exception as e:
             logger.critical(f'Google Verification is wront => {str(e)}')
