@@ -51,10 +51,10 @@ class PlayerView(viewsets.ModelViewSet):
                 if managers.exists():
                     manager = managers.first()
                     user_ids = manager.users_list.values_list('id', flat=True)
-                    user_ids_in_group = Manager.objects.all().exclude(user__id__in=user_ids).values_list('users_list__id', flat=True)
+                    user_ids_in_group = Manager.objects.filter(users_list__isnull=False).exclude(user__id__in=user_ids).values_list('users_list__id', flat=True)
                     queryset = Player.objects.all().exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
                 else:
-                    user_ids_in_group = Manager.objects.all().values_list('users_list__id', flat=True)
+                    user_ids_in_group = Manager.objects.filter(users_list__isnull=False).values_list('users_list__id', flat=True)
                     queryset = Player.objects.all().exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
         else:
             queryset = Player.objects.all()
