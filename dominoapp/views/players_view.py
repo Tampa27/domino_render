@@ -45,17 +45,17 @@ class PlayerView(viewsets.ModelViewSet):
         elif self.action in ["list"]:
             player_bloqued = BlockPlayer.objects.all().values_list("player_blocked__id", flat=True)
             if self.request.user.is_superuser or self.request.user.is_staff:
-                queryset = Player.objects.exclude(user__id = self.request.user.id)
+                queryset = Player.objects.all().exclude(user__id = self.request.user.id)
             else:
                 managers = Manager.objects.filter(users_list=self.request.user)
                 if managers.exists():
                     manager = managers.first()
                     user_ids = manager.users_list.values_list('id', flat=True)
                     user_ids_in_group = Manager.objects.all().exclude(user__id__in=user_ids).values_list('users_list__id', flat=True)
-                    queryset = Player.objects.exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
+                    queryset = Player.objects.all().exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
                 else:
                     user_ids_in_group = Manager.objects.all().values_list('users_list__id', flat=True)
-                    queryset = Player.objects.exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
+                    queryset = Player.objects.all().exclude(user__id = self.request.user.id).exclude(id__in=player_bloqued).exclude(user__id__in=user_ids_in_group)
         else:
             queryset = Player.objects.all()
         return queryset 
