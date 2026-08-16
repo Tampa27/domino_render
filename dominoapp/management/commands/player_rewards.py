@@ -28,6 +28,10 @@ class Command(BaseCommand):
         for reward in rewards:
             if reward.date_of_week is not None:
                 from_date = time_now - timedelta(days=7)
+                try:
+                    logger.error(f"Premio por {reward.reward_type} desde {from_date.strftime("%d/%m/%Y, %H:%M:%S")} hasta {time_now.strftime("%d/%m/%Y, %H:%M:%S")}.")
+                except:
+                    pass
                 
                 subquery = SummaryPlayer.objects.filter(
                         player__id=OuterRef('pk')
