@@ -469,11 +469,11 @@ class PlayerService:
                 coins=F('earned_coins') + F('recharged_coins')
             ).order_by(order_by)
         elif order_by in ['data_wins', '-data_wins']:
-            queryset = queryset.annotate(
+            queryset = queryset.exclude(user__is_staff=True).annotate(
                 data_wins=Coalesce(Sum('summary_player__data_wins', filter=date_filter), Value(0))
             ).order_by(order_by)
         elif order_by in ['match_wins', '-match_wins']:
-            queryset = queryset.annotate(
+            queryset = queryset.exclude(user__is_staff=True).annotate(
                 match_wins=Coalesce(Sum('summary_player__match_wins', filter=date_filter), Value(0))
             ).order_by(order_by)        
         elif order_by in ['balance_coins', '-balance_coins']:
@@ -489,7 +489,7 @@ class PlayerService:
             if start_date and end_date:
                 loss_subquery = loss_subquery.filter(created_at__range=[start, end])
             
-            queryset = queryset.annotate(
+            queryset = queryset.exclude(user__is_staff=True).annotate(
                 win_coins=Coalesce(
                     Subquery(
                         earned_subquery.values('player')
@@ -510,7 +510,7 @@ class PlayerService:
                 balance_coins=F('win_coins') - F('loss_coins')
             ).order_by(order_by)
         elif order_by in ['pass_player', '-pass_player']:
-            queryset = queryset.annotate(
+            queryset = queryset.exclude(user__is_staff=True).annotate(
                 pass_player=Coalesce(Sum('summary_player__pass_player', filter=date_filter), Value(0))
             ).order_by(order_by)
             
