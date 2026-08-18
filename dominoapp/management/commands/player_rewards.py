@@ -15,7 +15,7 @@ class Command(BaseCommand):
     help = "Find players where some field is win in the SummaryPlayer model."
 
     def handle(self, *args, **options):
-        time_now = now()
+        time_now = now().replace(hour=0, minute=0, second=0, microsecond=0)
         rewards = PlayerReward.objects.filter(
             Q(date_of_week = time_now.weekday())|Q(date_of_month = time_now.day)
         )
