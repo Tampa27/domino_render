@@ -199,3 +199,27 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def game_update(self, event):
         """"Envia el mensaje de actualizacion al WS."""
         await self.send(text_data=json.dumps(event['payload']))
+
+    @classmethod
+    def get_players_in_games(cls):
+        """
+        Método de clase que retorna el número total de jugadores en todas las mesas.
+        Puede ser llamado desde otros consumers.
+        """
+        total = 0
+        for game_id, players_set in cls.connected_players.items():
+            total += len(players_set)
+        return total
+
+    @classmethod
+    def get_game_players_count(cls, game_id=None):
+        """
+        Retorna el número de jugadores en una mesa específica o en todas.
+        """
+        if game_id is not None:
+            return len(cls.connected_players.get(game_id, set()))
+        
+        total = 0
+        for players_set in cls.connected_players.values():
+            total += len(players_set)
+        return total

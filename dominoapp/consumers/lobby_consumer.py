@@ -3,6 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from datetime import datetime
 from dominoapp.utils.websocket_utils import async_get_count_lobby_up
 from dominoapp.utils.constants import WSActions
+from dominoapp.consumers.games_consumer import GameConsumer
 import logging
 logger = logging.getLogger('django')
 
@@ -119,13 +120,19 @@ class LobbyConsumer(AsyncWebsocketConsumer):
 
     async def notify_connected_players_count(self):
         """Envía el conteo de jugadores al grupo"""
-        count = len(self.connected_players.get("lobby", set()))
+        lobby_count = len(self.connected_players.get("lobby", set()))
+
+        # ✅ Obtener jugadores de todas las mesas
+        games_count = GameConsumer.get_players_in_games()
+        
+        # Total de jugadores
+        total_players = lobby_count + games_count
         
         payload = {
             "a": WSActions.CONNECTED_PLAYERS,
             "cg": await async_get_count_lobby_up(),
             "data": {
-                "connected_players": count,                
+                "connected_players": total_players,                
             }
         }
         
