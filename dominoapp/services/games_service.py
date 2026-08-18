@@ -212,6 +212,18 @@ class GameService:
 
         if player1.play_tournament:
             return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+
+        min_fee = request.data.get("min_fee", 0)
+        variant = request.data.get("variant", "d6")
+        perpoint = request.data.get("perPoints", False)
+        payPassValue = request.data.get("payPassValue", 0)
+        payWinValue = request.data.get("payWinValue", 0)
+        payMatchValue = request.data.get("payMatchValue", 0)
+
+        min_coins = game_tools.min_coins(variant, perpoint, payMatchValue, payWinValue, payPassValue)
+
+        if min_fee > 0 and min_fee < min_coins:
+            return Response({'status': 'error',"message":f"La apuesta mínima debe ser igual a {min_coins} monedas."}, status=status.HTTP_409_CONFLICT)
         
         now = timezone.now()
         player1.tiles = ""
@@ -562,8 +574,10 @@ class GameService:
                     if have_points:
                         return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
                 elif game.status in ["ru"] and player.isPlaying:
-                        return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
-                
+                    return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
+                elif player.isPlaying and game.min_fee > 0 and abs(player.total_coins - player.start_coins) <= game.min_fee:
+                    return Response({'status': 'error', "message":f"No puede salir aún, la mesa tiene una apuesta mínima de {game.min_fee} monedas."}, status=status.HTTP_409_CONFLICT)
+
                 players = game_tools.playersCount(game)
                 exited = game_tools.exitPlayer(game,player,players,len(players))
                 if exited:

@@ -129,6 +129,12 @@ def startGame1(game: DominoGame, players: list[Player]):
     except Exception as e:
         logger_discord.critical(f"Error crítico en startGame1, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
 
+def some_player_new(players: list[Player]):
+    for player in players:
+        if player.start_coins == 0:
+            return True
+    return False
+
 def movement(game: DominoGame, player: Player, players: list[Player], tile: str, automatic=False):
     n = len(players)
     w = getPlayerIndex(players, player)
@@ -769,6 +775,13 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
         elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
             if game.winner < DominoGame.Tie_Game and game.winner > pos:
                 game.winner -= 1
+
+        if game.min_fee > 0:
+            for player_in in players:
+                if player_in.isPlaying or player_in.start_coins > 0:
+                    player_in.start_coins = 0
+                    player_in.save(update_fields=['start_coins'])
+        
     else:
         if totalPlayers <= 2 or game.inPairs:
             game.status = "wt"
@@ -1049,13 +1062,16 @@ def shuffle(game:DominoGame, players:list[Player]):
         player.tiles = ""
         if game.status !="fi":
             player.isPlaying = True
+            if game.min_fee > 0 and some_player_new(players):
+                player.start_coins = player.total_coins
         if game.perPoints and (game.status =="ready" or game.status =="fg"):
-            player.points = 0  
+            player.points = 0
+            
         for j in range(max):
             player.tiles+=tiles[i*max+j]
             if j < (max-1):
                 player.tiles+=","
-        player.save(update_fields=['tiles','isPlaying','points'])    
+        player.save(update_fields=['tiles','isPlaying','points','start_coins'])    
     
 def checkCapicua(game,tile):
     if game.leftValue == game.rightValue:
@@ -1154,19 +1170,37 @@ def havepoints(game: DominoGame):
     # Si revisó a todos y ninguno cumplió la condición
     return False
 
+def min_coins(variant: str, perPoints:bool, MatchValue: int, WinValue:int, PassValue:int):
+    '''
+        Calcula el minimo de monedas
+    '''
+    
+    min_amount = 0
+        
+    pass_number = 3 if variant == 'd6' else 5
+
+    if perPoints and MatchValue>0:
+        min_amount = MatchValue
+    elif not perPoints and (PassValue>0 or WinValue>0):
+        min_amount = WinValue + (PassValue * pass_number)
+    
+    return min_amount
+
 def get_game_coins(game: DominoGame)->int:
     '''
         Calcula el minimo de monedas para jugar en la mesa
     '''
     
-    min_amount = 0
-        
-    pass_number = 3 if game.variant == 'd6' else 5
+    min_amount = min_coins(
+        game.variant, 
+        game.perPoints, 
+        game.payMatchValue,
+        game.payWinValue,
+        game.payPassValue
+        )
 
-    if game.perPoints and game.payMatchValue>0:
-        min_amount = game.payMatchValue
-    elif not game.perPoints and (game.payPassValue>0 or game.payWinValue>0):
-        min_amount = game.payWinValue + (game.payPassValue * pass_number)
+    if game.min_fee > 0:
+        min_amount = game.min_fee
     
     return min_amount
 
@@ -1177,7 +1211,11 @@ def ready_to_play(game: DominoGame, player: Player)->bool:
     
     min_amount = get_game_coins(game)
     
-    if player.total_coins >= min_amount:
+    if player.total_coins >= min_amount and game.min_fee == 0:
+        return True
+    elif game.min_fee > 0 and player.start_coins > 0 and abs(player.total_coins - player.start_coins) < game.min_fee:
+        return True
+    elif game.min_fee > 0 and player.start_coins >= 0 and player.total_coins > game.min_fee:
         return True
     
     return False   
