@@ -84,6 +84,7 @@ class GameRequest:
             "payPassValue": RequestValidator.validate_numeric,
             "payWinValue": RequestValidator.validate_numeric,
             "payMatchValue": RequestValidator.validate_numeric,
+            "min_fee": RequestValidator.validate_numeric,
             "startAuto": RequestValidator.validate_numeric,
             "sumAllPoints": RequestValidator.validate_boolean,
             "capicua":RequestValidator.validate_boolean,

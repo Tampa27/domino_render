@@ -538,7 +538,7 @@ class GameCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DominoGame
-        fields = ["variant", "maxScore", "inPairs", "perPoints", "startWinner", "lostStartInTie", "payPassValue", "payWinValue", "payMatchValue", "startAuto", "sumAllPoints", "capicua", "moveTime", "password"]
+        fields = ["variant", "maxScore", "inPairs", "perPoints", "startWinner", "lostStartInTie", "payPassValue", "min_fee", "payWinValue", "payMatchValue", "startAuto", "sumAllPoints", "capicua", "moveTime", "password"]
 
 class GameSerializer(serializers.ModelSerializer):
 
@@ -594,7 +594,8 @@ class GameSerializer(serializers.ModelSerializer):
             "perPoints", 
             "payPassValue", 
             "payWinValue", 
-            "payMatchValue", 
+            "payMatchValue",
+            "min_fee",
             "maxScore",
             "password",
             "next_player",
@@ -678,7 +679,7 @@ class ListGameSerializer(serializers.ModelSerializer):
             "id",
             "table_no", "status", 
             "variant", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "is_privated", "password", 
-            "number_player"
+            "number_player", "min_fee"
                 #   , "players_close"
                   ]
 
