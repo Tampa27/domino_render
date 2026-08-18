@@ -1,11 +1,7 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from channels.db import database_sync_to_async
 from datetime import datetime
-from dominoapp.models import Player
-from dominoapp.utils import game_tools
+from dominoapp.utils.websocket_utils import async_get_count_lobby_up
 from dominoapp.utils.constants import WSActions
 import logging
 logger = logging.getLogger('django')
@@ -55,6 +51,12 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+
+        try:
+            await self.notify_connected_players_count()
+        except Exception as error:
+            logger.error(f"Error al notificar numero de players en el lobby.\n Error: {error}")
+
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get("lobby")
@@ -75,6 +77,11 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+
+        try:
+            await self.notify_connected_players_count()
+        except Exception as error:
+            logger.error(f"Error al notificar numero de players en el lobby.\n Error: {error}")
 
     async def receive(self, text_data):
         """Maneja los mensajes recibidos desde la APK"""
@@ -109,6 +116,26 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             "a": WSActions.ERROR,
             "d": {"mg": error_message}
         }))
+
+    async def notify_connected_players_count(self):
+        """Envía el conteo de jugadores al grupo"""
+        count = len(self.connected_players.get("lobby", set()))
+        
+        payload = {
+            "a": WSActions.CONNECTED_PLAYERS,
+            "cg": await async_get_count_lobby_up(),
+            "data": {
+                "connected_players": count,                
+            }
+        }
+        
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "lobby_update",
+                "payload": payload
+            }
+        )
 
     async def lobby_update(self, event):
         """"Envia el mensaje de actualizacion al WS."""

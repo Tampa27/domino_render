@@ -124,11 +124,7 @@ def delete_count_key(game_id):
     # Ejecutamos la función asíncrona en un entorno síncrono y devolvemos el resultado
     return async_to_sync(_delete_count)()
 
-def get_count_lobby_and_up():
-    """
-    Obtiene el conteo de actualizaciones en el lobby y lo incrementa de forma síncrona.
-    """
-    async def _get_count_up():
+async def async_get_count_lobby_up():
         try:
             channel_layer = get_channel_layer()
             redis_key = f"count_lobby"
@@ -147,8 +143,13 @@ def get_count_lobby_and_up():
         except Exception as e:
             logger.error(f"Error en get_count_lobby_and_up: {e}", exc_info=True)
             return 0
+
+def get_count_lobby_and_up():
+    """
+    Obtiene el conteo de actualizaciones en el lobby y lo incrementa de forma síncrona.
+    """
             
-    return async_to_sync(_get_count_up)()
+    return async_to_sync(async_get_count_lobby_up)()
 
 def get_count_lobby_key():
     """

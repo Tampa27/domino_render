@@ -186,6 +186,7 @@ class WSActions:
     NEW_GAME = "NG"
     TORNAMENT_UPDATE = "TU"
     NOTIFICATION_UPDATE = "NU"
+    CONNECTED_PLAYERS = "CP"
 
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'
