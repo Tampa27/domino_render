@@ -131,7 +131,7 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         payload = {
             "a": WSActions.CONNECTED_PLAYERS,
             "cg": await async_get_count_lobby_up(),
-            "data": {
+            "d": {
                 "connected_players": total_players,                
             }
         }
