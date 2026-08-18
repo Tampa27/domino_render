@@ -642,8 +642,17 @@ class SummaryPlayerAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "player",
+        "match_wins",
+        "data_wins",
+        "pass_player",
         "created_at"
     ]
+    list_filter=[
+        "created_at"
+    ]
+    search_fields = [
+            "player__alias"
+        ]
 
 class PlayerRewardAdmin(admin.ModelAdmin):
     class RewardForm(forms.ModelForm):

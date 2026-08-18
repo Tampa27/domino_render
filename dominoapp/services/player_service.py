@@ -383,10 +383,12 @@ class PlayerService:
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         date_filter = Q()
+        create_at_filter = Q()
         if start_date and end_date:
             start = datetime.strptime(start_date, '%d-%m-%Y').date()
             end = datetime.strptime(end_date, '%d-%m-%Y').date()
             date_filter = Q(summary_player__created_at__range=[start, end])
+            create_at_filter = Q(created_at__range=[start, end])
 
         paginator.page_size = page_size  # Items por página
         
@@ -396,6 +398,10 @@ class PlayerService:
                 )
             )
         )
+
+        subquery = SummaryPlayer.objects.filter(
+            player__id=OuterRef('pk')
+        ).filter(create_at_filter)
         
         if order_by in ['elo', '-elo']:
             queryset = queryset.exclude(elo=1500).order_by(order_by)
@@ -470,11 +476,25 @@ class PlayerService:
             ).order_by(order_by)
         elif order_by in ['data_wins', '-data_wins']:
             queryset = queryset.exclude(user__is_staff=True).annotate(
-                data_wins=Coalesce(Sum('summary_player__data_wins', filter=date_filter), Value(0))
+                data_wins=Coalesce(
+                    Subquery(
+                        subquery.values('player')
+                        .annotate(total=Sum('data_wins'))
+                        .values('total')[:1]
+                    ),
+                    Value(0, output_field=IntegerField())
+                )
             ).order_by(order_by)
         elif order_by in ['match_wins', '-match_wins']:
             queryset = queryset.exclude(user__is_staff=True).annotate(
-                match_wins=Coalesce(Sum('summary_player__match_wins', filter=date_filter), Value(0))
+                match_wins=Coalesce(
+                    Subquery(
+                        subquery.values('player')
+                        .annotate(total=Sum('match_wins'))
+                        .values('total')[:1]
+                    ),
+                    Value(0, output_field=IntegerField())
+                )
             ).order_by(order_by)        
         elif order_by in ['balance_coins', '-balance_coins']:
             earned_subquery = SummaryPlayer.objects.filter(
@@ -511,7 +531,14 @@ class PlayerService:
             ).order_by(order_by)
         elif order_by in ['pass_player', '-pass_player']:
             queryset = queryset.exclude(user__is_staff=True).annotate(
-                pass_player=Coalesce(Sum('summary_player__pass_player', filter=date_filter), Value(0))
+                pass_player=Coalesce(
+                    Subquery(
+                        subquery.values('player')
+                        .annotate(total=Sum('pass_player'))
+                        .values('total')[:1]
+                    ),
+                    Value(0, output_field=IntegerField())
+                )
             ).order_by(order_by)
             
         result_page = paginator.paginate_queryset(queryset, request)
