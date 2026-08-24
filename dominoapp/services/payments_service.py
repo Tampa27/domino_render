@@ -14,7 +14,7 @@ from dominoapp.utils.transactions import create_reload_transactions, create_extr
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
-from dominoapp.utils.payment_utils import validate_tranfer
+from dominoapp.utils.payment_utils import validate_tranfer, validate_promotion_movie
 from dominoapp.utils.whatsapp_help import get_whatsapp_extraction_text, get_whatsapp_reload_text
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.connectors.paypal_connector import PayPalConnector
@@ -1218,9 +1218,10 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
 
         ## Validar que sea una vez al dia
-        if player.promotion_movie:
+        valid, error = validate_promotion_movie(player)
+        if not valid:
             return Response(
-                data={'status': 'error', "message":'Ya has utilizado esta promoción hoy.'},
+                data={'status': 'error', "message":error},
                 status=status.HTTP_409_CONFLICT
             )
 
