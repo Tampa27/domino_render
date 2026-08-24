@@ -57,7 +57,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             await self.notify_connected_players_count()
         except Exception as error:
             logger.error(f"Error al notificar numero de players en el lobby.\n Error: {error}")
-
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get("lobby")

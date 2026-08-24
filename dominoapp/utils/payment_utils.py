@@ -1,6 +1,8 @@
-import os
+import os, logging
 from datetime import datetime
 from dominoapp.models import Player, Transaction
+from django.utils import timezone
+logger = logging.getLogger('django')
 
 def validate_tranfer(from_user: Player, to_user: Player, amount:int):
     """Verificar si se puede hacer la transferencia o no. Requisitos:\n
@@ -39,4 +41,19 @@ def validate_tranfer(from_user: Player, to_user: Player, amount:int):
     if total_transaction >= int(TRANSFER_PER_DAY):
         return False, f"Haz excedido el máximo de {TRANSFER_PER_DAY} transferencias por día."
     
+    return True, None
+
+def validate_promotion_movie(player: Player):
+    now = timezone.now().replace(hour=0,minute=0, second=0)
+    transactions_number = Transaction.objects.filter(to_user__id=player.id, type = "pro_mov", time__gte = now).count()
+
+    try:
+        MAX_PROMOTION_BY_DAY = int(os.getenv("MAX_PROMOTION_BY_DAY", 1))
+    except Exception as error:
+        logger.error(f"Error en la configuracion del MAXIMO DE PROMOCIONES POR DIA. Error: {error}")
+        MAX_PROMOTION_BY_DAY = 1
+
+    if transactions_number > MAX_PROMOTION_BY_DAY:
+        return False, "Supero el número de Promociones permitidas en un día."
+
     return True, None
