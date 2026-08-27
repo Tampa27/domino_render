@@ -649,3 +649,71 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
             return Response(data={
                 "status": 'error',
                 'message': str(e)}, status=409)
+
+    @extend_schema(
+        operation_id="payment_google",
+        request = {
+            "application/json": inline_serializer(
+                name="Payment Google Request",
+                fields={
+                    "token": CharField(required=True),
+                    "coins": IntegerField(required=True),
+                    "pay": IntegerField(required=False),
+                    "player_id": IntegerField(required=True)
+                }
+            )
+        },
+        responses={
+            200: inline_serializer(
+                name="Payment Google Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "message": CharField(required=False)
+                    },
+            ),
+            401: inline_serializer(
+                name="Error 401 Unauthorized",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            403: inline_serializer(
+                name="Error 403 Forbidden",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Error 404 Not Found",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Error 409 Conflict",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            )
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def payment_google(self, request):
+        try:
+            is_valid, message, status_response = PaymentRequest.validate_payment_google(request)
+            
+            if not is_valid:
+                return Response(data ={
+                    "status":'error',
+                    "message": message
+                }, status = status_response)
+            
+            return PaymentService.process_payment_google(request)        
+        except Exception as e:
+            return Response(data={
+                "status": 'error',
+                'message': str(e)}, status=409)

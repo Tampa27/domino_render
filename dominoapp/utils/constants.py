@@ -134,13 +134,15 @@ class TransactionPaymentMethod:
     PAYMENT_BY_TRANSFERENCIA = ("transferencia", "transferencia")
     PAYMENT_BY_PAYPAL = ("paypal", "pago por paypal")
     PAYMENT_BY_ZELLE = ("zelle", "pago por zelle")
+    PAYMENT_BY_GOOGLE = ("google", "pago por google")
     
 
     payment_choices = [
         PAYMENT_BY_SALDO,
         PAYMENT_BY_TRANSFERENCIA,
         PAYMENT_BY_PAYPAL,
-        PAYMENT_BY_ZELLE
+        PAYMENT_BY_ZELLE,
+        PAYMENT_BY_GOOGLE
     ]
 
 class TransactionTypes:
