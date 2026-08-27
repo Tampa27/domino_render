@@ -43,7 +43,7 @@ def procesar_logica_de_mesa(game_id: int):
             # Lógica de la función automatic_restar_game 
             # pero usando la instancia 'game' que ya tenemos
             try:
-                if (game.status == 'fg' and game.perPoints == False) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
+                if (game.status == 'fg' and (game.perPoints == False and game.max_datas==0 and game.max_coins==0)) or game.status == 'fi' or (game .status == 'fg' and game.in_tournament):
                     try:
                         restargame = True
                         lock_table_modification(game.id, timeout=9)
