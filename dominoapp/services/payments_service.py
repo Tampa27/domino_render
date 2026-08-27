@@ -1210,10 +1210,13 @@ class PaymentService:
     def process_promotion_movies(request):
 
         try:
-            player = Player.objects.get(id=request.data["player_id"])
+            player = Player.objects.get(user__id = request.user.id)
         except Player.DoesNotExist:
-            return Response(data={'status': 'error', "message":'Player not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={'status': 'error', "message":'Debe iniciar seción y vuelva a intentar'}, status=status.HTTP_401_UNAUTHORIZED)
 
+        if player.id != request.data["player_id"]:
+            return Response(data={'status': 'error', "message":'No tienes permitido realizar esta operación.'}, status=status.HTTP_401_UNAUTHORIZED)
+        
         if player.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
 
@@ -1269,4 +1272,81 @@ class PaymentService:
             )
         
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def process_payment_google(request):
+
+        try:
+            player = Player.objects.get(user__id = request.user.id)
+        except Player.DoesNotExist:
+            return Response(data={'status': 'error', "message":'Debe iniciar seción y vuelva a intentar'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if player.id != request.data["player_id"]:
+            return Response(data={'status': 'error', "message":'No tienes permitido realizar esta operación.'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if player.is_block:
+            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+
+        ## validar que el token es correcto
+        secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2025")
+        text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
+        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
+
+        token = request.data.get("token", None)
+        
+        if not token or token != token_hash_sha256:
+            logger.critical(f"Error en el token para realizar el pago desde Google de {request.data["coins"]} monedas.\n player: {player.alias}")
+            return Response(data={'status': 'error', "message":'Token no valido. Vuelva a intentar.'}, status=status.HTTP_403_FORBIDDEN)        
+
+        player.recharged_coins+= int(request.data["coins"])
+        player.save(update_fields=["recharged_coins"])
+
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.buy_coins+=int(request.data["coins"])
+        bank.save(update_fields=['buy_coins'])
+        
+        new_transaction = create_reload_transactions(
+            amount= int(request.data["coins"]),
+            to_user= player,
+            status="cp",
+            paymentmethod="google",
+            descriptions=f"El player {player.alias} ha comprado {request.data['coins']} monedas desde google."
+        )
+
+        payment = Payment.objects.create(
+            transaction = new_transaction,
+            user = player,
+            amount = int(request.data["pay"]),
+            paid_time = datetime.now(),
+            currency = "USD"
+        )
+        status_payment = Status_Payment.objects.create(
+            status = "paid"
+        )
+        payment.status_list.add(status_payment)
+        
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
+            {
+                'player': player.alias,
+                "amount": request.data['coins'],
+                "pay": request.data.get('pay', None),
+                "paymentmethod": "google",
+                'admin': None
+            }
+        )
+
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Nueva Recarga en Domino Club",
+            body = f"{player.name} usted ha recargado su cuenta en Domino Club con {request.data['coins']} monedas."
+        )
+        
+        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+    
+
     
