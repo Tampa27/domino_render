@@ -1210,13 +1210,10 @@ class PaymentService:
     def process_promotion_movies(request):
 
         try:
-            player = Player.objects.get(user__id = request.user.id)
+            player = Player.objects.get(id = request.data["player_id"])
         except Player.DoesNotExist:
             return Response(data={'status': 'error', "message":'Debe iniciar seción y vuelva a intentar'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if player.id != request.data["player_id"]:
-            return Response(data={'status': 'error', "message":'No tienes permitido realizar esta operación.'}, status=status.HTTP_401_UNAUTHORIZED)
-        
         if player.is_block:
             return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
 
