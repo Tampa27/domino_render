@@ -52,7 +52,9 @@ class PayPalConnector:
                     },
                 "application_context": {
                     "user_action": "PAY_NOW",
-                    "brand_name": "DOMINO_CLUB"
+                    "brand_name": "DOMINO_CLUB",
+                    "return_url": "com.amg.dominoclubar://paypalpay",
+                    "cancel_url": "com.amg.dominoclubar://paypalpay"
                 }
             })
             paypal_client = PayPalConnector.get_client()
