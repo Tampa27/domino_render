@@ -567,6 +567,23 @@ def automaticCoupleStarter(game:DominoGame):
         if time_diff1.seconds > ApiConstants.AUTO_WAIT_PATNER:
             game_tools.setWinnerStarterNext1(game,next,next,next)
             game.save(update_fields=["starter", "winner", "next_player", "start_time"])
+            try:
+                count_key = get_count_and_up(game.id)
+                transaction.on_commit(lambda ck=count_key: send_ws_notification(
+                    game_id= game.id,
+                    payload={
+                        "a": WSActions.STARTER_CHANGE,
+                        "cg": ck,
+                        "d": {
+                            "st": game.status,
+                            "str": game.starter,
+                            "w": game.winner,
+                            "np": game.next_player
+                        } 
+                    }
+                ))
+            except Exception as error:
+                logger.error(f"Error enviando el WS en el SetStarter. Error: {error}")
     except Exception as e:
         logger.critical(f"Error en la seleccion del salidor automatico en la mesa {game.id}, error: {str(e)}")
 
