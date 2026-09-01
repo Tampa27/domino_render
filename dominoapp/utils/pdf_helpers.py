@@ -108,6 +108,12 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
     pdf.cell(65, 8,"Promedio de extracciones diarias:" , border=border, align='L', fill=0)
     pdf.cell(20, 8, str(transaction_data["mean_ext"]), border=border, align='C', fill=0)
 
+    ## Total de Premios entregados
+    current_y = pdf.get_y() + 8
+    pdf.set_xy(current_x_1,current_y)
+    pdf.cell(45, 8,"Total de Premios:" , border=border, align='L', fill=0)
+    pdf.cell(20, 8, str(transaction_data["total_reward"]), border=border, align='C', fill=0)
+
     ## Monto total en ingreso
     current_y = pdf.get_y() + 20
     pdf.set_xy(current_x_1,current_y)
@@ -130,6 +136,18 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
     pdf.set_xy(current_x_2,current_y)
     pdf.cell(55, 8,"Cantidad Recargas USD:" , border=border, align='L', fill=0)
     pdf.cell(15, 8, f"{transaction_data['total_rl_USD']}", border=border, align='C', fill=0)
+
+    # Monto Entregado en Premios
+    current_y = pdf.get_y() + 8
+    pdf.set_xy(current_x_1,current_y)
+    pdf.cell(55, 8,"Pagos por Premios:" , border=border, align='L', fill=0)
+    pdf.cell(40, 8, f"{transaction_data['total_amount_reward']} CUP", border=border, align='C', fill=0)
+
+    # Cantidad de Promociones Vistas
+    pdf.set_xy(current_x_2,current_y + 2)
+    pdf.cell(55, 8,"Promociones Vistas:" , border=border, align='L', fill=0)
+    pdf.cell(15, 8, f"{transaction_data['total_pro_mov']}", border=border, align='C', fill=0)
+
 
 
     current_y = pdf.get_y() + 20

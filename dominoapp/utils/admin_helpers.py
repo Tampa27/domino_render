@@ -18,7 +18,7 @@ class AdminHelpers:
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
         ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='cp').exclude(type__in =['gm','pro','tr','rw'])
+        ).filter(latest_status_name='cp').exclude(type__in =['gm','pro','tr'])
         queryset_total = queryset.count()
         if queryset_total == 0:
             messages.warning(request, f"No se ha seleccionado ninguna transaccion de recarga o extraccion")
@@ -60,9 +60,12 @@ class AdminHelpers:
                 "total_amount_rl": 0,
                 "total_amount_rl_USD": 0,
                 "total_amount_ext": 0,
+                "total_amount_reward": 0,
                 "total_rl": 0,
                 "total_rl_USD": 0,
+                "total_pro_mov": 0,
                 "total_ext": 0,
+                "total_reward": 0,
                 "balance_amount": 0,
                 "game_amount": 0,
                 "mean_rl": "--",
@@ -84,9 +87,13 @@ class AdminHelpers:
             transaction_data["total_amount_rl_USD"] += total_amount_rl_USD
             del total_amount_rl_USD
 
-            total_amount_ext = queryset_chunk.filter(type ='ex').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
+            total_amount_ext = queryset_chunk.filter(type__in =['ex', 'rw']).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
             transaction_data["total_amount_ext"] += total_amount_ext
             del total_amount_ext
+
+            total_amount_reward = queryset_chunk.filter(type ='rw').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
+            transaction_data["total_amount_reward"] += total_amount_reward
+            del total_amount_reward
             
             total_rl = queryset_chunk.filter(type ='rl').exclude(paymentmethod__in=["paypal", "zelle", "google"]).count()
             transaction_data["total_rl"] += total_rl
@@ -95,10 +102,18 @@ class AdminHelpers:
             total_rl_USD = queryset_chunk.filter(type ='rl', paymentmethod__in=["paypal", "zelle", "google"]).count()
             transaction_data["total_rl_USD"] += total_rl_USD
             del total_rl_USD
+
+            total_pro_mov = queryset_chunk.filter(type ='pro_mov').count()
+            transaction_data["total_pro_mov"] += total_pro_mov
+            del total_pro_mov
             
-            total_ext = queryset_chunk.filter(type = 'ex').count()
+            total_ext = queryset_chunk.filter(type__in = ['ex', 'rw']).count()
             transaction_data["total_ext"] += total_ext
             del total_ext
+
+            total_reward = queryset_chunk.filter(type = 'rw').count()
+            transaction_data["total_reward"] += total_reward
+            del total_reward
             
             num_days += (queryset_chunk.last().time - queryset_chunk.first().time).days
             total_amount_loss_in_game = queryset_chunk.filter(type ='gm').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
@@ -150,7 +165,7 @@ class AdminHelpers:
         for day in transaction_data["graph"]["days"]:
             to_day = first_day + timedelta(days=day)
             reload = queryset.filter(type="rl").exclude(paymentmethod__in=["paypal", "zelle", "google"]).filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            extraction = queryset.filter(type ='ex').filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
+            extraction = queryset.filter(type__in =['ex', 'rw']).filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
             transaction_data["graph"]["reload"].append(reload)
             transaction_data["graph"]["extraction"].append(extraction)
             transaction_data["graph"]["balance"].append(reload - extraction)
