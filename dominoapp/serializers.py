@@ -109,6 +109,15 @@ class TournamentWinSerializer(serializers.ModelSerializer):
             "place_in_tournament"
         ]
 
+class PlayerWinnerTournament(serializers.ModelSerializer):
+    class Meta:
+        model = Player
+        fields = [
+            "id",
+            "name",
+            "photo_url"
+        ]
+
 class PlayerRetrieveSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField(read_only = True)
     unread_notification = serializers.SerializerMethodField(read_only = True)
@@ -854,6 +863,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
     number_player = serializers.SerializerMethodField()
     start_at = serializers.SerializerMethodField()
     deadline = serializers.SerializerMethodField()
+    winners = serializers.SerializerMethodField(help_text="Lista de Players ganadores del Torneo")
     
     def get_number_player(self, obj:Tournament):
         return obj.player_list.all().count()
@@ -869,6 +879,34 @@ class TournamentListSerializer(serializers.ModelSerializer):
         if obj.deadline:
             return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
+
+    def get_winners(self, obj: Tournament)-> PlayerWinnerTournament:
+        winners = []
+        if obj.place_content_type.model == "pair":
+            if obj.first_place:
+                pair = obj.first_place
+                winners.append(
+                    {
+                        "name": pair.player1.name,
+                        "photo_url": pair.player1.photo_url
+                    }
+                )
+                winners.append(
+                    {
+                        "name": pair.player2.name,
+                        "photo_url": pair.player2.photo_url
+                    }
+                )
+        if obj.place_content_type.model == "player":
+            if obj.first_place:
+                player = obj.first_place
+                winners.append(
+                    {
+                        "name": player.name,
+                        "photo_url": player.photo_url
+                    }
+                )          
+        return winners
 
     class Meta:
         model = Tournament
@@ -890,7 +928,8 @@ class TournamentListSerializer(serializers.ModelSerializer):
             "max_player",
             "number_match_win",
             "number_player",
-            "player_list"
+            "player_list",
+            "winners"
         ]
 
 class TournamentCreateSerializer(serializers.ModelSerializer):
