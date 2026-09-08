@@ -135,7 +135,7 @@ class Command(BaseCommand):
                     FCMNOTIFICATION.send_fcm_message(
                         user=summary_win.user,
                         title="¡Felicidades!",
-                        body=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 10 días para reclamar tu premio."
+                        body=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 7 días para reclamar tu premio."
                     )
                     
                     admin_phone = os.environ.get('ADMIN_PHONE', None)
@@ -156,7 +156,7 @@ class Command(BaseCommand):
                     Notification.objects.create(
                         player=summary_win,
                         title="¡Felicidades!",
-                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 10 días para reclamar tu premio.",
+                        message=f"Has ganado un premio por ser el {reward.place}° lugar con más {types} en {'la última semana' if reward.date_of_week is not None else 'el último mes'}. Tienes 7 días para reclamar tu premio.",
                         whatsapp_url=whatsapp_url
                     )
 
