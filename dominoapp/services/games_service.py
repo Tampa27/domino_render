@@ -571,10 +571,12 @@ class GameService:
                 except:
                     return Response(data={"status":"error","message":"Player no encontrado en esta mesa. Debe autenticarse."}, status=status.HTTP_404_NOT_FOUND)
 
-                if (game.status in ["ru","fi"] and player.isPlaying) and (game.perPoints or game.max_coins > 0 or game.max_datas > 0):
+                if (game.status in ["ru","fi"] and player.isPlaying) and game.perPoints:
                     have_points = game_tools.havepoints(game)
                     if have_points:
                         return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
+                elif (game.status in ["ru","fi"] and player.isPlaying) and (game.max_coins > 0 or game.max_datas > 0):
+                    return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
                 elif game.status in ["ru"] and player.isPlaying:
                     return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
                 
