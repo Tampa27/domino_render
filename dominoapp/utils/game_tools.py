@@ -74,7 +74,7 @@ def startGame1(game: DominoGame, players: list[Player]):
         }        
         
         # 6. Lógica de puntos y contadores de juegos completados
-        if game.perPoints and game.status in ("ready", "fg"):
+        if (game.perPoints or game.max_coins>0 or game.max_datas>0) and game.status in ("ready", "fg"):
             game.scoreTeam1 = 0
             game.scoreTeam2 = 0
             game.rounds = 0
@@ -128,12 +128,6 @@ def startGame1(game: DominoGame, players: list[Player]):
 
     except Exception as e:
         logger_discord.critical(f"Error crítico en startGame1, Error: {str(e)}, time: {(timezone.now() - start_time).total_seconds()} segundos")
-
-def some_player_new(players: list[Player]):
-    for player in players:
-        if player.start_coins == 0:
-            return True
-    return False
 
 def movement(game: DominoGame, player: Player, players: list[Player], tile: str, automatic=False):
     n = len(players)
@@ -211,7 +205,7 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
     if game.status in ["fg", "fi"]:
         socket_payload["d"]["w"] = game.winner
         socket_payload["d"]["str"] = game.starter
-        if game.perPoints:
+        if (game.perPoints or game.max_datas>0 or game.max_coins>0):
             socket_payload["d"]["r"] = game.rounds
             socket_payload["d"]["st1"] = game.scoreTeam1
             socket_payload["d"]["st2"] = game.scoreTeam2
@@ -321,7 +315,7 @@ def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n:
         game.starter = (game.starter + 1) % n
         game.next_player = game.starter
 
-    if game.perPoints:
+    if (game.perPoints or game.max_datas or game.max_coins):
         game.rounds += 1
         # Actualización atómica de Match_Game si aplica
         if game.in_tournament:
@@ -355,7 +349,7 @@ def handle_closed_game(game: DominoGame, players: list[Player], winner: int, n: 
             game.starter = (game.starter + 1) % n
             game.next_player = game.starter        
 
-    if game.perPoints:
+    if (game.perPoints or game.max_coins>0 or game.max_datas>0):
         game.rounds += 1
         if game.in_tournament:
             Match_Game.objects.filter(game__id=game.id).update(count_game=F('count_game') + 1)
@@ -694,8 +688,8 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
         have_points = havepoints(game)
         
         # ¿Debe pagar por abandonar?
-        game_running = not game.perPoints and game.board != ""  ## En los juegos sin puntos, penalizamos si ya se han jugado fichas (evita penalizar abandonos tempranos)
-        game_per_points = game.perPoints and have_points  ## En los juegos por puntos, solo penalizamos si ya se han anotado puntos (evita penalizar abandonos tempranos)
+        game_running = not (game.perPoints or game.max_coins>0 or game.max_datas>0) and game.board != ""  ## En los juegos sin puntos, penalizamos si ya se han jugado fichas (evita penalizar abandonos tempranos)
+        game_per_points = (game.perPoints or game.max_coins>0 or game.max_datas>0) and have_points  ## En los juegos por puntos, solo penalizamos si ya se han anotado puntos (evita penalizar abandonos tempranos)
         ## Verificamos si el juego esta en progreso, con status fi (fin de una data) o ru (en juego) pero solo si es por puntos y ya se anotaron puntos, o si es sin puntos y la mesa aun esta sin fichas
         game_in_progress = (game.status == "fi" or (game.status == "ru" and (game_per_points or game_running)))
         ## Debe pagar si el juego esta en progreso, y tiene valores de pago, y no es por inactividad (para evitar penalizar a los que se van por timeout)
@@ -775,12 +769,6 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
         elif totalPlayers > 2 and not game.inPairs and game.status == "fg":
             if game.winner < DominoGame.Tie_Game and game.winner > pos:
                 game.winner -= 1
-
-        if game.min_fee > 0:
-            for player_in in players:
-                if player_in.isPlaying or player_in.start_coins > 0:
-                    player_in.start_coins = 0
-                    player_in.save(update_fields=['start_coins'])
         
     else:
         if totalPlayers <= 2 or game.inPairs:
@@ -793,13 +781,14 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
     
     now = timezone.now()
     player.points = 0
+    player.start_coins = 0
     player.isPlaying = False # Marcar como ya no jugando
     player.tiles = ""
     player.lastTimeInGame = now
     player.lastTimeInSystem = now
     
     # Guardado final de objetos
-    player.save(update_fields=['points', 'tiles', 'isPlaying', 'earned_coins', 'recharged_coins', 'lastTimeInGame', 'lastTimeInSystem'])
+    player.save(update_fields=['points', 'start_coins', 'tiles', 'isPlaying', 'earned_coins', 'recharged_coins', 'lastTimeInGame', 'lastTimeInSystem'])
     game.save(update_fields=['player1', 'player2', 'player3', 'player4', 'status', 'starter', 'winner', 'board'])
     
     try:
@@ -864,20 +853,48 @@ def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_po
     
     # Actualizamos los objetos en memoria por si se usan después en esta misma función
     for i in team_indices:
-        players[i].points += sum_points
+        if game.max_coins > 0:
+            players[i].points = (players[i].total_coins - players[i].start_coins)
+        elif game.max_datas > 0:
+            players[i].points += 1
+        else:
+            players[i].points += sum_points
         players[i].save(update_fields=['points'])
 
     # 3. Actualizar score del juego en memoria
     if is_team_1:
-        game.scoreTeam1 += sum_points
+        if game.max_datas:
+            game.scoreTeam1 += 1
+        elif game.max_coins:
+            game.scoreTeam1 = players[0].total_coins + players[2].total_coins - players[0].start_coins - players[2].start_coins
+        else:
+            game.scoreTeam1 += sum_points
     else:
-        game.scoreTeam2 += sum_points
+        if game.max_datas:
+            game.scoreTeam2 += 1
+        elif game.max_coins:
+            game.scoreTeam2 = players[1].total_coins + players[3].total_coins - players[1].start_coins - players[3].start_coins
+        else:
+            game.scoreTeam2 += sum_points
+        
 
     # 4. Lógica de finalización de juego
-    if game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore:
+    end_game = False
+    if game.max_datas > 0:
+        end_game = game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore
+    if game.max_coins > 0:
+        end_game = game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore
+    else:
+        end_game = game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore
+
+    if end_game:
         game.status = "fg"
         game.start_time = timezone.now()
-        game.winner = DominoGame.Winner_Couple_1 if game.scoreTeam1 >= game.maxScore else DominoGame.Winner_Couple_2
+
+        if (game.perPoints and game.scoreTeam1 >= game.maxScore) or (game.max_coins>0 and game.scoreTeam1 >= game.max_coins) or (game.max_datas>0 and game.scoreTeam1 >= game.max_datas):
+            game.winner = DominoGame.Winner_Couple_1
+        else:
+            game.winner = DominoGame.DominoGame.Winner_Couple_2
         
         # Optimización de Torneo: Update directo sin traer el objeto a memoria
         if game.in_tournament:
@@ -916,11 +933,21 @@ def updateAllPoints(game: DominoGame, players: list[Player], winner: int, bank_d
     else:
         # Actualización atómica del jugador individual
         winner_player = players[winner]
-        winner_player.points += sum_points
+        if game.max_coins>0:
+            winner_player.points = (winner_player.total_coins - winner_player.start_coins)
+        elif game.max_datas>0:
+            winner_player.points += 1
+        else:
+            winner_player.points += sum_points
         winner_player.save(update_fields=['points'])
         
         # Determinar estado final
-        is_final_game = winner_player.points >= game.maxScore
+        if game.max_coins>0:
+            is_final_game = winner_player.points >= game.max_coins
+        elif game.max_datas>0:
+            is_final_game = winner_player.points >= game.max_datas
+        else:
+            is_final_game = winner_player.points >= game.maxScore
         game.status = "fg" if is_final_game else "fi"
         
         # Llamada única a updatePlayersData
@@ -1062,10 +1089,10 @@ def shuffle(game:DominoGame, players:list[Player]):
         player.tiles = ""
         if game.status !="fi":
             player.isPlaying = True
-            if game.min_fee > 0 and some_player_new(players):
-                player.start_coins = player.total_coins
-        if game.perPoints and (game.status =="ready" or game.status =="fg"):
+        if (game.perPoints or game.max_datas>0 or game.max_coins>0) and (game.status =="ready" or game.status =="fg"):
             player.points = 0
+            if game.max_coins > 0:
+                player.start_coins = player.total_coins
             
         for j in range(max):
             player.tiles+=tiles[i*max+j]
@@ -1199,8 +1226,10 @@ def get_game_coins(game: DominoGame)->int:
         game.payPassValue
         )
 
-    if game.min_fee > 0:
-        min_amount = game.min_fee
+    if game.max_coins > 0:
+        min_amount = game.max_coins
+    if game.max_datas > 0:
+        min_amount = min_amount*game.max_datas
     
     return min_amount
 
@@ -1211,11 +1240,7 @@ def ready_to_play(game: DominoGame, player: Player)->bool:
     
     min_amount = get_game_coins(game)
     
-    if player.total_coins >= min_amount and game.min_fee == 0:
-        return True
-    elif game.min_fee > 0 and player.start_coins > 0 and abs(player.total_coins - player.start_coins) < game.min_fee:
-        return True
-    elif game.min_fee > 0 and player.start_coins >= 0 and player.total_coins > game.min_fee:
+    if player.total_coins >= min_amount:
         return True
     
-    return False   
+    return False
