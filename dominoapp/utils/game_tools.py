@@ -315,7 +315,7 @@ def handle_game_win(game: DominoGame, players: list[Player], winner_idx: int, n:
         game.starter = (game.starter + 1) % n
         game.next_player = game.starter
 
-    if (game.perPoints or game.max_datas or game.max_coins):
+    if (game.perPoints or game.max_datas>0 or game.max_coins>0):
         game.rounds += 1
         # Actualización atómica de Match_Game si aplica
         if game.in_tournament:
@@ -452,7 +452,12 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                 bank_data['game_coins'] = bank_data.get('game_coins', 0) + bank_fee
                 player.earned_coins += player_net
                 summ['earned_coins'] = summ.get('earned_coins', 0) + player_net
-                
+
+                ## Actualizo los puntos si es por monedas el juego
+                if game.max_coins>0:
+                    player.points = (player.total_coins - player.start_coins)
+                    game.status = "fg" if player.points >= game.max_coins else "fi"
+
                 # Transacción única por premio total
                 p_data['transaction'] = {
                     'to_user': True, 
@@ -479,6 +484,11 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                         player.earned_coins = 0
                     
                     summ['loss_coins'] = summ.get('loss_coins', 0) + total_loss
+
+                    ## Actualizo los puntos si es por monedas el juego
+                    if game.max_coins>0:
+                        player.points = (player.total_coins - player.start_coins)
+
                     p_data['transaction'] = {
                         'from_user': True,
                         'amount': total_loss,
@@ -490,7 +500,20 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
 
     # 4. PERSISTENCIA MASIVA (El gran ahorro de tiempo)
     for p in players_to_update:
-        p.save(update_fields=['earned_coins', 'recharged_coins'])
+        if game.max_coins>0:
+            p.save(update_fields=['earned_coins', 'recharged_coins', 'points'])
+        else:
+            p.save(update_fields=['earned_coins', 'recharged_coins'])
+
+    if game.inPairs and game.max_coins>0:
+        if [0,2] in winners_idx:
+            game.scoreTeam1 = players[0].total_coins + players[2].total_coins - players[0].start_coins - players[2].start_coins
+            game.status = "fg" if game.scoreTeam1 >= game.max_coins else "fi"
+        else:
+            game.scoreTeam2 = players[1].total_coins + players[3].total_coins - players[1].start_coins - players[3].start_coins
+            game.status = "fg" if game.scoreTeam2 >= game.max_coins else "fi"
+
+        is_final_game = (status == "fg")
     
     # 5. Actualización de ELO (al final de la transacción)
     if is_final_game:
@@ -863,16 +886,16 @@ def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_po
 
     # 3. Actualizar score del juego en memoria
     if is_team_1:
-        if game.max_datas:
+        if game.max_datas > 0:
             game.scoreTeam1 += 1
-        elif game.max_coins:
+        elif game.max_coins > 0:
             game.scoreTeam1 = players[0].total_coins + players[2].total_coins - players[0].start_coins - players[2].start_coins
         else:
             game.scoreTeam1 += sum_points
     else:
-        if game.max_datas:
+        if game.max_datas > 0:
             game.scoreTeam2 += 1
-        elif game.max_coins:
+        elif game.max_coins > 0:
             game.scoreTeam2 = players[1].total_coins + players[3].total_coins - players[1].start_coins - players[3].start_coins
         else:
             game.scoreTeam2 += sum_points

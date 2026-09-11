@@ -7,7 +7,7 @@ from django.db.utils import DatabaseError
 from django.db import transaction
 from django.conf import settings
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round, Tournament
-from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGameSerializer, PlayerOnListGameSerializer
+from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGameSerializer, PlayerOnListGameSerializer, GameValidateCreateSerializer
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
@@ -236,7 +236,7 @@ class GameService:
         data["lastTime1"] = now
         data["player1"] = player1.id
         
-        game_serializer = GameSerializer(data = data)
+        game_serializer = GameValidateCreateSerializer(data = data)
         try:
             game_serializer.is_valid(raise_exception=True)
             game: DominoGame =  game_serializer.save()
@@ -285,8 +285,8 @@ class GameService:
         except Exception as error:
             logger.error(f"Error enviando el ws del lobby en el create game. Error: {error}")
 
-
-        return Response({'status': 'success', "game":game_serializer.data}, status=200)
+        game_response = GameSerializer(game)
+        return Response({'status': 'success', "game":game_response.data}, status=200)
     
     @staticmethod
     def process_join(request, game_id):
