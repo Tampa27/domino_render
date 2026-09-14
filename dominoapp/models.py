@@ -467,6 +467,8 @@ class Round(models.Model):
             # Optimiza: Round.objects.filter(tournament__id=tournament.id).order_by("-round_no")
             models.Index(fields=['tournament', '-round_no'], name='idx_round_tourn_no'),
         ]
+
+        ordering = ["id"]
     
 class Match_Game(models.Model):
     game = models.ForeignKey(DominoGame, related_name="match_game", on_delete=models.SET_NULL, null=True, blank=True)

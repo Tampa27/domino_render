@@ -917,7 +917,7 @@ def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_po
         if (game.perPoints and game.scoreTeam1 >= game.maxScore) or (game.max_coins>0 and game.scoreTeam1 >= game.max_coins) or (game.max_datas>0 and game.scoreTeam1 >= game.max_datas):
             game.winner = DominoGame.Winner_Couple_1
         else:
-            game.winner = DominoGame.DominoGame.Winner_Couple_2
+            game.winner = DominoGame.Winner_Couple_2
         
         # Optimización de Torneo: Update directo sin traer el objeto a memoria
         if game.in_tournament:
@@ -1250,7 +1250,7 @@ def get_game_coins(game: DominoGame)->int:
         )
 
     if game.max_coins > 0:
-        min_amount = game.max_coins
+        min_amount = max(game.max_coins, min_amount)
     if game.max_datas > 0:
         min_amount = min_amount*game.max_datas
     
