@@ -140,7 +140,7 @@ class PaymentService:
             body = f"{player.name} usted ha recargado su cuenta en Domino Club con {recharged_coins} monedas."
             )
         
-        if player.parent is not None and not player.reward_granted:
+        if player.parent is not None and not player.reward_granted and player.parent.provider != ApiConstants.Provider.GOOGLE.value[0]:
             try:
                 player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
                 player.parent.save(update_fields=["earned_coins"])
@@ -661,7 +661,7 @@ class PaymentService:
         player.recharged_coins+= recharged_coins
         player.save(update_fields=["recharged_coins"])
                 
-        if player.parent is not None and not player.reward_granted:
+        if player.parent is not None and not player.reward_granted and player.parent.provider != ApiConstants.Provider.GOOGLE.value[0]:
             try:
                 player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
                 player.parent.save(update_fields=["earned_coins"])
@@ -835,7 +835,7 @@ class PaymentService:
                 new_status = Status_Transaction.objects.create(status = 'cp')
                 transaction.status_list.add(new_status)
 
-                if player.parent is not None and not player.reward_granted:
+                if player.parent is not None and not player.reward_granted and player.parent.provider != ApiConstants.Provider.GOOGLE.value[0]:
                     try:
                         try:
                             bank = Bank.objects.all().first()

@@ -14,7 +14,7 @@ from datetime import datetime
 from fcm_django.models import FCMDevice
 from dominoapp.models import Player, DominoGame, BlockPlayer, AppVersion, ReferralPlayers, SummaryPlayer, Notification, Manager
 from dominoapp.serializers import PlayerSerializer, PlayerLoginSerializer, PlayerRankinSerializer, PlayerNotificationSerializer, \
-    PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer, Notification
+    PlayerRetrieveSerializer, PlayerConfigSerializer, PlayerPersonalRankinSerializer, Notification, Bank
 from dominoapp.connectors.google_verifier import GoogleTokenVerifier
 from dominoapp.connectors.huawei_verifier import HuaweiTokenVerifier
 from dominoapp.connectors.discord_connector import DiscordConnector
@@ -159,6 +159,46 @@ class PlayerService:
                         if referral_model:
                             player.parent = referral_model
                             player.save(update_fields=['parent'])
+                        
+                            if user_login_data["client"] == "google_pay" and referral_model.provider == ApiConstants.Provider.GOOGLE.value[0] and not player.reward_granted:
+                                try:
+                                    player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
+                                    player.parent.save(update_fields=["earned_coins"])
+                    
+                                    player.reward_granted = True
+                                    player.save(update_fields=["reward_granted"])
+                    
+                                    create_promotion_transactions(
+                                        amount= int(ApiConstants.REFER_REWARD),
+                                        from_user=player,
+                                        to_user= player.parent,
+                                        status="cp",
+                                        descriptions=f"El player {player.parent.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
+                                    )
+
+                                    try:
+                                        bank = Bank.objects.all().first()
+                                    except:
+                                        bank = Bank.objects.create()
+                                    bank.promotion_coins+=int(ApiConstants.REFER_REWARD)
+                                    bank.save(update_fields=['promotion_coins'])
+                                    
+                                    FCMNOTIFICATION.send_fcm_message(
+                                        user = player.parent.user,
+                                        title = "Nueva Recarga en Domino Club",
+                                        body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                                    )
+                                    DiscordConnector.send_event(
+                                        "Promoción",
+                                        {
+                                            'player': str(player.parent.alias),
+                                            "amount": ApiConstants.REFER_REWARD,
+                                            "referred_user": str(player.alias)
+                                        }
+                                    )   
+                                except Exception as error:
+                                    logger.error(f"Error at pay promotion by referred user, exception={error}")
+
                     else:
                         hash_sha256 = get_device_hash(request)
                         print(f"SHA-256: {hash_sha256}")
@@ -170,9 +210,48 @@ class PlayerService:
                         if referral_model:
                             player.parent = referral_model.referrer_player
                             player.save(update_fields=['parent'])
-                            
-                            referral_model.delete()  # Elimina el modelo de referencia una vez usado      
+
+                            if user_login_data["client"] == "google_pay" and referral_model.referrer_player.provider == ApiConstants.Provider.GOOGLE.value[0] and not player.reward_granted:
+                                try:
+                                    player.parent.earned_coins += int(ApiConstants.REFER_REWARD)
+                                    player.parent.save(update_fields=["earned_coins"])
                     
+                                    player.reward_granted = True
+                                    player.save(update_fields=["reward_granted"])
+                    
+                                    create_promotion_transactions(
+                                        amount= int(ApiConstants.REFER_REWARD),
+                                        from_user=player,
+                                        to_user= player.parent,
+                                        status="cp",
+                                        descriptions=f"El player {player.parent.alias} ha ganado {ApiConstants.REFER_REWARD} por el referido {player.alias}."
+                                    )
+
+                                    try:
+                                        bank = Bank.objects.all().first()
+                                    except:
+                                        bank = Bank.objects.create()
+                                    bank.promotion_coins+=int(ApiConstants.REFER_REWARD)
+                                    bank.save(update_fields=['promotion_coins'])
+                                    
+                                    FCMNOTIFICATION.send_fcm_message(
+                                        user = player.parent.user,
+                                        title = "Nueva Recarga en Domino Club",
+                                        body = f"{player.parent.name} usted ha recibido una recarga en su cuenta de Domino Club con {ApiConstants.REFER_REWARD} monedas, por haber referenciado al player {player.name}."
+                                    )
+                                    DiscordConnector.send_event(
+                                        "Promoción",
+                                        {
+                                            'player': str(player.parent.alias),
+                                            "amount": ApiConstants.REFER_REWARD,
+                                            "referred_user": str(player.alias)
+                                        }
+                                    )   
+                                except Exception as error:
+                                    logger.error(f"Error at pay promotion by referred user, exception={error}")
+
+                            referral_model.delete()  # Elimina el modelo de referencia una vez usado
+
                     DiscordConnector.send_event(
                         ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_USER.key,
                         {
@@ -213,7 +292,7 @@ class PlayerService:
                 player.inactive_player = False
                 player.send_delete_email = False
                 player.provider = ApiConstants.Provider.GOOGLE.value[0] if user_login_data["client"] == "google_pay" else ApiConstants.Provider.WEB.value[0]
-                player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player', 'send_delete_email'])
+                player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player', 'send_delete_email', 'provider'])
 
                 # Para registrar un dispositivo
                 fcm_token = request.data.get("fcm_token")
