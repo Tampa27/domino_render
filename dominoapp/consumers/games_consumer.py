@@ -17,6 +17,17 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     def get_redis_key(self):
         return f"count_g_{self.game_id}"
+
+    def _presence_key(self):
+        """
+        Clave de presencia para este socket:
+        - Autenticado: 'u:<user_id>' (estable entre reconexiones del mismo user)
+        - Anónimo:     'c:<channel_name>' (única por conexión)
+        """
+        user = getattr(self, "user", None)
+        if user is not None and not user.is_anonymous:
+            return f"u:{user.id}"
+        return f"c:{self.channel_name}"
     
     async def connect(self):
 
@@ -25,27 +36,23 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         # ---- 1. Validaciones (sin efectos secundarios) ----
         subprotocols = self.scope.get("subprotocols", [])
-        if "access_token" not in subprotocols:
-            await self.close(code=4003, reason="El parámetro 'access_token' es obligatorio")
-            return
+        accepted_protocol = "access_token" if "access_token" in subprotocols else None
 
-        self.user = self.scope.get("user")
-        if self.user is None or self.user.is_anonymous:
-            await self.close(code=4003, reason="Debe autenticarse")
-            return
-
-        # ---- 2. Aceptar handshake ----
         try:
-            await self.accept(subprotocol="access_token")
+            await self.accept(subprotocol=accepted_protocol)
         except Exception as error:
             logger.error(f"Error al aceptar el WS del game {self.game_id}. Error: {error}")
             return
 
-        # ---- 3. Mutar presencia recién ahora ----
-        # Contador: game_id -> { user_id: num_conexiones }
+        self.user = self.scope.get("user")
+
+        # ---- 2. Mutar presencia recién ahora ----
+        # Estructura: game_id -> { presence_key: num_conexiones }
+        self.presence_key = self._presence_key()
+
         self.connected_players.setdefault(self.game_id, {})
-        self.connected_players[self.game_id][self.user.id] = (
-            self.connected_players[self.game_id].get(self.user.id, 0) + 1
+        self.connected_players[self.game_id][self.presence_key] = (
+            self.connected_players[self.game_id].get(self.presence_key, 0) + 1
         )
 
         # Unirse al grupo de la mesa
@@ -56,14 +63,14 @@ class GameConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get(self.game_id)
-        user = getattr(self, "user", None)
+        user = getattr(self, "presence_key", None)
     
-        if room_players and user is not None and not user.is_anonymous:
+        if room_players and user is not None:
             current = room_players.get(user.id, 0)
             if current <= 1:
-                room_players.pop(user.id, None)   # era su última conexión a esta mesa
+                room_players.pop(user, None)   # era su última conexión a esta mesa
             else:
-                room_players[user.id] = current - 1
+                room_players[user] = current - 1
 
             # Si ya no queda nadie en esta mesa (en este worker), limpiamos la llave
             if not room_players:
