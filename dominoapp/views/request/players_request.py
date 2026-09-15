@@ -1,5 +1,6 @@
 from rest_framework import status
 from dominoapp.utils.api_http import RequestValidator
+from dominoapp.utils.constants import ApiConstants
 
 class PlayerRequest:
 
@@ -146,7 +147,8 @@ class PlayerRequest:
             return is_valid, message, status_response
 
         validators = {
-            "fcm_token": RequestValidator.validate_text
+            "fcm_token": RequestValidator.validate_text,
+            "country": RequestValidator.validate_string_or_empty,
         }
         
         is_valid, message = RequestValidator.validate_params(request, validators)

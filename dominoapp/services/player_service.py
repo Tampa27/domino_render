@@ -212,6 +212,7 @@ class PlayerService:
                 player.lastTimeInSystem = timezone.now()
                 player.inactive_player = False
                 player.send_delete_email = False
+                player.provider = ApiConstants.Provider.GOOGLE.value[0] if user_login_data["client"] == "google_pay" else ApiConstants.Provider.WEB.value[0]
                 player.save(update_fields=['name', 'photo_url','lastTimeInSystem','inactive_player', 'send_delete_email'])
 
                 # Para registrar un dispositivo
@@ -265,7 +266,16 @@ class PlayerService:
             )
         except Exception as error:
             logger.error(f"Error creating FCM Device for user {request.user.username}, Error->: {str(error)}")
+
+        try:
+            ## Para registrar un pais
+            country = str(request.data.get("country", "")).lower()
+            if (country or country.strip() != "") and len(country) >= 2 and len(country) < 4:
+                Player.objects.filter(user__id = request.user.id).update(country = country)            
             
+        except Exception as error:
+            logger.error(f"Error updated country for user {request.user.username}, Error->: {str(error)}")
+
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     @staticmethod
@@ -366,7 +376,11 @@ class PlayerService:
             except Exception as error:
                 logger.error(f"Error creating referral player: {str(error)}")
                 pass
-            
+
+            if referrer_player.provider == ApiConstants.Provider.GOOGLE.value[0]:
+                url_google = os.getenv("PLAY_STORE_URL", None)
+                if url_google:
+                    return redirect(url_google)
         
         app = AppVersion.objects.first()
         if app and app.store_link:
