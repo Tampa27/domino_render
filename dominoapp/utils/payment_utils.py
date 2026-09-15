@@ -60,8 +60,8 @@ def validate_promotion_movie(player: Player):
 
 def get_coins_by_country(player: Player)-> int:
     coins = os.getenv("COINS_BY_MARKETIN", 0)
-    countries_1 = os.getenv("COINS_BY_MARKETIN", 0)
-    countries_2 = os.getenv("COINS_BY_MARKETIN", 0)
+    countries_1 = os.getenv("COUNTRIES_1", 0)
+    countries_2 = os.getenv("COUNTRIES_2", 0)
     if player.country in countries_1:
         coins = os.getenv("COINS_BY_MARKETIN_COUNTRIES_1", 0)
     elif player.country in countries_2:

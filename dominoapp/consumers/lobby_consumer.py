@@ -16,43 +16,35 @@ class LobbyConsumer(AsyncWebsocketConsumer):
     async def connect(self):
 
         self.room_group_name = f'lobby_group'
-        try:
-            # 1. Verificar si el usuario está autenticado
-            self.user = self.scope["user"]
-            
-            if self.user.is_anonymous:
-                # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
-                await self.close(code=4003, reason="Debe autenticarse")
-                return
-            
-            self.connected_players.setdefault("lobby", set()).add(self.channel_name)
-        except Exception as error:
-            logger.error(f"Error al autenticar en el lobby.\n Error: {error}")
-            await self.close(code=4003, reason="Algo falló en la autenticación. Vuelva a intentar.")
-            return        
-        
 
         # 1. Identificar si el cliente envió subprotocolos
         subprotocols = self.scope.get("subprotocols", [])
-
-        # 2. Elegir qué protocolo aceptar (si el cliente envió 'access_token')
-        accepted_protocol = None
-        if "access_token" in subprotocols:
-            accepted_protocol = "access_token"
-        else:
+        if "access_token" not in subprotocols:
             await self.close(code=4003, reason="El parámetro 'access_token' es obligatorio")
             return
+    
+        self.user = self.scope.get("user")
+        if self.user is None or self.user.is_anonymous:
+            await self.close(code=4003, reason="Debe autenticarse")
+            return
 
+        # ---- 2. Aceptar handshake ----
+        try:
+            await self.accept(subprotocol="access_token")
+        except Exception as error:
+            logger.error(f"Error al aceptar el WS del lobby, Error->: {error}")
+            return
 
-        # 3. Importante: Pasar el protocolo al método accept
-        await self.accept(subprotocol=accepted_protocol)
-
-        # Unirse al grupo de la mesa
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
+         # ---- 3. Recién aquí mutamos presencia ----
+        self.connected_players.setdefault("lobby", {})
+        self.connected_players["lobby"][self.user.id] = (
+            self.connected_players["lobby"].get(self.user.id, 0) + 1
         )
 
+        # Unirse al grupo del lobby
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
+        # ---- 5. Notificar ----
         try:
             await self.notify_connected_players_count()
         except Exception as error:
@@ -60,18 +52,18 @@ class LobbyConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get("lobby")
-    
-        if room_players is not None:
-            # Eliminamos el socket específico, no el objeto user
-            room_players.discard(self.channel_name)
-            
-            # 2. Si el set está vacío, es que ya no hay nadie en esta sala (en este worker)
+        user = getattr(self, "user", None)
+
+        if room_players and user is not None and not user.is_anonymous:
+            current = room_players.get(user.id, 0)
+            if current <= 1:
+                room_players.pop(user.id, None)   # era su última conexión
+            else:
+                room_players[user.id] = current - 1
+
+            # Si ya no queda nadie en el lobby de este worker, limpiamos la llave
             if not room_players:
-                redis_key = self.get_redis_key()
-                await self.channel_layer.connection(0).delete(redis_key)
-                # Limpiamos el diccionario para no dejar llaves huérfanas en memoria RAM
-                if "lobby" in self.connected_players:
-                    del self.connected_players["lobby"]
+                self.connected_players.pop("lobby", None)
         
         await self.channel_layer.group_discard(
             self.room_group_name,
@@ -119,7 +111,7 @@ class LobbyConsumer(AsyncWebsocketConsumer):
 
     async def notify_connected_players_count(self):
         """Envía el conteo de jugadores al grupo"""
-        lobby_count = len(self.connected_players.get("lobby", set()))
+        lobby_count = len(self.connected_players.get("lobby", {}))
 
         # ✅ Obtener jugadores de todas las mesas
         games_count = GameConsumer.get_players_in_games()
