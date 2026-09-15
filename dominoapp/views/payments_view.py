@@ -714,7 +714,6 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
                 "status": 'error',
                 'message': str(e)}, status=409)
     
-
     @extend_schema(
         operation_id="payment_google",
         request = {

@@ -22,32 +22,31 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         self.game_id = self.scope['url_route']['kwargs']['game_id']
         self.room_group_name = f'g_{self.game_id}'
-        try:
-            # 1. Verificar si el usuario está autenticado
-            self.user = self.scope["user"]
-            
-        #     if self.user.is_anonymous:
-        #         # Si no está autenticado, cerramos la conexión (código 4003 es común para política)
-        #         # await self.close(code=4003)
-        #         # return
-        #         pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación
-            
-        #     self.connected_players.setdefault(self.game_id, set()).add(self.user)
-        except Exception as error:
-            pass  ## Por el momento permitimos conexiones anónimas para que no de error los procesos de desarrollo sin autenticación 
-        
-        self.connected_players.setdefault(self.game_id, set()).add(self.channel_name)
 
-        # 1. Identificar si el cliente envió subprotocolos
+        # ---- 1. Validaciones (sin efectos secundarios) ----
         subprotocols = self.scope.get("subprotocols", [])
+        if "access_token" not in subprotocols:
+            await self.close(code=4003, reason="El parámetro 'access_token' es obligatorio")
+            return
 
-        # 2. Elegir qué protocolo aceptar (si el cliente envió 'access_token')
-        accepted_protocol = None
-        if "access_token" in subprotocols:
-            accepted_protocol = "access_token"
+        self.user = self.scope.get("user")
+        if self.user is None or self.user.is_anonymous:
+            await self.close(code=4003, reason="Debe autenticarse")
+            return
 
-        # 3. Importante: Pasar el protocolo al método accept
-        await self.accept(subprotocol=accepted_protocol)
+        # ---- 2. Aceptar handshake ----
+        try:
+            await self.accept(subprotocol="access_token")
+        except Exception as error:
+            logger.error(f"Error al aceptar el WS del game {self.game_id}. Error: {error}")
+            return
+
+        # ---- 3. Mutar presencia recién ahora ----
+        # Contador: game_id -> { user_id: num_conexiones }
+        self.connected_players.setdefault(self.game_id, {})
+        self.connected_players[self.game_id][self.user.id] = (
+            self.connected_players[self.game_id].get(self.user.id, 0) + 1
+        )
 
         # Unirse al grupo de la mesa
         await self.channel_layer.group_add(
@@ -57,16 +56,18 @@ class GameConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get(self.game_id)
+        user = getattr(self, "user", None)
     
-        if room_players is not None:
-            # Eliminamos el socket específico, no el objeto user
-            room_players.discard(self.channel_name)
-            
-            # 2. Si el set está vacío, es que ya no hay nadie en esta sala (en este worker)
+        if room_players and user is not None and not user.is_anonymous:
+            current = room_players.get(user.id, 0)
+            if current <= 1:
+                room_players.pop(user.id, None)   # era su última conexión a esta mesa
+            else:
+                room_players[user.id] = current - 1
+
+            # Si ya no queda nadie en esta mesa (en este worker), limpiamos la llave
             if not room_players:
-                # Limpiamos el diccionario para no dejar llaves huérfanas en memoria RAM
-                if self.game_id in self.connected_players:
-                    del self.connected_players[self.game_id]
+                self.connected_players.pop(self.game_id, None)
 
         await self.channel_layer.group_discard(
             self.room_group_name,
@@ -203,23 +204,24 @@ class GameConsumer(AsyncWebsocketConsumer):
     @classmethod
     def get_players_in_games(cls):
         """
-        Método de clase que retorna el número total de jugadores en todas las mesas.
-        Puede ser llamado desde otros consumers.
+            Número total de jugadores ÚNICOS conectados a alguna mesa
+            (en este worker). Un usuario en 2 mesas cuenta 1 sola vez.
         """
-        total = 0
-        for game_id, players_set in cls.connected_players.items():
-            total += len(players_set)
-        return total
+        unique_users = set()
+        for game_map in cls.connected_players.values():
+            unique_users.update(game_map.keys())
+        return len(unique_users)
 
     @classmethod
     def get_game_players_count(cls, game_id=None):
         """
-        Retorna el número de jugadores en una mesa específica o en todas.
+            Número de jugadores ÚNICOS en una mesa específica,
+            o en todas las mesas (únicos globales) si game_id es None.
         """
         if game_id is not None:
-            return len(cls.connected_players.get(game_id, set()))
-        
-        total = 0
-        for players_set in cls.connected_players.values():
-            total += len(players_set)
-        return total
+            return len(cls.connected_players.get(game_id, {}))
+
+        unique_users = set()
+        for game_map in cls.connected_players.values():
+            unique_users.update(game_map.keys())
+        return len(unique_users)
