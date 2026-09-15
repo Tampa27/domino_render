@@ -12,6 +12,7 @@ from dominoapp.services.player_service import PlayerService, PlayerRankinSeriali
 from dominoapp.views.request.players_request import PlayerRequest
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from rest_framework.serializers import IntegerField, CharField, URLField
+from dominoapp.utils.constants import ApiConstants
 
 
 class PlayerView(viewsets.ModelViewSet):
@@ -263,14 +264,13 @@ class PlayerView(viewsets.ModelViewSet):
     
     @extend_schema(
             operation_id="fcm_register",
-            request={
-                204: inline_serializer(
+            request= inline_serializer(
                 name="FCM Register Request",
                 fields={
-                    "fcm_token": CharField(required=False)
+                    "fcm_token": CharField(required=True),
+                    "country": CharField(required=False, help_text= ApiConstants.Countries.items())
                     },
-            ),    
-            },
+            ),
             responses={
             204: None
             

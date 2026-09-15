@@ -6,6 +6,7 @@ class EnumBehavior:
     def set_enum(cls):
         setattr(cls, "text", classmethod(EnumBehavior.choices))
         setattr(cls, "choices", classmethod(EnumBehavior.choices))
+        setattr(cls, "items", classmethod(EnumBehavior.items))
         setattr(cls, "get", classmethod(EnumBehavior.get))
         setattr(cls, "from_string", classmethod(EnumBehavior.from_string))
 
@@ -32,6 +33,10 @@ class EnumBehavior:
     @staticmethod
     def choices(cls):
         return [(member.value[0], member.value[1]) for member in cls]
+
+    @staticmethod
+    def items(cls):
+        return [member.value[1] for member in cls]
 
 class AdminNotifyEvents(Enum):
     ADMIN_EVENT_NEW_USER = ('new_user', 'New User')
@@ -190,6 +195,36 @@ class WSActions:
     NOTIFICATION_UPDATE = "NU"
     CONNECTED_PLAYERS = "CP"
 
+class Countries(Enum):
+    US = "us", "US"
+    CA = "ca", "CA"
+    DE = "de", "DE"
+    JP = "jp", "JP"
+    GB = "gb", "GB"
+    AU = "au", "AU"
+    FR = "fr", "FR"
+    KR = "kr", "KR"
+    CH = "ch", "CH"
+    SE = "se", "SE"
+    NL = "nl", "NL"
+    NO = "no", "NO"
+    ES = "es", "ES"
+    MX = "mx", "MX"
+    BR = "br", "BR"
+    AR = "ar", "AR"
+    CL = "cl", "CL"
+    IT = "it", "IT"
+    PL = "pl", "PL"
+    TR = "tr", "TR"
+    CO = "co", "CO"
+    PE = "pe", "PE"
+    UY = "uy", "UY"
+    CR = "cr", "CR"
+
+class Provider(Enum):
+        GOOGLE = "google", "Google"
+        WEB = "web", "Web"
+
 class ApiConstants:
     DEFAULT_CURRENCY = 'cup'
     DEFAULT_LANGUAGE = 'es'
@@ -211,3 +246,5 @@ class ApiConstants:
     NOTIFICATION_TIME = 15        # Tiempo que espera para enviar una notificacion
     NOTIFICATION_PLAYER_TIME = 24  # Tiempo que se espera para enviar una notificacion a un player
     AdminNotifyEvents = EnumBehavior.set_enum(AdminNotifyEvents)
+    Countries = EnumBehavior.set_enum(Countries)
+    Provider = EnumBehavior.set_enum(Provider)
