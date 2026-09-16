@@ -222,8 +222,8 @@ class GameService:
 
         min_coins = game_tools.min_coins(variant, perpoint, payMatchValue, payWinValue, payPassValue)
 
-        if max_coins > 0 and max_coins < min_coins:
-            return Response({'status': 'error',"message":f"La apuesta mínima debe ser igual a {min_coins} monedas."}, status=status.HTTP_409_CONFLICT)
+        if max_coins > 0 and payWinValue > 0 and max_coins < payWinValue:
+            return Response({'status': 'error',"message":f"La apuesta mínima debe ser mayor o igual a {payWinValue} monedas."}, status=status.HTTP_409_CONFLICT)
         
         now = timezone.now()
         player1.tiles = ""
