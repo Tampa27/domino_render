@@ -63,14 +63,14 @@ class GameConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get(self.game_id)
-        user = getattr(self, "presence_key", None)
+        key = getattr(self, "presence_key", None)
     
-        if room_players and user is not None:
-            current = room_players.get(user.id, 0)
+        if room_players and key is not None:
+            current = room_players.get(key, 0)
             if current <= 1:
-                room_players.pop(user, None)   # era su última conexión a esta mesa
+                room_players.pop(key, None)   # era su última conexión a esta mesa
             else:
-                room_players[user] = current - 1
+                room_players[key] = current - 1
 
             # Si ya no queda nadie en esta mesa (en este worker), limpiamos la llave
             if not room_players:
