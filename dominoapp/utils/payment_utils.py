@@ -67,4 +67,4 @@ def get_coins_by_country(player: Player)-> int:
         coins = os.getenv("COINS_BY_MARKETIN_COUNTRIES_1", 0)
     elif player.country.upper() in countries_2:
         coins = os.getenv("COINS_BY_MARKETIN_COUNTRIES_2", 0)
-    return coins
+    return int(coins)
