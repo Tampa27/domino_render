@@ -209,7 +209,8 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
     data_win_percent = serializers.SerializerMethodField()
     match_win_percent = serializers.SerializerMethodField()
     pass_player = serializers.SerializerMethodField()
-    
+    country = serializers.SerializerMethodField()
+
     def get_date_filter(self):
         """Helper method to get date filter from context"""
         start_date = self.context.get('start_date')
@@ -280,10 +281,12 @@ class PlayerRankinSerializer(serializers.ModelSerializer):
         date_filter = self.get_date_filter()
         return SummaryPlayer.objects.filter(player__id=obj.id).filter(date_filter).aggregate(total=Sum('pass_player'))['total'] or 0 
 
+    def get_country(self, obj: Player)-> str:
+        return obj.country.upper() if obj.country else ""
 
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player"]
+        fields = ["id", "name", "alias", "photo_url", "coins", "earned_coins", "recharged_coins", "balance_coins", "elo", "dataWins", "dataLoss", "data_win_percent", "matchWins", "matchLoss", "match_win_percent", "pass_player", "country"]
 
 class PlayerPersonalRankinSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()

@@ -1337,7 +1337,7 @@ class PaymentService:
             body = f"{player.name} usted ha recibido una promoción en su cuenta de Domino Club con {promotions_coins} monedas."
             )
         
-        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+        return Response({'status': 'success', "coins":promotions_coins}, status=status.HTTP_200_OK)
 
     @staticmethod
     def process_payment_google(request):
