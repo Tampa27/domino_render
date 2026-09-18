@@ -221,6 +221,10 @@ class Countries(Enum):
     UY = "uy", "UY"
     CR = "cr", "CR"
 
+class FCMType(Enum):
+     RELOAD = "reload", "Reload Coins"
+     JOINED = "joined", "New Player Joined"
+
 class Provider(Enum):
         GOOGLE = "google", "Google"
         WEB = "web", "Web"
@@ -248,3 +252,4 @@ class ApiConstants:
     AdminNotifyEvents = EnumBehavior.set_enum(AdminNotifyEvents)
     Countries = EnumBehavior.set_enum(Countries)
     Provider = EnumBehavior.set_enum(Provider)
+    FCMType = EnumBehavior.set_enum(FCMType)
