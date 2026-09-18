@@ -239,6 +239,8 @@ class PaymentService:
                 paymentmethod=request.data.get('paymentmethod', None),
                 admin=admin
                 )
+
+            id_trans = ""
             if new_transaction:
                 send_request = DiscordConnector.send_transaction_request(
                     ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_RELOAD.key,
@@ -252,16 +254,23 @@ class PaymentService:
                     }
                 )
 
+                id_trans = str(new_transaction.id)
+
             if new_transaction and new_transaction.paymentmethod in ['zelle', 'saldo']:
                 admins_id = Player.objects.filter(user__is_superuser=True).values_list('user__id', flat=True)
             elif admin:
                 admins_id = [admin.user.id]
             else:
                 admins_id = Player.objects.filter(user__is_staff=True).values_list('user__id', flat=True)
+
             FCMNOTIFICATION.send_fcm_message_by_users_list(
                 users = admins_id,
                 title = "🚨Solicitud de Recarga🚨",
-                body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰."
+                body = f"👤 {player.alias} solicita recargar {request.data['coins']} monedas 💰.",
+                data={
+                        "type": ApiConstants.FCMType.RELOAD.value[0],
+                        "transaction_id": id_trans
+                    }
                 )
         
         if send_request or transactions_exist:            

@@ -8,7 +8,7 @@ logger = logging.getLogger('django')
 class FCMNOTIFICATION:
 
     @staticmethod
-    def send_fcm_message(user: User, title:str, body:str):
+    def send_fcm_message(user: User, title:str, body:str, data:dict = None):
 
         try:
             user_devices = FCMDevice.objects.filter(user=user)
@@ -17,14 +17,15 @@ class FCMNOTIFICATION:
                     notification=Notification(
                             title=title, 
                             body=body
-                    )
+                    ),
+                    data= data if data else None
                 )
             )
         except Exception as error:
             logger.critical(f'Error al enviar notificacion FCM" => {str(error)}')
 
     @staticmethod
-    def send_fcm_message_by_users_list(users: list[int], title:str, body:str):
+    def send_fcm_message_by_users_list(users: list[int], title:str, body:str, data:dict = None):
 
         try:
             user_devices = FCMDevice.objects.filter(user__id__in=users)
@@ -33,7 +34,8 @@ class FCMNOTIFICATION:
                     notification=Notification(
                             title=title, 
                             body=body
-                    )
+                    ),
+                    data= data if data else None
                 )
             )
         except Exception as error:
