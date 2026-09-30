@@ -32,7 +32,7 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     def get_permissions(self):
         if self.action in ["select", "confirm", "cancel"]:
             permission_classes = [IsAdminUser]
-        elif self.action in ["resume_game", "send_test_message", "list_package", "up_coins_promotion"]:
+        elif self.action in ["resume_game", "send_test_message", "list_package"]:
             permission_classes = [AllowAny]
         elif self.action in ['recharge', 'extract', 'promotion', 'request_extract']:
             permission_classes = [IsSuperAdminUser]
@@ -582,73 +582,74 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     @action(methods=["GET"], detail=False)
     def list_package(self, request):
         return PaymentService.process_list_package_coins(request)
-    
-    @extend_schema(
-            operation_id="promotion_movies",
-            request = {
-                "application/json": inline_serializer(
-                    name="Promotion Movies Request",
-                    fields={
-                        "token": CharField(required=True),
-                        "coins": IntegerField(required=True),
-                        "player_id": IntegerField(required=True)
-                    }
-                )
-            },
-            responses={
-            200: inline_serializer(
-                name="Promotion Movies Response",
-                fields={
-                    "status": CharField(default="success"),
-                    "message": CharField(required=False)
-                    },
-            ),
-            401: inline_serializer(
-                name="Error 401 Unauthorized",
-                fields={
-                    "status": CharField(default="error"),
-                    "message": CharField()
-                    },
-            ),
-            403: inline_serializer(
-                name="Error 403 Forbidden",
-                fields={
-                    "status": CharField(default="error"),
-                    "message": CharField()
-                    },
-            ),
-            404: inline_serializer(
-                name="Error 404 Not Found",
-                fields={
-                    "status": CharField(default="error"),
-                    "message": CharField()
-                    },
-            ),
-            409: inline_serializer(
-                name="Error 409 Conflict",
-                fields={
-                    "status": CharField(default="error"),
-                    "message": CharField()
-                    },
-            )
-        }
-    )
-    @action(detail=False, methods=["post"])
-    def up_coins_promotion(self, request):
-        try:
-            is_valid, message, status_response = PaymentRequest.validate_promotion_movies(request)
+
+    ## Borrar en el proximo Comit si no da error, ya no se usa
+    # @extend_schema(
+    #         operation_id="promotion_movies",
+    #         request = {
+    #             "application/json": inline_serializer(
+    #                 name="Promotion Movies Request",
+    #                 fields={
+    #                     "token": CharField(required=True),
+    #                     "coins": IntegerField(required=True),
+    #                     "player_id": IntegerField(required=True)
+    #                 }
+    #             )
+    #         },
+    #         responses={
+    #         200: inline_serializer(
+    #             name="Promotion Movies Response",
+    #             fields={
+    #                 "status": CharField(default="success"),
+    #                 "message": CharField(required=False)
+    #                 },
+    #         ),
+    #         401: inline_serializer(
+    #             name="Error 401 Unauthorized",
+    #             fields={
+    #                 "status": CharField(default="error"),
+    #                 "message": CharField()
+    #                 },
+    #         ),
+    #         403: inline_serializer(
+    #             name="Error 403 Forbidden",
+    #             fields={
+    #                 "status": CharField(default="error"),
+    #                 "message": CharField()
+    #                 },
+    #         ),
+    #         404: inline_serializer(
+    #             name="Error 404 Not Found",
+    #             fields={
+    #                 "status": CharField(default="error"),
+    #                 "message": CharField()
+    #                 },
+    #         ),
+    #         409: inline_serializer(
+    #             name="Error 409 Conflict",
+    #             fields={
+    #                 "status": CharField(default="error"),
+    #                 "message": CharField()
+    #                 },
+    #         )
+    #     }
+    # )
+    # @action(detail=False, methods=["post"])
+    # def up_coins_promotion(self, request):
+    #     try:
+    #         is_valid, message, status_response = PaymentRequest.validate_promotion_movies(request)
             
-            if not is_valid:
-                return Response(data ={
-                    "status":'error',
-                    "message": message
-                }, status = status_response)
+    #         if not is_valid:
+    #             return Response(data ={
+    #                 "status":'error',
+    #                 "message": message
+    #             }, status = status_response)
             
-            return PaymentService.process_promotion_movies(request)        
-        except Exception as e:
-            return Response(data={
-                "status": 'error',
-                'message': str(e)}, status=409)
+    #         return PaymentService.process_promotion_movies(request)        
+    #     except Exception as e:
+    #         return Response(data={
+    #             "status": 'error',
+    #             'message': str(e)}, status=409)
 
     @extend_schema(
             operation_id="promotion_movies_2",

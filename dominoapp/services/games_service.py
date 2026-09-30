@@ -55,9 +55,11 @@ class GameService:
         
         # 4. Manejo de versión de app (evitamos try/except genérico que es lento)
         app_version = request.query_params.get('app_version')
-        app_version_obj = AppVersion.objects.filter(version=app_version).first()
-        
-        need_update = app_version_obj.need_update if app_version_obj else False
+        need_update = False
+        if app_version is not None:
+            app_version_obj = AppVersion.objects.filter(need_update = False).order_by("-id").last()
+            if app_version_obj:
+                need_update = app_version < app_version_obj.version
         
         if need_update:
             return Response({

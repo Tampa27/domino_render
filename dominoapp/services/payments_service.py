@@ -1214,70 +1214,71 @@ class PaymentService:
         queryset = PackageCoins.objects.all()
         serializer = PackageCoinsSerializer(queryset, many=True)
         return Response(data= serializer.data, status=status.HTTP_200_OK)
-    
-    @staticmethod
-    def process_promotion_movies(request):
 
-        try:
-            player = Player.objects.get(id = request.data["player_id"])
-        except Player.DoesNotExist:
-            return Response(data={'status': 'error', "message":'Debe iniciar seción y vuelva a intentar'}, status=status.HTTP_401_UNAUTHORIZED)
+    ### ## Borrar en el proximo Comit si no da error, ya no se usa
+    # @staticmethod
+    # def process_promotion_movies(request):
 
-        if player.is_block:
-            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+    #     try:
+    #         player = Player.objects.get(id = request.data["player_id"])
+    #     except Player.DoesNotExist:
+    #         return Response(data={'status': 'error', "message":'Debe iniciar seción y vuelva a intentar'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        ## Validar que sea una vez al dia
-        valid, error = validate_promotion_movie(player)
-        if not valid:
-            return Response(
-                data={'status': 'error', "message":error},
-                status=status.HTTP_409_CONFLICT
-            )
+    #     if player.is_block:
+    #         return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
 
-        ## validar que el token es correcto
-        secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2025")
-        text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
-        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
+    #     ## Validar que sea una vez al dia
+    #     valid, error = validate_promotion_movie(player)
+    #     if not valid:
+    #         return Response(
+    #             data={'status': 'error', "message":error},
+    #             status=status.HTTP_409_CONFLICT
+    #         )
+
+    #     ## validar que el token es correcto
+    #     secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2025")
+    #     text_encode = f"{player.id}_{request.data['coins']}_{secret_apk_key}"
+    #     token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
         
-        token = request.data.get("token", None)
+    #     token = request.data.get("token", None)
         
-        if not token or token != token_hash_sha256:
-            return Response(data={'status': 'error', "message":'Token no valido'}, status=status.HTTP_403_FORBIDDEN)        
+    #     if not token or token != token_hash_sha256:
+    #         return Response(data={'status': 'error', "message":'Token no valido'}, status=status.HTTP_403_FORBIDDEN)        
 
-        player.recharged_coins+= int(request.data["coins"])
-        player.save(update_fields=["recharged_coins"])
+    #     player.recharged_coins+= int(request.data["coins"])
+    #     player.save(update_fields=["recharged_coins"])
 
-        try:
-            bank = Bank.objects.all().first()
-        except:
-            bank = Bank.objects.create()
+    #     try:
+    #         bank = Bank.objects.all().first()
+    #     except:
+    #         bank = Bank.objects.create()
 
-        bank.promotion_coins+=int(request.data["coins"])
-        bank.save(update_fields=['promotion_coins'])  
+    #     bank.promotion_coins+=int(request.data["coins"])
+    #     bank.save(update_fields=['promotion_coins'])  
         
-        create_transactions(
-            amount= int(request.data["coins"]),
-            to_user= player,
-            status="cp",
-            type="pro_mov",
-            descriptions=f"El player {player.alias} ha ganado {request.data['coins']} por la promoción de videos."
-        )
+    #     create_transactions(
+    #         amount= int(request.data["coins"]),
+    #         to_user= player,
+    #         status="cp",
+    #         type="pro_mov",
+    #         descriptions=f"El player {player.alias} ha ganado {request.data['coins']} por la promoción de videos."
+    #     )
         
-        DiscordConnector.send_event(
-            "Promoción",
-            {
-                'player': player.alias,
-                "amount": request.data["coins"]
-            }
-        )
+    #     DiscordConnector.send_event(
+    #         "Promoción",
+    #         {
+    #             'player': player.alias,
+    #             "amount": request.data["coins"]
+    #         }
+    #     )
 
-        FCMNOTIFICATION.send_fcm_message(
-            user = player.user,
-            title = "Promoción en Domino Club",
-            body = f"{player.name} usted ha recibido una promoción en su cuenta de Domino Club con {request.data["coins"]} monedas."
-            )
+    #     FCMNOTIFICATION.send_fcm_message(
+    #         user = player.user,
+    #         title = "Promoción en Domino Club",
+    #         body = f"{player.name} usted ha recibido una promoción en su cuenta de Domino Club con {request.data["coins"]} monedas."
+    #         )
         
-        return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
+    #     return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
 
     @staticmethod
     def process_marketin_promotion(request):
