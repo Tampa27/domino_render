@@ -59,7 +59,7 @@ class GameService:
         if app_version is not None:
             app_version_obj = AppVersion.objects.filter(need_update = False).order_by("-id").last()
             if app_version_obj:
-                need_update = app_version < app_version_obj.version
+                need_update = str(app_version) < str(app_version_obj.version)
         
         if need_update:
             return Response({
