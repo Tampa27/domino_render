@@ -6,11 +6,12 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils import timezone as timezone_dj
-import uuid
+import uuid, logging
 from shortuuid.django_fields import ShortUUIDField
 from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, \
     TransactionPaymentMethod, PaymentStatus, PaymentCURRENCY, TournamentStatus, ChatRoomTypes, MatchTypes,\
     ApiConstants
+logger = logging.getLogger('django')
 # Create your models here.
 
 class Player(models.Model):
@@ -186,6 +187,45 @@ class PlayerReward(models.Model):
     date_of_month = models.IntegerField(null=True, blank=True)  # 1-31 for day of month
     amount = models.IntegerField(default=0)  # Cantidad de monedas a otorgar
     place = models.IntegerField(default=1)  # Lugar del ranking para otorgar la recompensa (1, 2, 3, etc.)
+
+class Send_Notification(models.Model):
+    players = models.ManyToManyField(Player, related_name='players_list')
+    title = models.CharField(max_length=80)
+    message = models.TextField()
+    fcm_message = models.CharField(max_length=150, null=True, blank= True)
+    whatsapp_url = models.URLField(max_length=1500, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    send = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(blank= True, null=True)
+
+    
+    def save(self, *args, **kwargs):
+        if self.send:
+            players_list = self.players.all()
+            for player in players_list:
+                Notification.objects.create(
+                    player = player,
+                    title = self.title,
+                    message = self.message,
+                    whatsapp_url = self.whatsapp_url
+                )
+
+            if self.fcm_message and self.fcm_message.strip() != "":
+                from dominoapp.tasks import async_send_fcm_message
+                try:                    
+                    users_id = list(players_list.values_list('user__id', flat=True))
+                    
+                    async_send_fcm_message.delay(
+                        users_id=users_id,
+                        title=self.title,
+                        message=self.fcm_message
+                    )
+                except Exception as error:
+                    logger.error(f'Error al enviar notificacion FCM de administracion. Error => {str(error)}')
+    
+            self.send = False
+            self.sent_at = timezone_dj.now()
+        return super().save(*args, **kwargs)
 
 class Notification(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='notifications')

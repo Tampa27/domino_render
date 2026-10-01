@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
         MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
     BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward, Status_Transaction, \
-    Notification, Manager
+    Notification, Manager, Send_Notification
 from dominoapp.utils.admin_helpers import AdminHelpers
 from dominoapp.utils.players_tools import get_reward_type_choices
 from dominoapp.utils.constants import TransactionStatus
@@ -594,8 +594,6 @@ class AppVersionAdmin(admin.ModelAdmin):
         "version"
         ]
 
-
-
 class BankAdmin(admin.ModelAdmin):
     list_display = [
         "time_created",
@@ -615,7 +613,6 @@ class BankAdmin(admin.ModelAdmin):
     search_fields = [
         ]
 
-
 class ReferralPlayersAdmin(admin.ModelAdmin):
     list_display = [
         "referrer_player",
@@ -629,7 +626,6 @@ class ReferralPlayersAdmin(admin.ModelAdmin):
         "referrer_player__alias",
         "referral_code"
     ]
-
 
 class CurrencyRateAdmin(admin.ModelAdmin):
     list_display = [
@@ -719,6 +715,28 @@ class NotificationAdmin(admin.ModelAdmin):
         "message"
     ]    
 
+class SendNotificationAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "title",
+        "message",
+        "created_at",
+        "send",
+        "sent_at"
+    ]
+    list_filter = [
+        "created_at",
+        "send"
+    ]
+    search_fields = [
+        "title",
+        "message"
+    ]
+
+    list_editable = ["send"]
+
+
+
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(Pair, PairAdmin)
@@ -742,4 +760,5 @@ admin.site.register(ChatRoom)
 admin.site.register(ChatMessage)
 admin.site.register(PlayerReward, PlayerRewardAdmin)
 admin.site.register(Notification, NotificationAdmin)
+admin.site.register(Send_Notification, SendNotificationAdmin)
 admin.site.register(Manager)
