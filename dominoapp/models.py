@@ -11,6 +11,7 @@ from shortuuid.django_fields import ShortUUIDField
 from dominoapp.utils.constants import GameStatus, GameVariants, TransactionTypes, TransactionStatus, \
     TransactionPaymentMethod, PaymentStatus, PaymentCURRENCY, TournamentStatus, ChatRoomTypes, MatchTypes,\
     ApiConstants
+from dominoapp.utils.fcm_message import FCMNOTIFICATION
 logger = logging.getLogger('django')
 # Create your models here.
 
@@ -211,15 +212,16 @@ class Send_Notification(models.Model):
                 )
 
             if self.fcm_message and self.fcm_message.strip() != "":
-                from dominoapp.tasks import async_send_fcm_message
                 try:                    
                     users_id = list(players_list.values_list('user__id', flat=True))
-                    
-                    async_send_fcm_message.delay(
-                        users_id=users_id,
-                        title=self.title,
-                        message=self.fcm_message
-                    )
+                    FCMNOTIFICATION.send_fcm_message_by_users_list(
+                        users = users_id,
+                        title = self.title,
+                        body = self.fcm_message,
+                        data={
+                                "type": ApiConstants.FCMType.GLOBAL.value[0]
+                            }
+                        )
                 except Exception as error:
                     logger.error(f'Error al enviar notificacion FCM de administracion. Error => {str(error)}')
     

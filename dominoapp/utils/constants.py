@@ -224,6 +224,7 @@ class Countries(Enum):
 class FCMType(Enum):
      RELOAD = "reload", "Reload Coins"
      JOINED = "joined", "New Player Joined"
+     GLOBAL = "global", "Global Notification"
 
 class Provider(Enum):
         GOOGLE = "google", "Google"
