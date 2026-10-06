@@ -323,3 +323,39 @@ class GameRequest:
             return is_valid, message, status_response     
 
         return True, message, status_response
+
+    @staticmethod
+    def validate_invitation(request, game_id):
+        is_valid = False
+        message = None
+        status_response = None
+
+        is_valid = RequestValidator.validate_numeric(game_id)
+        
+        if not is_valid:
+            message = "Game ID have wrong value"
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response
+        
+        required_keys = [
+            "player_id"
+        ]
+
+        is_valid, message = RequestValidator.validate_required_key(request, required_keys)
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response
+
+        validators = {
+            "player_id": RequestValidator.validate_numeric
+        }
+        
+        is_valid, message = RequestValidator.validate_params(request, validators)
+
+        if not is_valid:
+            message = message
+            status_response = status.HTTP_400_BAD_REQUEST
+            return is_valid, message, status_response       
+
+        return True, message, status_response
