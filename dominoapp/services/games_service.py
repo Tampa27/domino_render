@@ -14,6 +14,8 @@ from dominoapp.tasks import async_update_player_presence
 from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up, get_count_lobby_key
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.cache_tools import is_table_modification_locked
+from dominoapp.utils.fcm_message import FCMNOTIFICATION
+from dominoapp.utils.constants import ApiConstants
 import logging
 logger = logging.getLogger('django')
 
@@ -754,3 +756,60 @@ class GameService:
             return Response({'status': 'success'}, status=200)
         except:
             return Response({'status': 'error', 'message': 'Algo fayo al seleccionar a la pareja.'}, status=status.HTTP_409_CONFLICT)
+
+    @staticmethod
+    def process_invitation(request, game_id):
+        """
+        Enviar notificaciones de invitación para jugar en una mesa.
+        """
+        user_id = request.user.id        
+        # 1. Validación rápida de existencia de jugador (usa caché si es posible)
+        try:
+            player_send = Player.objects.get(user__id=user_id)
+        except Player.DoesNotExist:
+            return Response({'status': 'error', 'message': "Debe autenticarse para realizar esta acción"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        invited_id = request.data.get("player_id", None)            
+        try:
+            player_invited = Player.objects.get(id = invited_id)
+        except:
+            return Response(
+                {"status":'error',
+                "message": "El player no se encuentra."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        if player_invited.is_block:
+            return Response(
+                {"status":'error',
+                "message": "El player se encuentra bloqueado."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try: 
+            game = DominoGame.objects.get(id = game_id)
+        except:
+            return Response(
+                    {"status":'error',
+                    "message": "La mesa no se encuentra."}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        title= "🏆 ¡Te retan en Dominó Club!"
+        text= f"{player_send.name} te invita a unirte a la mesa {game.table_no} para jugar unas partidas de dominó. ¡Ven y diviértete! 😄🁫"
+        try:     
+            FCMNOTIFICATION.send_fcm_message(
+                user = player_invited.user,
+                title = title,
+                body = text,
+                data={
+                    "game_id": game.id,
+                    "type": ApiConstants.FCMType.INVITATION.value[0]
+                }
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as error:
+            logger.error(f"Error send FCM notification, Error->: {str(error)}")
+            return Response(
+                    {"status":'error',
+                        "message": f"Halgo no ha salido bien. Vuelva a intentar."},
+                    status=status.HTTP_409_CONFLICT
+                )

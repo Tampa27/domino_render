@@ -407,3 +407,49 @@ class GameView(viewsets.ModelViewSet):
             }, status = status_response)
         
         return GameService.process_setPatner(request, pk)
+    
+    @extend_schema(
+            operation_id="invite",
+            request = inline_serializer(
+                    name="Send Game Ivitations",
+                    fields={
+                        "player_id": IntegerField(required=False)
+                    }
+                ),
+            responses={
+            204:  None,
+            401: inline_serializer(
+                name="Error 401 Unauthorized",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Error 404 Not Found",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Error 409 Conflict",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            )
+            
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def invite(self, request, pk):
+        is_valid, message, status_response = GameRequest.validate_invitation(request, pk)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return GameService.process_invitation(request, pk)

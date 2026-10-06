@@ -225,6 +225,7 @@ class FCMType(Enum):
      RELOAD = "reload", "Reload Coins"
      JOINED = "joined", "New Player Joined"
      GLOBAL = "global", "Global Notification"
+     INVITATION = "invitation", "Invite to play"
 
 class Provider(Enum):
         GOOGLE = "google", "Google"
