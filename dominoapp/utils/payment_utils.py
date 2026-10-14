@@ -44,8 +44,9 @@ def validate_tranfer(from_user: Player, to_user: Player, amount:int):
     return True, None
 
 def validate_promotion_movie(player: Player):
-    now = timezone.now().replace(hour=0,minute=0, second=0)
-    transactions_number = Transaction.objects.filter(to_user__id=player.id, type = "pro_mov", time__gte = now).count()
+    now = timezone.now()
+    half_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    transactions_number = Transaction.objects.filter(to_user__id=player.id, type = "pro_mov", time__gte = half_day).count()
 
     try:
         MAX_PROMOTION_BY_DAY = int(os.getenv("MAX_PROMOTION_BY_DAY", 1))
@@ -53,8 +54,19 @@ def validate_promotion_movie(player: Player):
         logger.error(f"Error en la configuracion del MAXIMO DE PROMOCIONES POR DIA. Error: {error}")
         MAX_PROMOTION_BY_DAY = 1
 
-    if transactions_number > MAX_PROMOTION_BY_DAY:
+    if transactions_number >= MAX_PROMOTION_BY_DAY:
         return False, "Supero el número de Promociones permitidas en un día."
+
+    last_transaction = Transaction.objects.filter(to_user__id=player.id, type = "pro_mov").order_by("-time").first()
+    if last_transaction:
+        last_time = last_transaction.time
+        try:
+            TIME_BETWEEN_PROMOTIONS = int(os.getenv("TIME_BETWEEN_PROMOTIONS", 10))           # Tiempo entre cada promoción en minutos
+        except Exception as error:
+            logger.error(f"Error en la configuracion del TIMEPO entre PROMOCIONES. Error: {error}")
+            TIME_BETWEEN_PROMOTIONS = 10
+        if (now - last_time).total_seconds() < 60 * TIME_BETWEEN_PROMOTIONS:
+            return False, f"Debes esperar {TIME_BETWEEN_PROMOTIONS} minutos para recibir otra promoción."
 
     return True, None
 
