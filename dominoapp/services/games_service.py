@@ -801,7 +801,7 @@ class GameService:
                 title = title,
                 body = text,
                 data={
-                    "game_id": game.id,
+                    "game_id": str(game.id),
                     "type": ApiConstants.FCMType.INVITATION.value[0]
                 }
             )
