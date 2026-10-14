@@ -17,8 +17,8 @@ import sys
 import dj_database_url
 from dotenv import load_dotenv
 from datetime import timedelta
-from firebase_admin import credentials
-from firebase_admin import initialize_app
+from firebase_admin import credentials, initialize_app, _apps
+
 # Cargar variables del archivo .env
 load_dotenv('.env', override=True)
 
@@ -330,23 +330,39 @@ try:
     if firebase_config is not None:
         firebase_config = json.loads(firebase_config)
         cred = credentials.Certificate(firebase_config)
-        FIREBASE_APP = initialize_app(cred)
-    FCM_DJANGO_SETTINGS = {
-        # an instance of firebase_admin.App to be used as default for all fcm-django requests
-        # default: None (the default Firebase app)
-        "DEFAULT_FIREBASE_APP": FIREBASE_APP,
-        # default: _('FCM Django')
-        # "APP_VERBOSE_NAME": "[string for AppConfig's verbose_name]",
-        # true if you want to have only one active device per registered user at a time
-        # default: False
-        "ONE_DEVICE_PER_USER": False,
-        # devices to which notifications cannot be sent,
-        # are deleted upon receiving error response from FCM
-        # default: False
-        "DELETE_INACTIVE_DEVICES": False
-    }
-except:
-    pass
+        FIREBASE_APP = initialize_app(cred,name='web')
+except Exception as e:
+    print(f"Error inicializando Firebase para Cuba: {e}")
+# Inicializar la segunda app (Google Play)
+try:
+    firebase_config_play = os.environ.get('FCM_SERVER_KEY_GOOGLE_PLAY')
+    if firebase_config_play:
+        cred_play = credentials.Certificate(json.loads(firebase_config_play))
+        app_play = initialize_app(cred_play, name='google')
+except Exception as e:
+    print(f"Error inicializando Firebase para Google Play: {e}")
+
+# Mapeo provider -> nombre de app Firebase
+FIREBASE_APP_BY_PROVIDER = {
+    'google': 'google',
+    'web': 'web',
+}
+DEFAULT_FIREBASE_APP_NAME = 'web'
+
+FCM_DJANGO_SETTINGS = {
+    # an instance of firebase_admin.App to be used as default for all fcm-django requests
+    # default: None (the default Firebase app)
+    "DEFAULT_FIREBASE_APP": FIREBASE_APP,
+    # default: _('FCM Django')
+    # "APP_VERBOSE_NAME": "[string for AppConfig's verbose_name]",
+    # true if you want to have only one active device per registered user at a time
+    # default: False
+    "ONE_DEVICE_PER_USER": False,
+    # devices to which notifications cannot be sent,
+    # are deleted upon receiving error response from FCM
+    # default: False
+    "DELETE_INACTIVE_DEVICES": False
+}
 
 
 # Configuración de Channel Layers
