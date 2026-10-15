@@ -457,7 +457,8 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                 ## Actualizo los puntos si es por monedas el juego
                 if game.max_coins>0:
                     player.points = (player.total_coins - player.start_coins)
-                    game.status = "fg" if abs(player.points) >= game.max_coins else "fi"
+                    if game.status != "fg":
+                        game.status = "fg" if abs(player.points) >= game.max_coins else "fi"
 
                 # Transacción única por premio total
                 p_data['transaction'] = {
@@ -489,7 +490,8 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                     ## Actualizo los puntos si es por monedas el juego
                     if game.max_coins>0:
                         player.points = (player.total_coins - player.start_coins)
-                        game.status = "fg" if abs(player.points) >= game.max_coins else "fi"
+                        if game.status != "fg":
+                            game.status = "fg" if abs(player.points) >= game.max_coins else "fi"
 
                     p_data['transaction'] = {
                         'from_user': True,
@@ -510,10 +512,12 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
     if game.inPairs and game.max_coins>0:
         if [0,2] in winners_idx:
             game.scoreTeam1 = players[0].total_coins + players[2].total_coins - players[0].start_coins - players[2].start_coins
-            game.status = "fg" if game.scoreTeam1 >= game.max_coins else "fi"
+            game.status = "fg" if abs(game.scoreTeam1) >= game.max_coins else "fi"
+            status = game.status
         else:
             game.scoreTeam2 = players[1].total_coins + players[3].total_coins - players[1].start_coins - players[3].start_coins
-            game.status = "fg" if game.scoreTeam2 >= game.max_coins else "fi"
+            game.status = "fg" if abs(game.scoreTeam2) >= game.max_coins else "fi"
+            status = game.status
 
         is_final_game = (status == "fg")
     
@@ -981,9 +985,9 @@ def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_po
     # 4. Lógica de finalización de juego
     end_game = False
     if game.max_datas > 0:
-        end_game = game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore
+        end_game = game.scoreTeam1 >= game.max_datas or game.scoreTeam2 >= game.max_datas
     if game.max_coins > 0:
-        end_game = game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore
+        end_game = abs(game.scoreTeam1) >= game.max_coins or abs(game.scoreTeam2) >= game.max_coins
     else:
         end_game = game.scoreTeam1 >= game.maxScore or game.scoreTeam2 >= game.maxScore
 
@@ -991,7 +995,7 @@ def updateTeamScore(game: DominoGame, winner: int, players: list[Player], sum_po
         game.status = "fg"
         game.start_time = timezone.now()
 
-        if (game.perPoints and game.scoreTeam1 >= game.maxScore) or (game.max_coins>0 and game.scoreTeam1 >= game.max_coins) or (game.max_datas>0 and game.scoreTeam1 >= game.max_datas):
+        if (game.perPoints and game.scoreTeam1 >= game.maxScore) or (game.max_coins>0 and (game.scoreTeam1 >= game.max_coins or game.scoreTeam1 > game.scoreTeam2)) or (game.max_datas>0 and game.scoreTeam1 >= game.max_datas):
             game.winner = DominoGame.Winner_Couple_1
         else:
             game.winner = DominoGame.Winner_Couple_2
