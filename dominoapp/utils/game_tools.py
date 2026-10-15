@@ -1,4 +1,4 @@
-from dominoapp.models import Player, DominoGame, Match_Game
+from dominoapp.models import Player, DominoGame, Match_Game, Round
 from django.utils import timezone
 from datetime import timedelta
 from django.db.utils import DatabaseError
@@ -9,8 +9,9 @@ import logging
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.async_task_helper import safe_async_task
-from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_and_up, get_count_lobby_and_up
+from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_and_up, get_count_lobby_and_up, delete_count_key
 from dominoapp.utils.constants import WSActions
+from dominoapp.utils.cache_tools import is_table_modification_locked
 
 
 logger = logging.getLogger(__name__)
@@ -681,6 +682,81 @@ def shuffleCouples(game,players):
     game.player2 = players[1]
     game.player3 = players[2]
     game.player4 = players[3]
+
+def exit_game(game_id, user_id)->str|None: 
+    # Verificar si la mesa está bloqueada por inicio inmediato
+    if is_table_modification_locked(game_id):
+        return 'No puedes salir de la mesa mientras el juego está comenzando.'
+
+    check_game = DominoGame.objects.filter(id = game_id).exists()
+    if not check_game:
+        return "Esta mesa no esta disponible"
+    
+    try:
+        with transaction.atomic():
+            # 1. Bloqueamos la mesa y traemos los datos de los jugadores en un JOIN
+            try:
+                game = DominoGame.objects.select_related(
+                    'player1', 'player2', 'player3', 'player4'
+                ).select_for_update(of=('self',), nowait=True).get(id=game_id)
+            except DominoGame.DoesNotExist:
+                return "La mesa esta siendo actualizada. Intente de nuevo."
+    
+            game_in_round = Round.objects.filter(game_list__id = game.id).exists()
+            if game_in_round:
+                return "No puedes salir de un juego del torneo."
+            
+            # 2. Bloqueamos a los jugadores que YA están sentados de forma independiente
+            player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
+            if player_ids:
+                # Al hacer list() forzamos la ejecución del select_for_update en la DB
+                locked_players  = list(Player.objects.select_for_update(nowait=True).filter(id__in=player_ids))
+                if len(locked_players) < len(player_ids):
+                    # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
+                    return "Otra acción esta en curso. Vuelva a intentarlo."
+            try:
+                player = next((p for p in locked_players if p and p.user.id == user_id), None)
+                if not player:
+                    return "No esta en esta mesa."
+            except:
+                return "Player no encontrado en esta mesa. Debe autenticarse."
+
+            if (game.status in ["ru","fi"] and player.isPlaying) and game.perPoints:
+                have_points = havepoints(game)
+                if have_points:
+                    return "El juego no ha terminado, espere a que termine."
+            elif (game.status in ["ru","fi"] and player.isPlaying) and (game.max_coins > 0 or game.max_datas > 0):
+                return "El juego no ha terminado, espere a que termine."
+            elif game.status in ["ru"] and player.isPlaying:
+                return "El juego no ha terminado, espere a que termine."
+            
+            players = playersCount(game)
+            exited = exitPlayer(game,player,players,len(players))
+            if exited:
+                try:
+                    count_key = get_count_and_up(game.id)
+                    transaction.on_commit(lambda ck=count_key: send_ws_notification(
+                        game_id= game.id,
+                        payload={
+                            "a": WSActions.PLAYER_LEFT,
+                            "cg": ck,
+                            "d": {
+                                "st": game.status,
+                                "p": player.id
+                            } 
+                        }
+                    ))
+                except Exception as error:
+                    logger.error(f"Error enviando el WS en el ExitGame. Error: {error}")
+
+                players = playersCount(game)
+                if len(players) == 0:
+                    delete_count_key(game.id)
+
+                return
+            return 'No estas en esta mesa.'
+    except Exception as e:
+        return "Algo salio mal, vuelva a intentar."
 
 def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPlayers: int):
     # 1. Identificar posición de forma rápida

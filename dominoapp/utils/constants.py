@@ -100,7 +100,6 @@ class MatchTypes:
         THIRD
     ]
 
-
 class TransactionStatus:
     TRANSACTION_PENDING = ("p", "pending")
     TRANSACTION_IN_PROCESS = ("ip", "in_process")
@@ -194,6 +193,7 @@ class WSActions:
     TORNAMENT_UPDATE = "TU"
     NOTIFICATION_UPDATE = "NU"
     CONNECTED_PLAYERS = "CP"
+    PLAYER_ONLINE = "pstatus"
 
 class Countries(Enum):
     US = "us", "US"

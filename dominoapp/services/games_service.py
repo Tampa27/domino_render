@@ -5,7 +5,6 @@ from datetime import timedelta
 from django.db.models import Q, Count, F
 from django.db.utils import DatabaseError
 from django.db import transaction
-from django.conf import settings
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round, Tournament
 from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGameSerializer, PlayerOnListGameSerializer, GameValidateCreateSerializer
 from dominoapp.utils import game_tools
@@ -538,82 +537,11 @@ class GameService:
     @staticmethod
     def process_exitGame(request, game_id):
 
-        # Verificar si la mesa está bloqueada por inicio inmediato
-        if is_table_modification_locked(game_id):
-            return Response({
-                'status': 'error',
-                'message': 'No puedes salir de la mesa mientras el juego está comenzando.'
-            }, status=status.HTTP_423_LOCKED)
-
-        check_game = DominoGame.objects.filter(id = game_id).exists()
-        if not check_game:
-            return Response({"status":'error',"message":"game not found"},status=status.HTTP_404_NOT_FOUND)    
+        error = game_tools.exit_game(game_id, request.user.id)
+        if error is None:
+            return Response({'status': 'success'}, status=status.HTTP_200_OK)
         
-        try:
-            with transaction.atomic():
-                # 1. Bloqueamos la mesa y traemos los datos de los jugadores en un JOIN
-                try:
-                    game = DominoGame.objects.select_related(
-                        'player1', 'player2', 'player3', 'player4'
-                    ).select_for_update(of=('self',), nowait=True).get(id=game_id)
-                except DominoGame.DoesNotExist:
-                    return Response({"status":'error',"message":"La mesa esta siendo actualizada. Intente de nuuevo."}, status=status.HTTP_404_NOT_FOUND)
-        
-                game_in_round = Round.objects.filter(game_list__id = game.id).exists()
-                if game_in_round:
-                    return Response({'status': 'error', "message":"No puedes salir de un juego del torneo."}, status=status.HTTP_409_CONFLICT)
-                
-                # 2. Bloqueamos a los jugadores que YA están sentados de forma independiente
-                player_ids = [pid for pid in [game.player1_id, game.player2_id, game.player3_id, game.player4_id] if pid]
-                if player_ids:
-                    # Al hacer list() forzamos la ejecución del select_for_update en la DB
-                    locked_players  = list(Player.objects.select_for_update(nowait=True).filter(id__in=player_ids))
-                    if len(locked_players) < len(player_ids):
-                        # Alguien más está tocando a un jugador, mejor salir y reintentar en 7 seg
-                        return Response(data={"status":"error","message":"No se pudieron bloquear a todos los jugadores"}, status=status.HTTP_409_CONFLICT)
-                try:
-                    player = next((p for p in locked_players if p and p.user.id == request.user.id), None)
-                    if not player:
-                        return Response(data={"status":"error","message":"Player no encontrado en esta mesa."}, status=status.HTTP_404_NOT_FOUND)
-                except:
-                    return Response(data={"status":"error","message":"Player no encontrado en esta mesa. Debe autenticarse."}, status=status.HTTP_404_NOT_FOUND)
-
-                if (game.status in ["ru","fi"] and player.isPlaying) and game.perPoints:
-                    have_points = game_tools.havepoints(game)
-                    if have_points:
-                        return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
-                elif (game.status in ["ru","fi"] and player.isPlaying) and (game.max_coins > 0 or game.max_datas > 0):
-                    return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
-                elif game.status in ["ru"] and player.isPlaying:
-                    return Response({'status': 'error', "message":"El juego no ha terminado, espere a que termine."}, status=status.HTTP_409_CONFLICT)
-                
-                players = game_tools.playersCount(game)
-                exited = game_tools.exitPlayer(game,player,players,len(players))
-                if exited:
-                    try:
-                        count_key = get_count_and_up(game.id)
-                        transaction.on_commit(lambda ck=count_key: send_ws_notification(
-                            game_id= game.id,
-                            payload={
-                                "a": WSActions.PLAYER_LEFT,
-                                "cg": ck,
-                                "d": {
-                                    "st": game.status,
-                                    "p": player.id
-                                } 
-                            }
-                        ))
-                    except Exception as error:
-                        logger.error(f"Error enviando el WS en el ExitGame. Error: {error}")
-
-                    players = game_tools.playersCount(game)
-                    if len(players) == 0:
-                        delete_count_key(game.id)
-
-                    return Response({'status': 'success'}, status=200)
-                return Response({'status': 'error', "message":'No estas en esta mesa.'}, status=409)
-        except Exception as e:
-            return Response({'status': 'error', "message": "Algo salio mal, vuelva a intentar."}, status=409)
+        return Response({'status': 'error', 'message': error}, status=status.HTTP_409_CONFLICT)
     
     @staticmethod
     def process_setwinner(request, game_id):
