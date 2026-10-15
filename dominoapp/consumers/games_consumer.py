@@ -51,24 +51,30 @@ class GameConsumer(AsyncWebsocketConsumer):
         self.presence_key = self._presence_key()
 
         self.connected_players.setdefault(self.game_id, {})
-        self.connected_players[self.game_id][self.presence_key] = (
-            self.connected_players[self.game_id].get(self.presence_key, 0) + 1
-        )
+        previous_count = self.connected_players[self.game_id].get(self.presence_key, 0)
+        self.connected_players[self.game_id][self.presence_key] = previous_count + 1
+
 
         # Unirse al grupo de la mesa
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
+
+        # ✅ Notificar solo si es la PRIMERA conexión de este jugador en la mesa
+        if previous_count == 0 and self.user and not self.user.is_anonymous:
+            await self.notify_presence(is_online=True)
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get(self.game_id)
         key = getattr(self, "presence_key", None)
+        is_last_connection = False
     
         if room_players and key is not None:
             current = room_players.get(key, 0)
             if current <= 1:
                 room_players.pop(key, None)   # era su última conexión a esta mesa
+                is_last_connection = True  # ✅ Era su última conexión
             else:
                 room_players[key] = current - 1
 
@@ -81,6 +87,10 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+        # ✅ Notificar solo si fue su última conexión
+        if is_last_connection and self.user and not self.user.is_anonymous:
+            await self.notify_presence(is_online=False)
+
     async def receive(self, text_data):
         """Maneja los mensajes recibidos desde la APK"""
         try:
@@ -92,6 +102,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 await self.handle_move(data)
             elif message_type == WSActions.CHAT_MESSAGE:
                 await self.send_message(data)
+            elif message_type == WSActions.PLAYER_LEFT:
+                await self.exit_game()
             elif message_type == WSActions.PING:
                 await self.handle_ping()
             else:
@@ -122,6 +134,25 @@ class GameConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"No se puede hacer el movimiento, error: {str(e)}")
             await self.send_error(f"Error al procesar movimiento: {str(e)}")
+    
+    async def exit_game(self):
+        """Saca a un player de una mesa"""
+        try:
+            # Aquí procesas el movimiento
+            game_id = self.scope['url_route']['kwargs']['game_id']
+            
+            if self.user.is_anonymous:
+                await self.send_error(f"El player no está autenticado")
+                return
+            
+            # Validar el movimiento con tu lógica de negocio
+            error = await self.perform_exit_game(game_id, self.user.id)
+            if error:
+                await self.send_error(error)
+
+        except Exception as e:
+            logger.error(f"No se puede sacar el player de la mesa, error: {str(e)}")
+            await self.send_error(f"Error al sacar al player de la mesa: {str(e)}")
 
     async def send_message(self, data):
         """Maneja el envio de mensajes a un chat"""
@@ -190,6 +221,15 @@ class GameConsumer(AsyncWebsocketConsumer):
         
         return game_tools.move1(game_id, player, move_tile)
 
+    @database_sync_to_async
+    def perform_exit_game(self, game_id, user_id):
+        try:
+            Player.objects.get(user__id=user_id)
+        except Player.DoesNotExist:
+            return "Debe autenticarse para realizar esta acción"
+
+        return game_tools.exit_game(game_id, user_id)
+
     async def handle_ping(self):
         """Maneja ping para mantener la conexión viva"""
         await self.send(text_data=json.dumps({
@@ -232,3 +272,36 @@ class GameConsumer(AsyncWebsocketConsumer):
         for game_map in cls.connected_players.values():
             unique_users.update(game_map.keys())
         return len(unique_users)
+
+    @database_sync_to_async
+    def _get_player_id(self):
+        """Obtiene el player.id a partir del user autenticado."""
+        try:
+            return Player.objects.get(user__id=self.user.id).id
+        except Player.DoesNotExist:
+            return None
+
+    async def notify_presence(self, is_online: bool):
+        """
+        Envía una notificación al grupo de la mesa indicando que un jugador
+        se conectó (online) o desconectó (offline).
+        """
+        try:
+            player_id = await self._get_player_id()
+            if player_id is None:
+                return
+
+            payload = {
+                "a": WSActions.PLAYER_ONLINE,
+                "d": {
+                    "p": player_id,          # id del player
+                    "online": is_online,         # booleano de estado
+                }
+            }
+
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {"type": "game_update", "payload": payload}
+            )
+        except Exception as error:
+            logger.error(f"Error al notificar presencia en mesa {self.game_id}. Error: {error}")
