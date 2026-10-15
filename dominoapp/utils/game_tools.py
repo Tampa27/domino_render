@@ -457,7 +457,7 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                 ## Actualizo los puntos si es por monedas el juego
                 if game.max_coins>0:
                     player.points = (player.total_coins - player.start_coins)
-                    game.status = "fg" if player.points >= game.max_coins else "fi"
+                    game.status = "fg" if abs(player.points) >= game.max_coins else "fi"
 
                 # Transacción única por premio total
                 p_data['transaction'] = {
@@ -489,7 +489,7 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                     ## Actualizo los puntos si es por monedas el juego
                     if game.max_coins>0:
                         player.points = (player.total_coins - player.start_coins)
-                        game.status = "fg" if player.points >= game.max_coins else "fi"
+                        game.status = "fg" if abs(player.points) >= game.max_coins else "fi"
 
                     p_data['transaction'] = {
                         'from_user': True,
