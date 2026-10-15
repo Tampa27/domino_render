@@ -489,6 +489,7 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
                     ## Actualizo los puntos si es por monedas el juego
                     if game.max_coins>0:
                         player.points = (player.total_coins - player.start_coins)
+                        game.status = "fg" if player.points >= game.max_coins else "fi"
 
                     p_data['transaction'] = {
                         'from_user': True,
@@ -1179,12 +1180,20 @@ def shuffle(game:DominoGame, players:list[Player]):
 
     for i in range(max):
         for j in range(i,max):
-            tiles.append(str(j)+"|"+str(i))
+            tiles.append(f"{j}|{i}")
     
     random.shuffle(tiles)
 
-    for i in range(len(players)):
-        player = players[i]
+    # 🔑 Determinar quiénes juegan esta data
+    if game.status == "fi":
+        players_to_deal = [p for p in players if p.isPlaying]
+        if not players_to_deal:
+            players_to_deal = players  # fallback de seguridad
+    else:
+        # Nuevo partido / fin de partido: todos juegan
+        players_to_deal = players
+
+    for i, player in enumerate(players_to_deal):
         player.tiles = ""
         if game.status !="fi":
             player.isPlaying = True
@@ -1192,7 +1201,7 @@ def shuffle(game:DominoGame, players:list[Player]):
             player.points = 0
             if game.max_coins > 0:
                 player.start_coins = player.total_coins
-            
+
         for j in range(max):
             player.tiles+=tiles[i*max+j]
             if j < (max-1):
