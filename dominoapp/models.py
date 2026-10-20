@@ -348,7 +348,27 @@ class Tournament(models.Model):
             # Optimiza la comparación de tiempos: start_at < now
             models.Index(fields=['start_at'], name='idx_tournament_start_at'),
         ]   
-    
+
+
+class RulesGame(models.Model):
+    variant = models.CharField(max_length=10,choices= GameVariants.variant_choices,default="d6")
+    maxScore = models.IntegerField(default=100)
+    inPairs = models.BooleanField(default=False)
+    perPoints = models.BooleanField(default=False)
+    startWinner = models.BooleanField(default=True)
+    lostStartInTie = models.BooleanField(default=False)
+    payPassValue = models.IntegerField(default=0)
+    payWinValue = models.IntegerField(default=0)
+    payMatchValue = models.IntegerField(default=0)
+    max_coins = models.IntegerField(default=0)
+    max_datas = models.IntegerField(default=0)
+    startAuto = models.IntegerField(default=2,null=True,blank=True)
+    sumAllPoints = models.BooleanField(default=False)
+    capicua = models.BooleanField(default=False)
+    moveTime = models.SmallIntegerField(default=10)
+    created_at = models.DateTimeField(default=timezone_dj.now,null=True,blank=True)
+    password = models.CharField(max_length=20,blank=True,default="")
+
 class DominoGame(models.Model):
     Winner_Player_1 = 0
     Winner_Player_2 = 1
@@ -357,11 +377,14 @@ class DominoGame(models.Model):
     Tie_Game  = 4
     Winner_Couple_1 = 5
     Winner_Couple_2 = 6    
+
+    rules = models.ForeignKey(RulesGame, on_delete=models.SET_NULL, null=True, blank=True, related_name="rules")
     
     player1 = models.ForeignKey(Player,related_name="player1",on_delete=models.CASCADE,null=True,blank=True)
     player2 = models.ForeignKey(Player,related_name="player2",on_delete=models.CASCADE,null=True,blank=True)
     player3 = models.ForeignKey(Player,related_name="player3",on_delete=models.CASCADE,null=True,blank=True)
     player4 = models.ForeignKey(Player,related_name="player4",on_delete=models.CASCADE,null=True,blank=True)                  
+    
     next_player = models.SmallIntegerField(default=-1)
     board = models.CharField(max_length=500,blank=True,default="")
     variant = models.CharField(max_length=10,choices= GameVariants.variant_choices,default="d6")
@@ -452,7 +475,7 @@ class DominoGame(models.Model):
             # Si filtras mucho por torneo
             models.Index(fields=['tournament'], name='idx_game_tournament'),
         ]
-   
+
 class Round(models.Model):
     tournament = models.ForeignKey(Tournament, related_name="round_in_tournament", on_delete=models.CASCADE)
     player_list = models.ManyToManyField(Player, related_name="players_in_round") # Lista de player en la ronda

@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from django.db.models import Sum, Q, Value, IntegerField, Exists, OuterRef
 from django.db.models.functions import Coalesce
-from dominoapp.models import Player, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
+from dominoapp.models import Player, RulesGame, DominoGame, Tournament, Bank, Marketing, MoveRegister, Transaction, CurrencyRate, \
     Round, Match_Game, Pair, BankAccount, PackageCoins, SummaryPlayer, ChatRoom, ChatMessage, Notification, ContentType
 from geopy.distance import geodesic
 import pytz
@@ -1243,3 +1243,25 @@ class ChatRoomCreateSerializer(serializers.ModelSerializer):
             "users_list",       
             ]
 
+########## Rules Serializer ############################
+
+class Create_Rules_Serializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = RulesGame
+        fields = ["variant", "maxScore", "inPairs", "perPoints", "startWinner", "lostStartInTie", "payPassValue", "max_datas", "max_coins", "payWinValue", "payMatchValue", "startAuto", "sumAllPoints", "capicua", "moveTime", "password"]
+
+class List_Rules_Game_Serializer(serializers.ModelSerializer):
+    is_privated = serializers.SerializerMethodField()
+        
+    def get_is_privated(self, obj: RulesGame)-> bool:
+        return True if obj.password != "" else False
+    
+    class Meta:
+        model = RulesGame
+        fields = [
+            "id", "variant", "inPairs", "perPoints", 
+            "payPassValue", "payWinValue", "payMatchValue", 
+            "maxScore", "is_privated", "password", 
+            "max_datas","max_coins"
+            ]

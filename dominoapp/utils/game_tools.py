@@ -1,4 +1,4 @@
-from dominoapp.models import Player, DominoGame, Match_Game, Round
+from dominoapp.models import Player, RulesGame, DominoGame, Match_Game, Round
 from django.utils import timezone
 from datetime import timedelta
 from django.db.utils import DatabaseError
@@ -1356,3 +1356,37 @@ def ready_to_play(game: DominoGame, player: Player)->bool:
         return True
     
     return False
+
+def get_coins_rules(rule: RulesGame)->int:
+    '''
+        Calcula el minimo de monedas para jugar en la mesa
+    '''
+    
+    min_amount = min_coins(
+        rule.variant, 
+        rule.perPoints, 
+        rule.payMatchValue,
+        rule.payWinValue,
+        rule.payPassValue
+        )
+
+    if rule.max_coins > 0:
+        min_amount = max(rule.max_coins, min_amount)
+    if rule.max_datas > 0:
+        min_amount = min_amount*rule.max_datas
+    
+    return min_amount
+
+def ready_to_play_rule(rule: RulesGame, player: Player)->bool:
+    '''
+        Comprueba si el player tiene suficientes monedas para jugar en la mesa
+    '''
+    
+    min_amount = get_game_coins(rule)
+    
+    if player.total_coins >= min_amount:
+        return True
+    
+    return False
+
+

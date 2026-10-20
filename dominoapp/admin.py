@@ -7,7 +7,7 @@ from django_admin_listfilter_dropdown.filters import SimpleListFilter
 from datetime import datetime, timedelta
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-from dominoapp.models import Player, Bank, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
+from dominoapp.models import Player, Bank, RulesGame, DominoGame, Tournament, Transaction, Marketing, BlockPlayer, \
         MoveRegister, AppVersion, Payment, ReferralPlayers, CurrencyRate, Match_Game, Round, Pair, \
     BankAccount,ChatMessage, ChatRoom, PackageCoins, SummaryPlayer, PlayerReward, Status_Transaction, \
     Notification, Manager, Send_Notification
@@ -18,6 +18,21 @@ from dominoapp.utils.constants import TransactionStatus
 admin.site.site_title = "DOMINO site admin (DEV)"
 admin.site.site_header = "DOMINO administration"
 admin.site.index_title = "Site administration"
+
+
+class RulesAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "variant",
+        "maxScore",
+        "inPairs",
+        "perPoints",
+        "payPassValue",
+        "payWinValue",
+        "payMatchValue",
+        "max_coins",
+        "max_datas"        
+    ]
 
 class DominoAdmin(admin.ModelAdmin):
     list_display = [
@@ -740,6 +755,7 @@ class SendNotificationAdmin(admin.ModelAdmin):
 # Register your models here.
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(Pair, PairAdmin)
+admin.site.register(RulesGame, RulesAdmin)
 admin.site.register(DominoGame, DominoAdmin)
 admin.site.register(Tournament, TournamentAdmin)
 admin.site.register(Match_Game, Match_GameAdmin)
