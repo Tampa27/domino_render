@@ -1,8 +1,8 @@
 import gc
 from django.http import HttpResponse
 from django.contrib import messages
-from django.db.models import Sum, OuterRef, Subquery, FloatField, Count
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, Count, Q, OuterRef, Subquery, FloatField, Case, When, F
+from django.db.models.functions import Coalesce, TruncDate
 from datetime import timedelta
 from dominoapp.utils.pdf_helpers import create_resume_pdf
 from dominoapp.models import Player, Status_Transaction
@@ -13,7 +13,8 @@ class AdminHelpers:
     def get_pdf_resume_transaction(modeladmin, request, queryset):
         """
             here we recive a queryset that is a list of the selected transactions
-        """  
+        """
+        
         queryset = queryset.annotate(
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
@@ -23,196 +24,130 @@ class AdminHelpers:
         if queryset_total == 0:
             messages.warning(request, f"No se ha seleccionado ninguna transaccion de recarga o extraccion")
             return
-        queryset_ids = queryset.values_list('id', flat=True)
-        
-        chunk_size = 40000  # Procesar de 40000 en 40000
-        
-        queryset = queryset.order_by("time")        
-        
-        num_days = 0
-                
-        admin_list = Player.objects.filter(user__is_staff = True).only('id', 'alias')
-        
-        # Usando values_list para obtener solo lo necesario
-        admin_tuples = admin_list.values_list('alias', flat=True).distinct()
 
-        admin_resume = {str(alias): {
-            "trans_amount_rl": 0,
-            "saldo_amount_rl": 0,
-            "trans_num": 0,
-            "total_admin_amount_ext": 0,
-            "ext_num": 0,
-            "balance": 0
-        } for alias in admin_tuples}
-        
-        graph = {
-            "days" : 0,
-            "reload": [],
-            "extraction": [],
-            "balance": [],
-        }
-        
-        diference_day = (queryset.last().time - queryset.first().time).days
-        
+
+        # --- Rango de fechas (2 queries rápidas, no cargan filas) ---
+        first = queryset.order_by('time').values('time').first()
+        last  = queryset.order_by('-time').values('time').first()
+        first_time, last_time = first['time'], last['time']
+        diference_day = (last_time - first_time).days
+        num_days = diference_day if diference_day > 0 else 1
+
+        # --- Admin list ---
+        admin_list = Player.objects.filter(user__is_staff=True).only('id', 'alias')
+        admin_tuples = list(admin_list.values_list('alias', flat=True).distinct())
+
+        admin_resume = {str(a): {"trans_amount_rl": 0, "saldo_amount_rl": 0, "trans_num": 0,
+                                "total_admin_amount_ext": 0, "ext_num": 0, "balance": 0}
+                        for a in admin_tuples}
+
         transaction_data = {
-                "from_day": queryset.first().time.strftime('%d/%m/%Y'),
-                "to_day": queryset.last().time.strftime('%d/%m/%Y'),
-                "total_amount_rl": 0,
-                "total_amount_rl_USD": 0,
-                "total_amount_ext": 0,
-                "total_amount_reward": 0,
-                "total_rl": 0,
-                "total_rl_USD": 0,
-                "total_pro_mov": 0,
-                "total_ext": 0,
-                "total_reward": 0,
-                "balance_amount": 0,
-                "game_amount": 0,
-                "transfer_amount": 0,
-                "mean_rl": "--",
-                "mean_ext": "--",
-                "mean_amount_rl": "--",
-                "mean_amount_ext": "--",
-                "admin_resume": admin_resume,
-                "graph": graph
+            "from_day": first_time.strftime('%d/%m/%Y'),
+            "to_day":   last_time.strftime('%d/%m/%Y'),
+            "total_amount_rl": 0, "total_amount_rl_USD": 0, "total_amount_ext": 0,
+            "total_amount_reward": 0, "total_rl": 0, "total_rl_USD": 0,
+            "total_pro_mov": 0, "total_ext": 0, "total_reward": 0,
+            "balance_amount": 0, "game_amount": 0, "transfer_amount": 0,
+            "mean_rl": "--", "mean_ext": "--", "mean_amount_rl": "--", "mean_amount_ext": "--",
+            "admin_resume": admin_resume,
+            "graph": {"days": 0, "reload": [], "extraction": [], "balance": []},
+            "promo_by_country": {},
         }
-        
-        for i in range(0, queryset_total, chunk_size):
-            queryset_chunk = queryset.filter(id__in = queryset_ids[i:i + chunk_size])
-        
-            total_amount_rl = queryset_chunk.filter(type ='rl').exclude(paymentmethod__in=["paypal", "zelle", "google"]).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            transaction_data["total_amount_rl"] += total_amount_rl
-            del total_amount_rl
-            
-            total_amount_rl_USD = queryset_chunk.filter(type ='rl', paymentmethod__in=["paypal", "zelle", "google"]).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            transaction_data["total_amount_rl_USD"] += total_amount_rl_USD
-            del total_amount_rl_USD
 
-            total_amount_ext = queryset_chunk.filter(type__in =['ex', 'rw']).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            transaction_data["total_amount_ext"] += total_amount_ext
-            del total_amount_ext
+        amount_expr = Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())
 
-            total_amount_reward = queryset_chunk.filter(type ='rw').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            transaction_data["total_amount_reward"] += total_amount_reward
-            del total_amount_reward
-            
-            total_rl = queryset_chunk.filter(type ='rl').exclude(paymentmethod__in=["paypal", "zelle", "google"]).count()
-            transaction_data["total_rl"] += total_rl
-            del total_rl
-
-            total_rl_USD = queryset_chunk.filter(type ='rl', paymentmethod__in=["paypal", "zelle", "google"]).count()
-            transaction_data["total_rl_USD"] += total_rl_USD
-            del total_rl_USD
-
-            total_pro_mov = queryset_chunk.filter(type ='pro_mov').count()
-            transaction_data["total_pro_mov"] += total_pro_mov
-            del total_pro_mov
-            
-            total_ext = queryset_chunk.filter(type__in = ['ex', 'rw']).count()
-            transaction_data["total_ext"] += total_ext
-            del total_ext
-
-            total_reward = queryset_chunk.filter(type = 'rw').count()
-            transaction_data["total_reward"] += total_reward
-            del total_reward
-            
-            num_days += (queryset_chunk.last().time - queryset_chunk.first().time).days
-            
-            total_amount_loss_in_game = queryset_chunk.filter(type ='gm').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
-            total_amount_win_in_game = queryset_chunk.filter(type ='gm').exclude(to_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
-            transaction_data["game_amount"] += round(total_amount_loss_in_game - total_amount_win_in_game, 2)
-            del total_amount_loss_in_game
-            del total_amount_win_in_game
-
-            total_amount_transfer = queryset_chunk.filter(type ='tr').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
-            total_amount_receved_transfer = queryset_chunk.filter(type ='tr').exclude(to_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
-            transaction_data["transfer_amount"] += round(total_amount_transfer - total_amount_receved_transfer, 2)
-            del total_amount_transfer
-            del total_amount_receved_transfer
-            
-            for admin in admin_list.iterator():
-                total_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id).exclude(paymentmethod__in=["paypal", "zelle", "google"])
-                transaction_data["admin_resume"][str(admin.alias)]["trans_num"] += total_rl.count()
-                trans_amount_rl = total_rl.filter(paymentmethod='transferencia').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-                transaction_data["admin_resume"][str(admin.alias)]["trans_amount_rl"] += round(trans_amount_rl, 2)
-                del trans_amount_rl
-                
-                saldo_amount_rl = total_rl.filter(paymentmethod='saldo').aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-                transaction_data["admin_resume"][str(admin.alias)]["saldo_amount_rl"] += round(saldo_amount_rl, 2)
-                del saldo_amount_rl
-                                
-                total_admin_ext = queryset_chunk.filter(type ='ex', admin__id = admin.id)
-                transaction_data["admin_resume"][str(admin.alias)]["ext_num"] += total_admin_ext.count()
-                total_admin_amount_ext = total_admin_ext.aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-                transaction_data["admin_resume"][str(admin.alias)]["total_admin_amount_ext"] += round(total_admin_amount_ext, 2)
-                
-                total_admin_amount_rl = total_rl.aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-                transaction_data["admin_resume"][str(admin.alias)]["balance"] += round(total_admin_amount_rl - total_admin_amount_ext, 2)
-                del total_admin_amount_ext
-                del total_admin_amount_rl
-                del total_rl
-                gc.collect()
-            
-            # Limpiar memoria
-            del queryset_chunk
-            gc.collect()
-            print(f"limpio el queryset_chunk, paso: {i}, de {queryset_total}")
-                
-        transaction_data["balance_amount"] = round(transaction_data["total_amount_rl"] - transaction_data["total_amount_ext"], 2)                
-        transaction_data["mean_rl"] = str(round(transaction_data['total_rl']/num_days, 1)) if num_days >0 else '--'
-        transaction_data["mean_ext"] = str(round(transaction_data['total_ext']/num_days, 1)) if num_days >0 else '--'
-        transaction_data["mean_amount_rl"] = str(round(transaction_data['total_amount_rl']/num_days, 2)) if num_days >0 else '--'
-        transaction_data["mean_amount_ext"] = str(round(transaction_data['total_amount_ext']/num_days, 2)) if num_days >0 else '--'
-        
-        transaction_data["graph"]["days"] = (list(range(1, diference_day+2)) if diference_day>0 else [1])
-               
-        del num_days
-        del diference_day
-        first_day = queryset.first().time.date()
-        from_day = first_day
-        for day in transaction_data["graph"]["days"]:
-            to_day = first_day + timedelta(days=day)
-            reload = queryset.filter(type="rl").exclude(paymentmethod__in=["paypal", "zelle", "google"]).filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            extraction = queryset.filter(type__in =['ex', 'rw']).filter(time__gte = from_day, time__lt = to_day).aggregate(total=Sum(Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())))['total'] or 0
-            transaction_data["graph"]["reload"].append(reload)
-            transaction_data["graph"]["extraction"].append(extraction)
-            transaction_data["graph"]["balance"].append(reload - extraction)
-            from_day = first_day + timedelta(days=day)
-        
-        del reload, extraction, first_day, from_day, to_day
-
-        # --- Promociones vistas por país ---
-        # Filtramos transacciones tipo 'pro_mov' con último estado 'cp'
-        
-        promotions_by_country = (
-            queryset.filter(type='pro_mov')
-            .values('to_user__country')
-            .annotate(total=Count('id'))
-            .order_by('-total')
+        # ===== 1) Agregados globales: UNA query =====
+        agg = queryset.aggregate(
+            total_amount_rl=Sum(amount_expr, filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+            total_amount_rl_USD=Sum(amount_expr, filter=Q(type='rl', paymentmethod__in=["paypal","zelle","google"])),
+            total_amount_ext=Sum(amount_expr, filter=Q(type__in=['ex','rw'])),
+            total_amount_reward=Sum(amount_expr, filter=Q(type='rw')),
+            total_rl=Count('id', filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+            total_rl_USD=Count('id', filter=Q(type='rl', paymentmethod__in=["paypal","zelle","google"])),
+            total_pro_mov=Count('id', filter=Q(type='pro_mov')),
+            total_ext=Count('id', filter=Q(type__in=['ex','rw'])),
+            total_reward=Count('id', filter=Q(type='rw')),
+            game_loss=Sum('amount', filter=Q(type='gm') & Q(from_user__isnull=False)),
+            game_win=Sum('amount', filter=Q(type='gm') & Q(to_user__isnull=False)),
+            transfer_out=Sum('amount', filter=Q(type='tr') & Q(from_user__isnull=False)),
+            transfer_in=Sum('amount', filter=Q(type='tr') & Q(to_user__isnull=False)),
         )
 
-        # Construir diccionario {pais: cantidad}
-        promo_country_data = {}
-        for row in promotions_by_country:
-            country = row['to_user__country']
-            # Normalizar: None/vacío → OTHER, cualquier otro → MAYÚSCULAS
-            key = country.strip().upper() if country and country.strip() else 'OTHER'
-            promo_country_data[key] = promo_country_data.get(key, 0) + row['total']
-        transaction_data["promo_by_country"] = promo_country_data
-        del promo_country_data, promotions_by_country
-
-        if queryset_total > 0:
-            # Limpiar memoria
-            del queryset
-            gc.collect()
-            pdf_out = create_resume_pdf(transaction_data, admin_tuples)
-
-            response = HttpResponse(pdf_out, content_type='application/pdf')
-            response['Content-Disposition'] = 'attachment; filename="'+ 'model.pdf"' 
-            messages.success(request,f"seleccion correcta")
-            return response
+        for k in ['total_amount_rl','total_amount_rl_USD','total_amount_ext','total_amount_reward',
+                'total_rl','total_rl_USD','total_pro_mov','total_ext','total_reward']:
+            transaction_data[k] = agg[k] or 0
         
-        messages.warning(request, f"No se ha seleccionado ninguna transaccion de recarga o extraccion")
-        return
-    
+        transaction_data["game_amount"]     = round((agg['game_loss'] or 0) - (agg['game_win'] or 0), 2)
+        transaction_data["transfer_amount"] = round((agg['transfer_out'] or 0) - (agg['transfer_in'] or 0), 2)
+
+        transaction_data["balance_amount"]  = round(transaction_data["total_amount_rl"] - transaction_data["total_amount_ext"], 2)
+        transaction_data["mean_rl"]         = str(round(transaction_data['total_rl'] / num_days, 1)) if num_days > 0 else '--'
+        transaction_data["mean_ext"]        = str(round(transaction_data['total_ext'] / num_days, 1)) if num_days > 0 else '--'
+        transaction_data["mean_amount_rl"]  = str(round(transaction_data['total_amount_rl'] / num_days, 2)) if num_days > 0 else '--'
+        transaction_data["mean_amount_ext"] = str(round(transaction_data['total_amount_ext'] / num_days, 2)) if num_days > 0 else '--'
+
+        # ===== 2) Admin resume: UNA query agrupada =====
+        admin_agg = (
+            queryset.filter(admin__isnull=False)
+            .values('admin__alias')
+            .annotate(
+                trans_num=Count('id', filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+                trans_amount_rl=Sum(amount_expr, filter=Q(type='rl', paymentmethod='transferencia')),
+                saldo_amount_rl=Sum(amount_expr, filter=Q(type='rl', paymentmethod='saldo')),
+                ext_num=Count('id', filter=Q(type='ex')),
+                total_admin_amount_ext=Sum(amount_expr, filter=Q(type='ex')),
+                total_admin_amount_rl=Sum(amount_expr, filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+            )
+        )
+        for row in admin_agg:
+            alias = row['admin__alias']
+            if alias not in transaction_data["admin_resume"]:
+                continue
+            transaction_data["admin_resume"][alias] = {
+                "trans_amount_rl": round(row['trans_amount_rl'] or 0, 2),
+                "saldo_amount_rl": round(row['saldo_amount_rl'] or 0, 2),
+                "trans_num": row['trans_num'] or 0,
+                "total_admin_amount_ext": round(row['total_admin_amount_ext'] or 0, 2),
+                "ext_num": row['ext_num'] or 0,
+                "balance": round((row['total_admin_amount_rl'] or 0) - (row['total_admin_amount_ext'] or 0), 2),
+            }
+
+        # ===== 3) Gráfico: UNA query agrupada por día =====
+        daily = (
+            queryset.annotate(day=TruncDate('time')).values('day')
+            .annotate(
+                reload=Sum(amount_expr, filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+                extraction=Sum(amount_expr, filter=Q(type__in=['ex','rw'])),
+            ).order_by('day')
+        )
+        daily_map = {row['day']: row for row in daily}
+        first_day = first_time.date()
+        n_days_total = diference_day + 1 if diference_day > 0 else 1
+        transaction_data["graph"]["days"] = list(range(1, n_days_total + 1))
+        for offset in range(n_days_total):
+            d = first_day + timedelta(days=offset)
+            row = daily_map.get(d)
+            r = float(row['reload'])     if row and row['reload']     else 0
+            e = float(row['extraction']) if row and row['extraction'] else 0
+            transaction_data["graph"]["reload"].append(r)
+            transaction_data["graph"]["extraction"].append(e)
+            transaction_data["graph"]["balance"].append(r - e)
+
+        # ===== 4) Promociones por país: UNA query agrupada =====
+        promotions_by_country = (
+            queryset.filter(type='pro_mov').values('to_user__country')
+            .annotate(total=Count('id')).order_by('-total')
+        )
+        for row in promotions_by_country:
+            c = row['to_user__country']
+            key = c.strip().upper() if c and c.strip() else 'OTHER'
+            transaction_data["promo_by_country"][key] = transaction_data["promo_by_country"].get(key, 0) + row['total']
+
+        # ===== 5) PDF =====
+        pdf_out = create_resume_pdf(transaction_data, admin_tuples)
+        response = HttpResponse(pdf_out, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="model.pdf"'
+        messages.success(request, "seleccion correcta")
+        return response
+
         
