@@ -261,7 +261,7 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
 
     return
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+@shared_task(bind=True, max_retries=2, default_retry_delay=30, ignore_result=True)
 def generate_transaction_pdf_and_email(
     self,
     transaction_data: dict,
