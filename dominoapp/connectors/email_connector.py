@@ -1,11 +1,8 @@
-import os
-import logging
-import locale
-from django.core.mail import send_mail
+import os, logging, locale, base64
+from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from datetime import datetime, timedelta
-import base64
 from io import BytesIO
 from dominoapp.models import Player
 from dotenv import load_dotenv
@@ -85,4 +82,36 @@ class EmailConnector:
                 html = html_message
             )
     
+    @staticmethod
+    def django_send_email_with_attachment(
+        to_email: list[str],
+        subject: str,
+        attachment: bytes,
+        filename: str,
+        from_email: str = None,
+        text: str = None,
+        html: str = None,
+        mimetype: str = "application/pdf",
+    ):
+        if not to_email:
+            raise ValueError("Error sending email. The to_email parameter is required.")
+        if not subject:
+            raise ValueError("Error sending email. The subject parameter is required.")
+        if not attachment:
+            raise ValueError("Error sending email. The attachment parameter is required.")
 
+        try:
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text or "",
+                from_email=from_email,
+                to=to_email,
+            )
+            if html:
+                msg.attach_alternative(html, "text/html")
+            msg.attach(filename, attachment, mimetype)
+            msg.send()
+            return True
+        except Exception as e:
+            logger.critical(f"Exception sending email with attachment. Details: {e}")
+            return False
