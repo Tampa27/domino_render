@@ -453,12 +453,20 @@ class PlayerNotificationSerializer(serializers.ModelSerializer):
 
 class PlayerGameSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
+    country = serializers.SerializerMethodField()
+
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
+
+    def get_country(self, obj: Player) -> str:
+        if obj.country:
+            return obj.country.upper()
+
+        return ""
     
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo"]
+        fields = ["id", "name", "alias", "lastTimeInSystem", "email", "photo_url", "coins", "tiles", "isPlaying", "points", "elo", "country"]
 
 class PlayerLoginSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
@@ -491,6 +499,7 @@ class PlayerOnListGameSerializer(serializers.ModelSerializer):
     coins = serializers.SerializerMethodField()
     unread_notification = serializers.SerializerMethodField(read_only = True)
     url = serializers.SerializerMethodField()
+    country = serializers.SerializerMethodField()
 
     def get_coins(self, obj: Player) -> int:
         return obj.earned_coins + obj.recharged_coins
@@ -501,11 +510,16 @@ class PlayerOnListGameSerializer(serializers.ModelSerializer):
     def get_url(self, obj: Player) -> str:
         BACKEND_URL = os.getenv("BACKEND_URL", "localhost:8000/v2/api")
         return f"{BACKEND_URL}/refer/?refer_code={obj.referral_code}"
-    
+
+    def get_country(self, obj: Player) -> str:
+        if obj.country:
+            return obj.country.upper()
+
+        return ""
 
     class Meta:
         model = Player
-        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "lastTimeInSystem", "url"]
+        fields = ["id", "name", "alias", "email", "photo_url", "coins", "unread_notification", "lastTimeInSystem", "url", "country"]
 
 class BankAccountSerializer(serializers.ModelSerializer):
     class Meta:
