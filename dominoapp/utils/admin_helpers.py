@@ -3,7 +3,7 @@ from django.db.models import Sum, Count, Q, OuterRef, Subquery, FloatField
 from django.db.models.functions import Coalesce, TruncDate
 from datetime import timedelta
 from dominoapp.models import Player, Status_Transaction
-from dominoapp.utils.async_task_helper import safe_async_task
+from dominoapp.utils.async_task_helper import enqueue_heavy_task
 from dominoapp.tasks import generate_transaction_pdf_and_email
 
 class AdminHelpers:
@@ -143,7 +143,7 @@ class AdminHelpers:
             transaction_data["promo_by_country"][key] = transaction_data["promo_by_country"].get(key, 0) + row['total']
 
         to_email = ["mcr.sibucan@gmail.com"]
-        safe_async_task(
+        enqueue_heavy_task(
             generate_transaction_pdf_and_email,
             transaction_data,
             admin_tuples,
