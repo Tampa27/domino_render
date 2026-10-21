@@ -1,7 +1,7 @@
 import gc
 from django.http import HttpResponse
 from django.contrib import messages
-from django.db.models import Sum, OuterRef, Subquery, FloatField
+from django.db.models import Sum, OuterRef, Subquery, FloatField, Count
 from django.db.models.functions import Coalesce
 from datetime import timedelta
 from dominoapp.utils.pdf_helpers import create_resume_pdf
@@ -18,7 +18,7 @@ class AdminHelpers:
             latest_status_name=Subquery(
                 Status_Transaction.objects.filter(status_transaction=OuterRef('pk')
         ).order_by('-created_at').values('status')[:1])
-        ).filter(latest_status_name='cp').exclude(type__in =['gm','pro','tr'])
+        ).filter(latest_status_name='cp').exclude(type__in =['pro'])
         queryset_total = queryset.count()
         if queryset_total == 0:
             messages.warning(request, f"No se ha seleccionado ninguna transaccion de recarga o extraccion")
@@ -68,6 +68,7 @@ class AdminHelpers:
                 "total_reward": 0,
                 "balance_amount": 0,
                 "game_amount": 0,
+                "transfer_amount": 0,
                 "mean_rl": "--",
                 "mean_ext": "--",
                 "mean_amount_rl": "--",
@@ -116,11 +117,18 @@ class AdminHelpers:
             del total_reward
             
             num_days += (queryset_chunk.last().time - queryset_chunk.first().time).days
+            
             total_amount_loss_in_game = queryset_chunk.filter(type ='gm').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
             total_amount_win_in_game = queryset_chunk.filter(type ='gm').exclude(to_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
             transaction_data["game_amount"] += round(total_amount_loss_in_game - total_amount_win_in_game, 2)
             del total_amount_loss_in_game
             del total_amount_win_in_game
+
+            total_amount_transfer = queryset_chunk.filter(type ='tr').exclude(from_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
+            total_amount_receved_transfer = queryset_chunk.filter(type ='tr').exclude(to_user__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
+            transaction_data["transfer_amount"] += round(total_amount_transfer - total_amount_receved_transfer, 2)
+            del total_amount_transfer
+            del total_amount_receved_transfer
             
             for admin in admin_list.iterator():
                 total_rl = queryset_chunk.filter(type ='rl', admin__id = admin.id).exclude(paymentmethod__in=["paypal", "zelle", "google"])
@@ -172,7 +180,27 @@ class AdminHelpers:
             from_day = first_day + timedelta(days=day)
         
         del reload, extraction, first_day, from_day, to_day
-                
+
+        # --- Promociones vistas por país ---
+        # Filtramos transacciones tipo 'pro_mov' con último estado 'cp'
+        
+        promotions_by_country = (
+            queryset.filter(type='pro_mov')
+            .values('to_user__country')
+            .annotate(total=Count('id'))
+            .order_by('-total')
+        )
+
+        # Construir diccionario {pais: cantidad}
+        promo_country_data = {}
+        for row in promotions_by_country:
+            country = row['to_user__country']
+            # Normalizar: None/vacío → OTHER, cualquier otro → MAYÚSCULAS
+            key = country.strip().upper() if country and country.strip() else 'OTHER'
+            promo_country_data[key] = promo_country_data.get(key, 0) + row['total']
+        transaction_data["promo_by_country"] = promo_country_data
+        del promo_country_data, promotions_by_country
+
         if queryset_total > 0:
             # Limpiar memoria
             del queryset
