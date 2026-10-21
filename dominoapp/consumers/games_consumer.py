@@ -63,7 +63,7 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         # ✅ Notificar solo si es la PRIMERA conexión de este jugador en la mesa
         if previous_count == 0 and self.user and not self.user.is_anonymous:
-            await self.notify_presence(is_online=True)
+            await self.notify_presence(is_online=True, game_id=self.game_id)
     
     async def disconnect(self, close_code):
         room_players = self.connected_players.get(self.game_id)
@@ -89,7 +89,7 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         # ✅ Notificar solo si fue su última conexión
         if is_last_connection and self.user and not self.user.is_anonymous:
-            await self.notify_presence(is_online=False)
+            await self.notify_presence(is_online=False, game_id=self.game_id)
 
     async def receive(self, text_data):
         """Maneja los mensajes recibidos desde la APK"""
@@ -280,8 +280,11 @@ class GameConsumer(AsyncWebsocketConsumer):
             return Player.objects.get(user__id=self.user.id).id
         except Player.DoesNotExist:
             return None
-
-    async def notify_presence(self, is_online: bool):
+    @database_sync_to_async
+    def _get_count_and_up(self, game_id):
+        return get_count_and_up(game_id)
+    
+    async def notify_presence(self, is_online: bool, game_id):
         """
         Envía una notificación al grupo de la mesa indicando que un jugador
         se conectó (online) o desconectó (offline).
@@ -291,8 +294,11 @@ class GameConsumer(AsyncWebsocketConsumer):
             if player_id is None:
                 return
 
+            count_key = await self._get_count_and_up(game_id)
+
             payload = {
                 "a": WSActions.PLAYER_ONLINE,
+                "cg": count_key,
                 "d": {
                     "p": player_id,          # id del player
                     "online": is_online,         # booleano de estado

@@ -1,7 +1,5 @@
 import os
-import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
-django.setup()
 
 from dominoapp.utils import game_tools
 from dominoapp.models import DominoGame, Tournament, Match_Game, Round, Player, SummaryPlayer
@@ -10,7 +8,6 @@ from django.utils.timezone import timedelta
 from django.db import connection, transaction
 from django.db.models import F, Count, Value, Subquery, OuterRef, Sum
 from django.db.models.functions import Coalesce
-from django.conf import settings
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
 from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key, get_count_and_up

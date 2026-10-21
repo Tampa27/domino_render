@@ -1,5 +1,4 @@
 import logging
-from django.conf import settings
 from celery import current_app
 
 logger = logging.getLogger("django")
@@ -25,3 +24,5 @@ def safe_async_task(task_func, *args, **kwargs):
         except Exception as fallback_error:
             logger.critical(f"Error en fallback síncrono: {fallback_error}")
             return None
+
+    

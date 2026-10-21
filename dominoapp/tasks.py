@@ -1,15 +1,17 @@
 from celery import shared_task
-import logging
-import os
+import logging, os
 from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, Notification
 from django.db import transaction
 from django.db.models import F
+from django.utils.timezone import now
 from dominoapp.utils.transactions import create_game_transactions, create_transactions
 from dominoapp.utils.players_tools import get_summary_model
 from dominoapp.utils.move_register_utils import movement_register
 from dominoapp.utils.checktables import procesar_logica_de_mesa, automatic_tournament
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.utils.whatsapp_help import get_whatsapp_tournament_notify
+from dominoapp.utils.pdf_helpers import create_resume_pdf
+from dominoapp.connectors.email_connector import EmailConnector
 logger = logging.getLogger('django')
 
 @shared_task(name="task_maestra_domino", ignore_result=True)
@@ -258,3 +260,49 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
                 logger.error(f"Error al crear las notificaciones del Torneo para el 3er lugar, error: {error}")
 
     return
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_transaction_pdf_and_email(
+    self,
+    transaction_data: dict,
+    admin_tuples: list,
+    to_email: list[str],
+):
+    """
+    Genera el PDF de resumen de transacciones y lo envía por correo.
+    `transaction_data` y `admin_tuples` ya vienen calculados desde la vista.
+    """
+    try:
+        # 1) Generar PDF (operación pesada)
+        pdf_bytes = create_resume_pdf(transaction_data, admin_tuples)
+
+        # 2) Preparar nombre y asunto
+        filename = f"resumen_transacciones_{now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        subject = "Resumen de transacciones - Dominó Club"
+
+        html_message = (
+            f"<p>Adjunto encontrará el resumen de transacciones "
+            f"generado el {now().strftime('%d/%m/%Y %H:%M')}.</p>"
+            f"<p>Rango: {transaction_data['from_day']} — {transaction_data['to_day']}</p>"
+        )
+
+        # 3) Enviar correo con adjunto
+        ok = EmailConnector.django_send_email_with_attachment(
+            to_email=to_email,
+            subject=subject,
+            attachment=pdf_bytes,
+            filename=filename,
+            from_email=EmailConnector.admin_email,
+            text="Adjunto encontrará el resumen de transacciones.",
+            html=html_message,
+        )
+
+        if not ok:
+            raise Exception("EmailConnector devolvió False al enviar el correo.")
+
+        logger.info(f"PDF de transacciones enviado a {to_email}")
+        return {"status": "ok", "filename": filename}
+
+    except Exception as exc:
+        logger.error(f"Error generando/enviando PDF de transacciones: {exc}")
+        raise self.retry(exc=exc)

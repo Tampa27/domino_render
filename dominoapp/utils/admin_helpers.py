@@ -1,11 +1,10 @@
-import gc
-from django.http import HttpResponse
 from django.contrib import messages
-from django.db.models import Sum, Count, Q, OuterRef, Subquery, FloatField, Case, When, F
+from django.db.models import Sum, Count, Q, OuterRef, Subquery, FloatField
 from django.db.models.functions import Coalesce, TruncDate
 from datetime import timedelta
-from dominoapp.utils.pdf_helpers import create_resume_pdf
 from dominoapp.models import Player, Status_Transaction
+from dominoapp.utils.async_task_helper import safe_async_task
+from dominoapp.tasks import generate_transaction_pdf_and_email
 
 class AdminHelpers:
     
@@ -143,11 +142,18 @@ class AdminHelpers:
             key = c.strip().upper() if c and c.strip() else 'OTHER'
             transaction_data["promo_by_country"][key] = transaction_data["promo_by_country"].get(key, 0) + row['total']
 
-        # ===== 5) PDF =====
-        pdf_out = create_resume_pdf(transaction_data, admin_tuples)
-        response = HttpResponse(pdf_out, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="model.pdf"'
-        messages.success(request, "seleccion correcta")
-        return response
+        to_email = ["mcr.sibucan@gmail.com"]
+        safe_async_task(
+            generate_transaction_pdf_and_email,
+            transaction_data,
+            admin_tuples,
+            to_email,
+        )
+
+        messages.success(
+            request,
+            f"El resumen se está generando y se enviará a {', '.join(to_email)} en breve."
+        )
+        return  # No devolvemos HttpResponse → el admin recarga la lista con el mensaje
 
         
