@@ -172,9 +172,17 @@ def create_resume_pdf(transaction_data: dict, admin_list:list[str]):
     pdf.cell(50, 8,"Recaudado en Juegos:" , border=border, align='L', fill=0)
     pdf.cell(40, 8, f"{transaction_data['game_amount']} CUP", border=border, align='C', fill=0)
 
+    current_y = pdf.get_y() + 10
+    pdf.set_xy(x_start + 60 ,current_y)
+    pdf.cell(50, 8,"Recaudado X transfer:" , border=border, align='L', fill=0)
+    pdf.cell(40, 8, f"{transaction_data['transfer_amount']} CUP", border=border, align='C', fill=0)
+
     resume_by_admin(pdf, x_start, border, admin_list, transaction_data["admin_resume"])
 
     graph_resume(pdf, width_table, height_table, transaction_data["graph"])
+
+    # NUEVO: tabla de promociones por país
+    promo_by_country_resume(pdf, width_table, height_table, transaction_data["promo_by_country"])
     
     return pdf.output(dest='S').encode('latin-1')
 
@@ -443,6 +451,79 @@ def graph_resume(pdf: PDF, width_table, height_table, graph_data):
     draw_legend()
     
     ################################################################################
+
+def promo_by_country_resume(pdf: PDF, width_table, height_table, promo_data: dict):
+    """
+    Crea una nueva página con la tabla de videos de promoción vistos por país.
+    """
+    pdf.add_page()
+    x_start = 10
+    y_start = 7.5
+
+    pdf.set_draw_color(0, 0, 0)
+    pdf.set_line_width(0.2)
+
+    # Contenedor principal (mismo estilo que las otras páginas)
+    pdf.rect(x_start, y_start, width_table, height_table, style='D')
+
+    # Título
+    tfont(pdf, 'B')
+    pdf.set_xy(x_start + 10, y_start + 1)
+    pdf.cell(width_table - 20, 10,
+             "Videos de Promoción Vistos por País",
+             border=0, align='C')
+
+    # --- Datos ordenados por cantidad descendente ---
+    # (ya vienen normalizados en mayúsculas desde admin_helpers)
+    rows = sorted(promo_data.items(), key=lambda kv: kv[1], reverse=True)
+
+    # Encabezados de tabla
+    tfont(pdf, 'B')
+    table_width = 120          # ancho total de la tabla
+    col_country_w = 70         # columna País
+    col_amount_w = 50          # columna Cantidad
+    table_x = x_start + (width_table - table_width) / 2  # centrada
+    current_y = y_start + 25
+
+    # Encabezado
+    pdf.set_xy(table_x, current_y)
+    pdf.cell(col_country_w, 10, "País", border=1, align='C', fill=0)
+    pdf.cell(col_amount_w, 10, "Cantidad", border=1, align='C', fill=0)
+    current_y += 10
+
+    # Datos
+    tfont(pdf, '')
+    total_general = 0
+    for i, (country, amount) in enumerate(rows):
+        color = 'gray1' if i % 2 else 'gray2'
+        set_fillcol(pdf, color)
+
+        total_general += amount
+
+        pdf.set_xy(table_x, current_y)
+        pdf.cell(col_country_w, 8, str(country), border=1, align='C', fill=1)
+        pdf.cell(col_amount_w, 8, str(amount), border=1, align='C', fill=1)
+        current_y += 8
+
+        # Salto de página automático si se acaba el espacio
+        if current_y > y_start + height_table - 20:
+            pdf.add_page()
+            pdf.rect(x_start, y_start, width_table, height_table, style='D')
+            current_y = y_start + 5
+            # Re-dibujar encabezados
+            tfont(pdf, 'B')
+            pdf.set_xy(table_x, current_y)
+            pdf.cell(col_country_w, 10, "País", border=1, align='C', fill=0)
+            pdf.cell(col_amount_w, 10, "Cantidad", border=1, align='C', fill=0)
+            current_y += 10
+            tfont(pdf, '')
+
+    # Fila de TOTAL
+    tfont(pdf, 'B')
+    set_fillcol(pdf, 'green')
+    pdf.set_xy(table_x, current_y)
+    pdf.cell(col_country_w, 8, "TOTAL", border=1, align='C', fill=1)
+    pdf.cell(col_amount_w, 8, str(total_general), border=1, align='C', fill=1)
 
 def create_resume_game_pdf(transaction_data: dict):
     #Se definen las caracteristicas del PDF
