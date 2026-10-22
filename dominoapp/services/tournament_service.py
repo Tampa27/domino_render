@@ -263,6 +263,9 @@ class TournamentService:
         if datetime.now(timezone.utc) > diff_deadline:
             return Response({'status': 'error', "message":"El plazo para salir del torneo ha finalizado."}, status=status.HTTP_409_CONFLICT)
 
+        if not tournament.player_list.filter(id = player.id).exists():
+            return Response({'status': 'error', "message":"No te has inscrito en este torneo."}, status=status.HTTP_409_CONFLICT)
+
         try:
             discount_factor = os.environ.get("TOURNAMENT_LEAVE_FACTOR", None)
             discount_factor = int(discount_factor)
