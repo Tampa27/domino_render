@@ -9,11 +9,18 @@ def safe_async_task(task_func, *args, **kwargs):
     Si falla la conexión, registra el error pero no interrumpe.
     """
     try:
+        connected = current_app.broker_connection().connected
+        ### Quitar cuando termine de probar  #####
+        logger.error(f"[SAFE_TASK] broker_connection().connected = {connected}")
+        
         # Verificar si Celery está disponible
-        if current_app.broker_connection().connected:
-            return task_func.apply_async(args=args, kwargs=kwargs, throw=False)
+        if connected:
+            result = task_func.apply_async(args=args, kwargs=kwargs, throw=True)  ### Cuando todo se corrija cambiar a trhow = False
+            ### Quitar cuando termine de probar  #####
+            logger.error(f"[SAFE_TASK] Después de apply_async {task_func.__name__} → id={getattr(result, 'id', None)}")
+            return result 
         else:
-            logger.warning(f"Celery broker no disponible, ejecutando {task_func.__name__} síncronamente")
+            logger.error(f"Celery broker no disponible, ejecutando {task_func.__name__} síncronamente")
             # Ejecutar síncronamente como fallback
             return task_func(*args, **kwargs)
     except Exception as e:
