@@ -5,27 +5,16 @@ logger = logging.getLogger("django")
 
 def safe_async_task(task_func, *args, **kwargs):
     """
-    Lanza una tarea asíncrona de forma segura.
-    Si falla la conexión, registra el error pero no interrumpe.
+    Lanza tarea asíncrona. Si el encolado falla, se ejecuta síncronamente como fallback.
+    No depende de broker_connection().connected (siempre devuelve False por lazy connection).
     """
     try:
-        connected = current_app.broker_connection().connected
-        ### Quitar cuando termine de probar  #####
-        logger.error(f"[SAFE_TASK] broker_connection().connected = {connected}")
-        
-        # Verificar si Celery está disponible
-        if connected:
-            result = task_func.apply_async(args=args, kwargs=kwargs, throw=True)  ### Cuando todo se corrija cambiar a trhow = False
-            ### Quitar cuando termine de probar  #####
-            logger.error(f"[SAFE_TASK] Después de apply_async {task_func.__name__} → id={getattr(result, 'id', None)}")
-            return result 
-        else:
-            logger.error(f"Celery broker no disponible, ejecutando {task_func.__name__} síncronamente")
-            # Ejecutar síncronamente como fallback
-            return task_func(*args, **kwargs)
+        # Intentar encolar directamente
+        result = task_func.apply_async(args=args, kwargs=kwargs, throw=True)
+        return result
     except Exception as e:
-        logger.error(f"Error lanzando tarea asíncrona {task_func.__name__}: {e}")
-        # Fallback: ejecutar síncronamente
+        logger.error(f"Error encolando {task_func.__name__}: {e}")
+        # Fallback: ejecución síncrona
         try:
             return task_func(*args, **kwargs)
         except Exception as fallback_error:
