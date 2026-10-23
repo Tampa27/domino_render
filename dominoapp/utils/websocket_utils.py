@@ -1,6 +1,7 @@
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-import logging
+from django.conf import settings
+import logging, redis
 
 logger = logging.getLogger('django')
 
@@ -238,3 +239,68 @@ def get_count_chat_key(chat_id:str):
     
     # Ejecutamos la función asíncrona en un entorno síncrono y devolvemos el resultado
     return async_to_sync(_get_count)()
+
+PRESENCE_TTL = 40  # segundos (debe ser > intervalo de ping del cliente)
+
+_redis_client = None
+
+def _get_redis():
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = redis.from_url(settings.CELERY_BROKER_URL, decode_responses=True)
+    return _redis_client
+
+def _online_key(game_id: int, player_id: int) -> str:
+    return f"game:{int(game_id)}:online:p{int(player_id)}"
+
+def mark_player_online(game_id: int, player_id: int) -> bool:
+    """
+    Renueva la presencia con TTL.
+    Devuelve True si la key NO existía (transición offline→online).
+    """
+    try:
+        r = _get_redis()
+        key = _online_key(game_id, player_id)
+        existed = r.exists(key)
+        r.set(key, "1", ex=PRESENCE_TTL)
+        return not bool(existed)
+    except Exception as e:
+        logger.error(f"mark_player_online error: {e}")
+        return False
+
+def refresh_player_online(game_id: int, player_id: int):
+    """Solo renueva el TTL (para ping)."""
+    try:
+        _get_redis().expire(_online_key(game_id, player_id), PRESENCE_TTL)
+    except Exception as e:
+        logger.error(f"refresh_player_online error: {e}")
+
+def mark_player_offline(game_id: int, player_id: int):
+    try:
+        _get_redis().delete(_online_key(game_id, player_id))
+    except Exception as e:
+        logger.error(f"mark_player_offline error: {e}")
+
+def is_player_online(game_id: int, player_id: int) -> bool:
+    try:
+        return bool(_get_redis().exists(_online_key(game_id, player_id)))
+    except Exception as e:
+        logger.error(f"is_player_online error: {e}")
+        return False
+
+def get_online_players(game_id: int) -> set:
+    """Devuelve el set de player_ids online en la mesa (SCAN)."""
+    try:
+        r = _get_redis()
+        pattern = f"game:{int(game_id)}:online:p*"
+        result = set()
+        for k in r.scan_iter(match=pattern, count=100):
+            try:
+                pid = int(k.rsplit("p", 1)[1])
+                result.add(pid)
+            except (ValueError, IndexError):
+                continue
+        return result
+    except Exception as e:
+        logger.error(f"get_online_players error: {e}")
+        return set()
