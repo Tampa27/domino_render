@@ -10,7 +10,8 @@ from dominoapp.serializers import ListGameSerializer, GameSerializer, PlayerGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
-from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up, get_count_lobby_key
+from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up, \
+    get_count_lobby_key, get_online_players
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.cache_tools import is_table_modification_locked
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
@@ -192,6 +193,10 @@ class GameService:
         players_data = PlayerGameSerializer(players, many=True).data
 
         game_data["count_g"]= get_count_key(game_id)  # Obtenemos el contador actual de esta mesa]  
+
+        online_ids = get_online_players(game_id)
+        for p_data in players_data:
+            p_data["online"] = p_data["id"] in online_ids
 
         return Response({
             'status': 'success', 

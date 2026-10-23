@@ -1,4 +1,4 @@
-import json
+import json, logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from datetime import datetime
@@ -8,12 +8,12 @@ from dominoapp.models import Player, DominoGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.api_http import RequestValidator
-from dominoapp.utils.websocket_utils import send_ws_notification, get_count_and_up
-import logging
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_and_up, mark_player_online, mark_player_offline, refresh_player_online
+
 logger = logging.getLogger('django')
 
 class GameConsumer(AsyncWebsocketConsumer):
-    connected_players = {}  # Mapeo game_id -> set de usuarios conectados
+    connected_players = {}  # Mapeo game_id -> { presence_key: num_conexiones } (solo local al worker)
 
     def get_redis_key(self):
         return f"count_g_{self.game_id}"
@@ -28,10 +28,9 @@ class GameConsumer(AsyncWebsocketConsumer):
         if user is not None and not user.is_anonymous:
             return f"u:{user.id}"
         return f"c:{self.channel_name}"
-    
-    async def connect(self):
 
-        self.game_id = self.scope['url_route']['kwargs']['game_id']
+    async def connect(self):
+        self.game_id = int(self.scope['url_route']['kwargs']['game_id'])
         self.room_group_name = f'g_{self.game_id}'
 
         # ---- 1. Validaciones (sin efectos secundarios) ----
@@ -49,7 +48,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         # ---- 2. Mutar presencia recién ahora ----
         # Estructura: game_id -> { presence_key: num_conexiones }
         self.presence_key = self._presence_key()
-
         self.connected_players.setdefault(self.game_id, {})
         previous_count = self.connected_players[self.game_id].get(self.presence_key, 0)
         self.connected_players[self.game_id][self.presence_key] = previous_count + 1
@@ -61,24 +59,23 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-        # ✅ Notificar solo si es la PRIMERA conexión de este jugador en la mesa
+        # ✅ Primera conexión de este user en esta mesa → marcar online y notificar
         if previous_count == 0 and self.user and not self.user.is_anonymous:
-            await self.notify_presence(is_online=True, game_id=self.game_id)
-    
+            await self._set_presence(is_online=True)
+
     async def disconnect(self, close_code):
         room_players = self.connected_players.get(self.game_id)
         key = getattr(self, "presence_key", None)
         is_last_connection = False
-    
+
         if room_players and key is not None:
             current = room_players.get(key, 0)
             if current <= 1:
-                room_players.pop(key, None)   # era su última conexión a esta mesa
-                is_last_connection = True  # ✅ Era su última conexión
+                room_players.pop(key, None)
+                is_last_connection = True
             else:
                 room_players[key] = current - 1
 
-            # Si ya no queda nadie en esta mesa (en este worker), limpiamos la llave
             if not room_players:
                 self.connected_players.pop(self.game_id, None)
 
@@ -87,17 +84,16 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-        # ✅ Notificar solo si fue su última conexión
+        # ✅ Última conexión → borrar de Redis y notificar offline
         if is_last_connection and self.user and not self.user.is_anonymous:
-            await self.notify_presence(is_online=False, game_id=self.game_id)
+            await self._set_presence(is_online=False)
 
     async def receive(self, text_data):
         """Maneja los mensajes recibidos desde la APK"""
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
-            
-            # Manejar diferentes tipos de mensajes
+
             if message_type == WSActions.TILE_MOVED:
                 await self.handle_move(data)
             elif message_type == WSActions.CHAT_MESSAGE:
@@ -108,7 +104,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 await self.handle_ping()
             else:
                 await self.send_error(f"Tipo de mensaje no soportado: {message_type}")
-                
+
         except json.JSONDecodeError:
             await self.send_error("Formato JSON inválido")
         except Exception as e:
@@ -118,34 +114,34 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def handle_move(self, data):
         """Maneja un movimiento de ficha"""
         try:
-            # Aquí procesas el movimiento
             game_id = self.scope['url_route']['kwargs']['game_id']
             move_tile = data.get('tile')
-            
+
             if self.user.is_anonymous:
-                await self.send_error(f"El player no está autenticado")
+                await self.send_error("El player no está autenticado")
                 return
-            
-            # Validar el movimiento con tu lógica de negocio
+
+            # ✅ El humano interactuó → renovar presencia (TTL) y notificar si cambió
+            await self._set_presence(is_online=True)
+
             error = await self.perform_move(game_id, self.user.id, move_tile)
             if error:
                 await self.send_error(error)
+                return
 
         except Exception as e:
             logger.error(f"No se puede hacer el movimiento, error: {str(e)}")
             await self.send_error(f"Error al procesar movimiento: {str(e)}")
-    
+
     async def exit_game(self):
         """Saca a un player de una mesa"""
         try:
-            # Aquí procesas el movimiento
             game_id = self.scope['url_route']['kwargs']['game_id']
-            
+
             if self.user.is_anonymous:
-                await self.send_error(f"El player no está autenticado")
+                await self.send_error("El player no está autenticado")
                 return
-            
-            # Validar el movimiento con tu lógica de negocio
+
             error = await self.perform_exit_game(game_id, self.user.id)
             if error:
                 await self.send_error(error)
@@ -156,38 +152,42 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     async def send_message(self, data):
         """Maneja el envio de mensajes a un chat"""
-        try:            
-            # Aquí procesas el envio del mensaje
+        try:
             if self.user.is_anonymous:
-                await self.send_error(f"El player no está autenticado")
+                await self.send_error("El player no está autenticado")
                 return
-            
+
             game_id = self.scope['url_route']['kwargs']['game_id']
             message = data.get('message')
-                                   
-            is_valid = RequestValidator.validate_text(message)
 
+            # ✅ El humano interactuó → renovar presencia (TTL) y notificar si cambió
+            await self._set_presence(is_online=True)
+
+            is_valid = RequestValidator.validate_text(message)
             if not is_valid:
                 await self.send_error("El mensaje tiene caracteres que no están permitidos.")
                 return
 
-            # Validar el envio con tu lógica
             error = await self.perform_send(game_id, self.user.id, message)
             if error:
                 await self.send_error(error)
+                return
 
         except Exception as e:
             logger.error(f"No se puede enviar el mensaje, error: {str(e)}")
-            await self.send_error(f"Error al envial mensaje: {str(e)}")
+            await self.send_error(f"Error al enviar mensaje: {str(e)}")
 
     @database_sync_to_async
     def perform_send(self, game_id, user_id, message):
         try:
-            player =  Player.objects.get(user__id=user_id)
+            player = Player.objects.get(user__id=user_id)
         except Player.DoesNotExist:
             return "Debe autenticarse para realizar esta acción"
-        
-        check_in_game = DominoGame.objects.filter(id=game_id).filter(Q(player1__id=player.id)|Q(player2__id=player.id)|Q(player3__id=player.id)|Q(player4__id=player.id)).exists()
+
+        check_in_game = DominoGame.objects.filter(id=game_id).filter(
+            Q(player1__id=player.id) | Q(player2__id=player.id) |
+            Q(player3__id=player.id) | Q(player4__id=player.id)
+        ).exists()
         if not check_in_game:
             return "No tienes permitido enviar mensajes en esta mesa"
         
@@ -215,10 +215,10 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def perform_move(self, game_id, user_id, move_tile):
         try:
-            player =  Player.objects.get(user__id=user_id)
+            player = Player.objects.get(user__id=user_id)
         except Player.DoesNotExist:
             return "Debe autenticarse para realizar esta acción"
-        
+
         return game_tools.move1(game_id, player, move_tile)
 
     @database_sync_to_async
@@ -231,10 +231,21 @@ class GameConsumer(AsyncWebsocketConsumer):
         return game_tools.exit_game(game_id, user_id)
 
     async def handle_ping(self):
-        """Maneja ping para mantener la conexión viva"""
+        """Maneja ping para mantener la conexión viva y renovar TTL de presencia"""
+        # ✅ Renovar TTL de presencia (silencioso, sin notificar al grupo)
+        if self.user and not self.user.is_anonymous:
+            try:
+                player_id = await self._get_player_id()
+                if player_id:
+                    await database_sync_to_async(refresh_player_online)(
+                        self.game_id, player_id
+                    )
+            except Exception as e:
+                logger.error(f"Error renovando presencia en ping: {e}")
+
         await self.send(text_data=json.dumps({
             "a": WSActions.PING,
-            "d" : {"lt": str(datetime.now())}
+            "d": {"lt": str(datetime.now())}
         }))
 
     async def send_error(self, error_message):
@@ -245,14 +256,14 @@ class GameConsumer(AsyncWebsocketConsumer):
         }))
 
     async def game_update(self, event):
-        """"Envia el mensaje de actualizacion al WS."""
+        """Envia el mensaje de actualizacion al WS."""
         await self.send(text_data=json.dumps(event['payload']))
 
     @classmethod
     def get_players_in_games(cls):
         """
-            Número total de jugadores ÚNICOS conectados a alguna mesa
-            (en este worker). Un usuario en 2 mesas cuenta 1 sola vez.
+        Número total de jugadores ÚNICOS conectados a alguna mesa
+        (en este worker). Solo para métricas locales.
         """
         unique_users = set()
         for game_map in cls.connected_players.values():
@@ -262,8 +273,9 @@ class GameConsumer(AsyncWebsocketConsumer):
     @classmethod
     def get_game_players_count(cls, game_id=None):
         """
-            Número de jugadores ÚNICOS en una mesa específica,
-            o en todas las mesas (únicos globales) si game_id es None.
+        Número de jugadores ÚNICOS en una mesa específica,
+        o en todas las mesas (únicos globales) si game_id es None.
+        Solo para métricas locales del worker.
         """
         if game_id is not None:
             return len(cls.connected_players.get(game_id, {}))
@@ -280,21 +292,38 @@ class GameConsumer(AsyncWebsocketConsumer):
             return Player.objects.get(user__id=self.user.id).id
         except Player.DoesNotExist:
             return None
+
     @database_sync_to_async
     def _get_count_and_up(self, game_id):
         return get_count_and_up(game_id)
-    
-    async def notify_presence(self, is_online: bool, game_id):
+
+    @database_sync_to_async
+    def _apply_presence_redis(self, player_id, is_online):
         """
-        Envía una notificación al grupo de la mesa indicando que un jugador
-        se conectó (online) o desconectó (offline).
+        Aplica la presencia en Redis y devuelve (changed, count_key).
+        - changed: True si hubo transición de estado (offline→online o online→offline).
+        """
+        if is_online:
+            changed = mark_player_online(self.game_id, player_id)  # True si NO existía
+        else:
+            mark_player_offline(self.game_id, player_id)
+            changed = True  # al borrar, siempre notificamos
+        count_key = get_count_and_up(self.game_id)
+        return changed, count_key
+
+    async def _set_presence(self, is_online: bool):
+        """
+        Actualiza Redis (con TTL) y notifica al grupo SOLO si hubo cambio.
         """
         try:
             player_id = await self._get_player_id()
             if player_id is None:
                 return
 
-            count_key = await self._get_count_and_up(game_id)
+            changed, count_key = await self._apply_presence_redis(player_id, is_online)
+            if not changed:
+                # Ya estaba en ese estado: solo se renovó el TTL, no spameamos al grupo
+                return
 
             payload = {
                 "a": WSActions.PLAYER_ONLINE,
