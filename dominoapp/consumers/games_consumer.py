@@ -8,7 +8,7 @@ from dominoapp.models import Player, DominoGame
 from dominoapp.utils import game_tools
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.api_http import RequestValidator
-from dominoapp.utils.websocket_utils import send_ws_notification, get_count_and_up, mark_player_online, mark_player_offline, refresh_player_online
+from dominoapp.utils.websocket_utils import send_ws_notification, get_count_key, get_count_and_up, mark_player_online, mark_player_offline, refresh_player_online
 
 logger = logging.getLogger('django')
 
@@ -308,7 +308,11 @@ class GameConsumer(AsyncWebsocketConsumer):
         else:
             mark_player_offline(self.game_id, player_id)
             changed = True  # al borrar, siempre notificamos
-        count_key = get_count_and_up(self.game_id)
+        
+        if changed:
+            count_key = get_count_and_up(self.game_id)
+        else:
+            count_key = get_count_key(self.game_id)
         return changed, count_key
 
     async def _set_presence(self, is_online: bool):
