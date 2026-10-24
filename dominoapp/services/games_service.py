@@ -413,6 +413,23 @@ class GameService:
                     except Exception as error:
                         logger.error(f"Error enviando el ws del lobby en el join. Error: {error}")
 
+                    if game.status=='ready':
+                        try:
+                            if game.player1:
+                                message = "Tienes un rival esperando por jugar. Entra y dale comenzar a la partida."
+                                if game.inPairs:
+                                    message = "La mesa está completa. Entra y dale comenzar a la partida."
+                                FCMNOTIFICATION.send_fcm_message(
+                                    user=game.player1.user,
+                                    title= "¡A jugar dominó!",
+                                    body=message,
+                                    data={
+                                        "game_id": str(game.id),
+                                        "type": ApiConstants.FCMType.JOINED.value[0]
+                                    }
+                                    )
+                        except Exception as error:
+                            logging.error(f"Error enviando el FCM de notificacion de inicio de juego. Error: {error}")
 
                 player.inactive_player = False
                 player.send_delete_email = False
