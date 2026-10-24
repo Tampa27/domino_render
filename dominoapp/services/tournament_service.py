@@ -176,10 +176,10 @@ class TournamentService:
         if not tournament.active:
             return Response({"status":'error',"message":"Este torneo aun no esta activo"},status=status.HTTP_409_CONFLICT)
         
-        check_others_inscriptions = Tournament.objects.filter(active=True, player_list__id = player.id).exists()
+        # check_others_inscriptions = Tournament.objects.filter(active=True, player_list__id = player.id).exists()
 
-        if check_others_inscriptions:
-            return Response({'status': 'error',"message":"El jugador ya está inscrito en un torneo."}, status=status.HTTP_409_CONFLICT)
+        # if check_others_inscriptions:
+        #     return Response({'status': 'error',"message":"El jugador ya está inscrito en un torneo."}, status=status.HTTP_409_CONFLICT)
         
         if player.total_coins < tournament.registration_fee:
             return Response({'status': 'error', "message":"No tienes suficientes monedas para inscribirte en el torneo."}, status=status.HTTP_409_CONFLICT)
