@@ -10,7 +10,8 @@ from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.payment_utils import custom_round
 from dominoapp.utils.async_task_helper import safe_async_task
-from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_and_up, get_count_lobby_and_up, delete_count_key
+from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_and_up, get_count_lobby_and_up, delete_count_key, \
+                                    notify_player_presence
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.cache_tools import is_table_modification_locked
 
@@ -891,6 +892,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
     player.tiles = ""
     player.lastTimeInGame = now
     player.lastTimeInSystem = now
+    notify_player_presence(game.id, player.id, False)
     
     # Guardado final de objetos
     player.save(update_fields=['points', 'start_coins', 'tiles', 'isPlaying', 'earned_coins', 'recharged_coins', 'lastTimeInGame', 'lastTimeInSystem'])

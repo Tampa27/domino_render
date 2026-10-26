@@ -1,6 +1,7 @@
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.conf import settings
+from dominoapp.utils.constants import WSActions
 import logging, redis
 
 logger = logging.getLogger('django')
@@ -304,3 +305,50 @@ def get_online_players(game_id: int) -> set:
     except Exception as e:
         logger.error(f"get_online_players error: {e}")
         return set()
+
+def notify_player_presence(game_id: int, player_id: int, is_online: bool) -> bool:
+    """
+    Actualiza la presencia del jugador en Redis (con TTL) y notifica al grupo
+    de la mesa SOLO si hubo transición de estado.
+
+    - is_online=True  : offline → online
+    - is_online=False : online  → offline
+
+    Devuelve True si se notificó al grupo, False si no hubo cambio.
+
+    Replica la lógica de GameConsumer._set_presence() pero desde código síncrono.
+    Seguro en multi-worker porque usa Redis como fuente de verdad.
+    """
+    try:
+        if is_online:
+            # mark_player_online devuelve True si la key NO existía (offline→online)
+            changed = mark_player_online(game_id, player_id)
+        else:
+            # offline: solo notificamos si realmente estaba online
+            was_online = is_player_online(game_id, player_id)
+            mark_player_offline(game_id, player_id)
+            changed = was_online
+        
+        count_key = get_count_and_up(game_id) if changed else get_count_key(game_id)
+
+        if not changed:
+            return False
+
+        payload = {
+            "a": WSActions.PLAYER_ONLINE,
+            "cg": count_key,
+            "d": {
+                "p": player_id,
+                "online": is_online,
+            }
+        }
+
+        send_ws_notification(game_id=game_id, payload=payload)
+        return True
+
+    except Exception as error:
+        logger.error(
+            f"Error en notify_player_presence mesa {game_id}, player {player_id}, "
+            f"online={is_online}: {error}"
+        )
+        return False
