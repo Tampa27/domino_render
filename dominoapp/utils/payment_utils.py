@@ -1,4 +1,4 @@
-import os, logging
+import os, logging, math
 from datetime import datetime
 from dominoapp.models import Player, Transaction
 from django.utils import timezone
@@ -82,3 +82,17 @@ def get_coins_by_country(player: Player)-> int:
     elif player.country.upper() == 'CU':
         coins = os.getenv("COINS_BY_MARKETIN_CUBA", 0)        
     return int(coins)
+
+def custom_round(number):
+    """
+    Rounds based on the first decimal digit:
+    - If the decimal is >= 7 -> rounds up to the next integer
+    - If the decimal is < 7  -> rounds down to the previous integer
+    """
+    integer_part = int(math.floor(number))
+    decimal_part = number - integer_part
+
+    if decimal_part >= 0.7:
+        return int(math.ceil(number))
+    else:
+        return integer_part
