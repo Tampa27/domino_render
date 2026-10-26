@@ -8,6 +8,7 @@ from django.db import transaction
 import logging
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
+from dominoapp.utils.payment_utils import custom_round
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_and_up, get_count_lobby_and_up, delete_count_key
 from dominoapp.utils.constants import WSActions
@@ -447,7 +448,7 @@ def updatePlayersData(game: DominoGame, players: list[Player], w: int, status: s
             
             if total_win > 0:
                 fee_percent = ApiConstants.DISCOUNT_PERCENT / 100
-                bank_fee = int(total_win * fee_percent)
+                bank_fee = custom_round(total_win * fee_percent)
                 player_net = total_win - bank_fee
                 
                 bank_data['game_coins'] = bank_data.get('game_coins', 0) + bank_fee
@@ -802,7 +803,7 @@ def exitPlayer(game: DominoGame, player: Player, players: list[Player], totalPla
         if should_pay:
             loss_coins = (game.payWinValue + game.payMatchValue)
             fee_percent = ApiConstants.DISCOUNT_PERCENT / 100
-            bank_fee = int(loss_coins * fee_percent)
+            bank_fee = custom_round(loss_coins * fee_percent)
             net_to_distribute = loss_coins - bank_fee
 
             # --- PREPARACIÓN DE DATOS ASÍNCRONOS ---
