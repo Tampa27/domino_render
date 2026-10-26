@@ -10,7 +10,8 @@ from django.db.models import F, Count, Value, Subquery, OuterRef, Sum
 from django.db.models.functions import Coalesce
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.services.tournament_service import TournamentService
-from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key, get_count_and_up
+from dominoapp.utils.websocket_utils import send_ws_notification, delete_count_key, get_count_and_up, \
+                        notify_player_presence
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.cache_tools import lock_table_modification, unlock_table_modification
 import logging
@@ -639,6 +640,7 @@ def automaticMove(game: DominoGame):
                             ))
                         except Exception as error:
                             logger.error(f"Error al enviar el WS en el movimiento automatico: {error}")
+                    notify_player_presence(game.id,player_w.id, False)
                 except Exception as e:
                     logger.critical(f"Error crítico en el movimiento automático en la mesa {game.id} al intentar realizar la salida, error: {str(e)}")            
         else:
@@ -653,6 +655,7 @@ def automaticMove(game: DominoGame):
             tile = game_tools.takeRandomCorrectTile(player_w.tiles, game.leftValue, game.rightValue)
             if game_tools.isPass(tile):
                 if time_diff.seconds > ApiConstants.AUTO_PASS_WAIT:
+                    notify_player_presence(game.id,player_w.id, False)
                     try:
                         with transaction.atomic():
                             try:
@@ -696,6 +699,7 @@ def automaticMove(game: DominoGame):
                     except Exception as e:
                         logger.critical(f"Error en el movimiento automático del jugador {player_w.alias} en la mesa {game.id}, error: {str(e)}")
             elif time_diff.seconds > (MOVE_TILE_TIME + ApiConstants.AUTO_MOVE_WAIT) or (player_diff_time.seconds > ApiConstants.WAIT_FOR_PLAYER and time_diff.seconds > ApiConstants.AUTO_MOVE_WAIT):
+                notify_player_presence(game.id,player_w.id, False)
                 try:
                     with transaction.atomic():
                         try:
