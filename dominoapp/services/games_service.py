@@ -168,7 +168,6 @@ class GameService:
                 player_request = Player.objects.get(
                         user_id=request.user.id
                     )
-                notify_player_presence(game_id, player_request.id,True)
                 if player_request.lastTimeInSystem + timedelta(seconds = 10) < timezone.now():
                     try:
                         safe_async_task(
