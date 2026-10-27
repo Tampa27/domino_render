@@ -175,6 +175,9 @@ class TournamentService:
 
         if not tournament.active:
             return Response({"status":'error',"message":"Este torneo aun no esta activo"},status=status.HTTP_409_CONFLICT)
+
+        if tournament.player_list.filter(id = player.id).exists():
+            return Response({'status': 'error',"message":"Ya estás inscrito en el torneo."}, status=status.HTTP_409_CONFLICT)
         
         # check_others_inscriptions = Tournament.objects.filter(active=True, player_list__id = player.id).exists()
 
