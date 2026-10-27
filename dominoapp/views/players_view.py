@@ -22,7 +22,7 @@ class PlayerView(viewsets.ModelViewSet):
 
     filterset_fields = ["name", "alias", "email"]
     search_fields = [
-        "name","email", "alias"
+        "id", "name","email", "alias"
     ]
 
     filter_backends = [
