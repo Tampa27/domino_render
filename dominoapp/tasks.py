@@ -1,9 +1,12 @@
 from celery import shared_task
 import logging, os
-from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, Notification
+from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, Notification, Transaction, \
+    Status_Transaction
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum, Count, Q, OuterRef, Subquery, FloatField
+from django.db.models.functions import Coalesce, TruncDate
 from django.utils.timezone import now
+from datetime import datetime, date, timedelta
 from dominoapp.utils.transactions import create_game_transactions, create_transactions
 from dominoapp.utils.players_tools import get_summary_model
 from dominoapp.utils.move_register_utils import movement_register
@@ -261,6 +264,8 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
 
     return
 
+##### Admin Task #######################
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=30, ignore_result=True)
 def generate_transaction_pdf_and_email(
     self,
@@ -305,4 +310,223 @@ def generate_transaction_pdf_and_email(
 
     except Exception as exc:
         logger.error(f"Error generando/enviando PDF de transacciones: {exc}")
+        raise self.retry(exc=exc)
+
+def _build_transaction_queryset(filters: dict):
+    """
+    Reconstruye el queryset aplicando los mismos filtros que el admin:
+    - game, type, admin_id: Exact
+    - time__date__gte, time__date__lt: DateGte / DateLt
+    - status: anota latest_status_name y filtra por él
+    - search: Q OR sobre from_user__alias, to_user__alias, from_user__email, to_user__email
+    """
+    qs = Transaction.objects.all()
+
+    # Filtros Exact simples
+    if filters.get("game"):
+        qs = qs.filter(game_id=filters["game"])
+    if filters.get("type"):
+        qs = qs.filter(type=filters["type"])
+    if filters.get("admin_id"):
+        qs = qs.filter(admin_id=filters["admin_id"])
+
+    # Rango de fechas (deserializar ISO strings a date)
+    if filters.get("time__date__gte"):
+        d = date.fromisoformat(filters["time__date__gte"])
+        qs = qs.filter(time__date__gte=d)
+    if filters.get("time__date__lt"):
+        d = date.fromisoformat(filters["time__date__lt"])
+        qs = qs.filter(time__date__lt=d)
+
+    # Search: replicar search_fields del TransactionAdmin
+    if filters.get("search"):
+        s = filters["search"]
+        qs = qs.filter(
+            Q(from_user__alias__icontains=s) |
+            Q(to_user__alias__icontains=s) |
+            Q(from_user__email__icontains=s) |
+            Q(to_user__email__icontains=s)
+        )
+
+    # Status: anotar y filtrar (igual que StatusFilter del admin)
+    qs = qs.annotate(
+        latest_status_name=Subquery(
+            Status_Transaction.objects
+            .filter(status_transaction=OuterRef('pk'))
+            .order_by('-created_at')
+            .values('status')[:1]
+        )
+    )
+    # Si no se especifica status, forzar 'cp' (comportamiento original)
+    if filters.get("status"):
+        qs = qs.filter(latest_status_name=filters["status"])
+    else:
+        qs = qs.filter(latest_status_name="cp")
+
+    # Excluir type='pro' (igual que tu vista original)
+    qs = qs.exclude(type__in=['pro'])
+
+    return qs
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30, ignore_result=True,soft_time_limit=300, time_limit=360)
+def generate_transaction_resume_task(self, filters: dict, admin_tuples: list, to_email: list[str]):
+    """
+    Reconstruye el queryset desde `filters`, calcula agregados, genera PDF y envía correo.
+    Se ejecuta en el worker (sin límite de 30s de Heroku).
+    """
+    try:
+        # ===== 1) Reconstruir queryset =====
+        queryset = _build_transaction_queryset(filters)
+        queryset_total = queryset.count()
+        if queryset_total == 0:
+            logger.error(f"generate_transaction_resume_task: 0 transacciones con filters={filters}")
+            return
+
+        # ===== 2) Rango de fechas =====
+        first = queryset.order_by('time').values('time').first()
+        last = queryset.order_by('-time').values('time').first()
+        first_time, last_time = first['time'], last['time']
+        diference_day = (last_time - first_time).days
+        num_days = diference_day if diference_day > 0 else 1
+
+        # ===== 3) Admin resume inicial =====
+        admin_resume = {
+            str(a): {"trans_amount_rl": 0, "saldo_amount_rl": 0, "trans_num": 0,
+                     "total_admin_amount_ext": 0, "ext_num": 0, "balance": 0}
+            for a in admin_tuples
+        }
+
+        transaction_data = {
+            "from_day": first_time.strftime('%d/%m/%Y'),
+            "to_day":   last_time.strftime('%d/%m/%Y'),
+            "total_amount_rl": 0, "total_amount_rl_USD": 0, "total_amount_ext": 0,
+            "total_amount_reward": 0, "total_rl": 0, "total_rl_USD": 0,
+            "total_pro_mov": 0, "total_ext": 0, "total_reward": 0,
+            "balance_amount": 0, "game_amount": 0, "transfer_amount": 0,
+            "mean_rl": "--", "mean_ext": "--", "mean_amount_rl": "--", "mean_amount_ext": "--",
+            "admin_resume": admin_resume,
+            "graph": {"days": 0, "reload": [], "extraction": [], "balance": []},
+            "promo_by_country": {},
+        }
+
+        amount_expr = Coalesce('transaction_payment__amount', 'amount', output_field=FloatField())
+
+        # ===== 4) Agregados globales =====
+        agg = queryset.aggregate(
+            total_amount_rl=Sum(amount_expr, filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+            total_amount_rl_USD=Sum(amount_expr, filter=Q(type='rl', paymentmethod__in=["paypal","zelle","google"])),
+            total_amount_ext=Sum(amount_expr, filter=Q(type__in=['ex','rw'])),
+            total_amount_reward=Sum(amount_expr, filter=Q(type='rw')),
+            total_rl=Count('id', filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+            total_rl_USD=Count('id', filter=Q(type='rl', paymentmethod__in=["paypal","zelle","google"])),
+            total_pro_mov=Count('id', filter=Q(type='pro_mov')),
+            total_ext=Count('id', filter=Q(type__in=['ex','rw'])),
+            total_reward=Count('id', filter=Q(type='rw')),
+            game_loss=Sum('amount', filter=Q(type='gm') & Q(from_user__isnull=False)),
+            game_win=Sum('amount', filter=Q(type='gm') & Q(to_user__isnull=False)),
+            transfer_out=Sum('amount', filter=Q(type='tr') & Q(from_user__isnull=False)),
+            transfer_in=Sum('amount', filter=Q(type='tr') & Q(to_user__isnull=False)),
+        )
+        for k in ['total_amount_rl','total_amount_rl_USD','total_amount_ext','total_amount_reward',
+                  'total_rl','total_rl_USD','total_pro_mov','total_ext','total_reward']:
+            transaction_data[k] = agg[k] or 0
+
+        transaction_data["game_amount"]     = round((agg['game_loss'] or 0) - (agg['game_win'] or 0), 2)
+        transaction_data["transfer_amount"] = round((agg['transfer_out'] or 0) - (agg['transfer_in'] or 0), 2)
+        transaction_data["balance_amount"]  = round(transaction_data["total_amount_rl"] - transaction_data["total_amount_ext"], 2)
+        transaction_data["mean_rl"]         = str(round(transaction_data['total_rl'] / num_days, 1)) if num_days > 0 else '--'
+        transaction_data["mean_ext"]        = str(round(transaction_data['total_ext'] / num_days, 1)) if num_days > 0 else '--'
+        transaction_data["mean_amount_rl"]  = str(round(transaction_data['total_amount_rl'] / num_days, 2)) if num_days > 0 else '--'
+        transaction_data["mean_amount_ext"] = str(round(transaction_data['total_amount_ext'] / num_days, 2)) if num_days > 0 else '--'
+
+        # ===== 5) Admin resume agrupado =====
+        admin_agg = (
+            queryset.filter(admin__isnull=False)
+            .values('admin__alias')
+            .annotate(
+                trans_num=Count('id', filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+                trans_amount_rl=Sum(amount_expr, filter=Q(type='rl', paymentmethod='transferencia')),
+                saldo_amount_rl=Sum(amount_expr, filter=Q(type='rl', paymentmethod='saldo')),
+                ext_num=Count('id', filter=Q(type='ex')),
+                total_admin_amount_ext=Sum(amount_expr, filter=Q(type='ex')),
+                total_admin_amount_rl=Sum(amount_expr, filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+            )
+        )
+        for row in admin_agg:
+            alias = row['admin__alias']
+            if alias not in transaction_data["admin_resume"]:
+                continue
+            transaction_data["admin_resume"][alias] = {
+                "trans_amount_rl": round(row['trans_amount_rl'] or 0, 2),
+                "saldo_amount_rl": round(row['saldo_amount_rl'] or 0, 2),
+                "trans_num": row['trans_num'] or 0,
+                "total_admin_amount_ext": round(row['total_admin_amount_ext'] or 0, 2),
+                "ext_num": row['ext_num'] or 0,
+                "balance": round((row['total_admin_amount_rl'] or 0) - (row['total_admin_amount_ext'] or 0), 2),
+            }
+
+        # ===== 6) Gráfico por día =====
+        daily = (
+            queryset.annotate(day=TruncDate('time')).values('day')
+            .annotate(
+                reload=Sum(amount_expr, filter=Q(type='rl') & ~Q(paymentmethod__in=["paypal","zelle","google"])),
+                extraction=Sum(amount_expr, filter=Q(type__in=['ex','rw'])),
+            ).order_by('day')
+        )
+        daily_map = {row['day']: row for row in daily}
+        first_day = first_time.date()
+        n_days_total = diference_day + 1 if diference_day > 0 else 1
+        transaction_data["graph"]["days"] = list(range(1, n_days_total + 1))
+        for offset in range(n_days_total):
+            d = first_day + timedelta(days=offset)
+            row = daily_map.get(d)
+            r = float(row['reload'])     if row and row['reload']     else 0
+            e = float(row['extraction']) if row and row['extraction'] else 0
+            transaction_data["graph"]["reload"].append(r)
+            transaction_data["graph"]["extraction"].append(e)
+            transaction_data["graph"]["balance"].append(r - e)
+
+        # ===== 7) Promociones por país =====
+        promotions_by_country = (
+            queryset.filter(type='pro_mov').values('to_user__country')
+            .annotate(total=Count('id')).order_by('-total')
+        )
+        for row in promotions_by_country:
+            c = row['to_user__country']
+            key = c.strip().upper() if c and c.strip() else 'OTHER'
+            transaction_data["promo_by_country"][key] = (
+                transaction_data["promo_by_country"].get(key, 0) + row['total']
+            )
+
+        # ===== 8) PDF + email =====
+        pdf_bytes = create_resume_pdf(transaction_data, admin_tuples)
+
+        filename = f"resumen_transacciones_{now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        subject = "Resumen de transacciones - Dominó Club"
+        html_message = (
+            f"<p>Adjunto encontrará el resumen de transacciones "
+            f"generado el {now().strftime('%d/%m/%Y %H:%M')}.</p>"
+            f"<p>Rango: {transaction_data['from_day']} — {transaction_data['to_day']}</p>"
+            f"<p>Total transacciones: {queryset_total}</p>"
+        )
+
+        ok = EmailConnector.django_send_email_with_attachment(
+            to_email=to_email,
+            subject=subject,
+            attachment=pdf_bytes,
+            filename=filename,
+            from_email=EmailConnector.admin_email,
+            text="Adjunto encontrará el resumen de transacciones.",
+            html=html_message,
+        )
+        if not ok:
+            raise Exception("EmailConnector devolvió False al enviar el correo.")
+
+        logger.info(f"Resumen de transacciones ({queryset_total}) enviado a {to_email}")
+
+    except Exception as exc:
+        logger.error(f"Error en generate_transaction_resume_task: {exc}", exc_info=True)
+        if self.request.retries >= self.max_retries:
+            logger.critical(f"generate_transaction_resume_task FALLÓ definitivamente: {exc}")
+            return
         raise self.retry(exc=exc)
