@@ -11,8 +11,8 @@ from dominoapp.views.filters.payment_filter import PaymentSearchFilter
 from dominoapp.services.payments_service import PaymentService
 from dominoapp.serializers import ListTransactionsSerializer, ListTransactionsAdminSerializer, PackageCoinsSerializer
 from dominoapp.utils.request_permitions import IsSuperAdminUser
-from drf_spectacular.utils import extend_schema, inline_serializer,OpenApiParameter, OpenApiExample
-from rest_framework.serializers import BooleanField, IntegerField, CharField, ListField, UUIDField 
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework.serializers import IntegerField, CharField
 
 class PaymentListPagination(PageNumberPagination):
     page_size = 3
@@ -714,3 +714,68 @@ class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
             return Response(data={
                 "status": 'error',
                 'message': str(e)}, status=409)
+
+    @extend_schema(
+            operation_id="google_review",
+            request = inline_serializer(
+                    name="Google Review Request",
+                    fields={
+                        "token": CharField(required=True),
+                        "player_id": IntegerField(required=True)
+                    }
+                ),
+            responses={
+            200: inline_serializer(
+                name="Google Review Response",
+                fields={
+                    "status": CharField(default="success"),
+                    "coins": IntegerField(required=False)
+                    },
+            ),
+            401: inline_serializer(
+                name="Error 401 Unauthorized",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            403: inline_serializer(
+                name="Error 403 Forbidden",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            404: inline_serializer(
+                name="Error 404 Not Found",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            ),
+            409: inline_serializer(
+                name="Error 409 Conflict",
+                fields={
+                    "status": CharField(default="error"),
+                    "message": CharField()
+                    },
+            )
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def google_review(self, request):
+        try:
+            is_valid, message, status_response = PaymentRequest.validate_marketin_promotion(request)
+            
+            if not is_valid:
+                return Response(data ={
+                    "status":'error',
+                    "message": message
+                }, status = status_response)
+            
+            return PaymentService.process_google_review(request)        
+        except Exception as e:
+            return Response(data={
+                "status": 'error',
+                'message': str(e)}, status=409)
+        

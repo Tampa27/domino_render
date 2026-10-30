@@ -32,6 +32,7 @@ class Player(models.Model):
     isPlaying = models.BooleanField(default=False)
     send_delete_email = models.BooleanField(default=False)
     inactive_player = models.BooleanField(default=False)
+    google_review = models.BooleanField(default=False,verbose_name="Google Review") ## Revisión de Google
     
     referral_code = ShortUUIDField(
         length=6, max_length=7,
