@@ -7,7 +7,7 @@ from django.utils.timezone import timedelta
 from django.utils import timezone
 from dominoapp.models import Tournament, Player
 from dominoapp.tasks import async_send_fcm_message, async_send_global_fcm_message
-from dominoapp.utils.async_task_helper import safe_async_task
+from dominoapp.utils.async_task_helper import enqueue_heavy_task
 from dominoapp.utils.constants import TournamentStatus
 import logging
 logger = logging.getLogger("django")
@@ -122,23 +122,17 @@ class Command(BaseCommand):
                     players_id = list(players_qs.values_list("user__id", flat=True))
                     if not players_id:
                         continue
-
-                    try:                        
-                        safe_async_task(
-                            async_send_fcm_message,
-                            players_id, 
-                            "⏰ Fechas del Torneo Corridas",
-                            f"El torneo se pospuso para el {start_at.astimezone(tz).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {deadline.astimezone(tz).strftime('%d-%m-%Y, %H:%M')}."
-                        )
-                    except Exception as error:
-                            logger.error(
-                            "Error al enviar notificacion FCM de cambio de fecha "
-                            "del torneo => %s", str(error)
-                        )
+                    
+                    enqueue_heavy_task(
+                        async_send_fcm_message,
+                        players_id, 
+                        "⏰ Fechas del Torneo Corridas",
+                        f"El torneo se pospuso para el {start_at.astimezone(tz).strftime('%d-%m-%Y, %H:%M')} debido a inscripciones incompletas. Las inscripciones siguen abiertas hasta el {deadline.astimezone(tz).strftime('%d-%m-%Y, %H:%M')}."
+                    )
                 
                 try:
                     havana = pytz.timezone(DEFAULT_TZ)
-                    safe_async_task(
+                    enqueue_heavy_task(
                         async_send_global_fcm_message,
                         "⏰ Última oportunidad para inscribirte al torneo",
                         f"⏰ Se corrió el torneo. Ahora puedes unirte al torneo antes del {deadline.astimezone(havana).strftime('%d-%m a las %H:%M')}."
@@ -163,7 +157,7 @@ class Command(BaseCommand):
             ):
                 try:
                     havana = pytz.timezone(DEFAULT_TZ)
-                    safe_async_task(
+                    enqueue_heavy_task(
                         async_send_global_fcm_message,
                         "⏰ Últimas horas para inscribirte al torneo",
                         f"⏰ Inscripciones a punto de cerrar. Únete al torneo antes del {deadline.astimezone(havana).strftime('%d-%m a las %H:%M')}."
@@ -206,7 +200,7 @@ class Command(BaseCommand):
                         continue
                     
                     try:
-                        safe_async_task(
+                        enqueue_heavy_task(
                             async_send_fcm_message,
                             players_id,
                             "⏰ Recordatorio de inicio",
@@ -250,7 +244,7 @@ class Command(BaseCommand):
                         continue
 
                     try:
-                        safe_async_task(
+                        enqueue_heavy_task(
                             async_send_fcm_message,
                             players_id,
                             "⏰ Recordatorio de inicio",
@@ -330,7 +324,7 @@ class Command(BaseCommand):
                             cuerpo = f"Inscríbete ahora y asegura tu lugar. El registro cierra el {fecha_cierre}. ¡Usa tus monedas y gana!"
 
                         try:
-                            safe_async_task(
+                            enqueue_heavy_task(
                                 async_send_fcm_message,
                                 target_players_ids,
                                 titulo,

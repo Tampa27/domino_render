@@ -1272,7 +1272,8 @@ class PaymentService:
             "Promoción",
             {
                 'player': player.alias,
-                "amount": promotions_coins
+                "amount": promotions_coins,
+                "type": "Marketing Promotion"
             }
         )
 
@@ -1359,5 +1360,74 @@ class PaymentService:
         
         return Response({'status': 'success', "message":'Balance recharged'}, status=status.HTTP_200_OK)
     
+    @staticmethod
+    def process_google_review(request):
+
+        try:
+            player = Player.objects.get(user__id = request.user.id)
+        except Player.DoesNotExist:
+            return Response(data={'status': 'error', "message":'Debe iniciar seción y vuelva a intentar'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if player.id != request.data["player_id"]:
+            return Response(data={'status': 'error', "message":'No tienes permitido realizar esta operación.'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if player.is_block:
+            return Response(data={'status': 'error', "message":'El usuario esta bloqueado, contacta a los administradores.'}, status=status.HTTP_409_CONFLICT)
+
+        if player.google_review:
+            return Response(data={'status': 'error', "message":"Ya has realizado una reseña en Google."}, status=status.HTTP_409_CONFLICT
+            )
+
+        ## validar que el token es correcto
+        secret_apk_key = os.getenv("SECRET_APK_KEY", "domino_club_2025")
+        text_encode = f"{player.id}_{secret_apk_key}"
+        token_hash_sha256 = hashlib.sha256(text_encode.encode()).hexdigest()
+        
+        token = request.data.get("token", None)
+        
+        if not token or token != token_hash_sha256:
+            return Response(data={'status': 'error', "message":'Token no valido'}, status=status.HTTP_403_FORBIDDEN)        
+
+        try:
+            promotions_coins = int(os.getenv("COINS_BY_GOOGLE_REVIEW", 0))
+        except Exception as error:
+            logger.error(f"Error en la configuracion del COINS_BY_GOOGLE_REVIEW. Error: {error}")
+            return Response(data={'status': 'error', "message":'Error en la configuración del sistema, contacte a los administradores.'}, status=status.HTTP_409_CONFLICT)
+
+        player.recharged_coins+= promotions_coins
+        player.save(update_fields=["recharged_coins"])
+
+        try:
+            bank = Bank.objects.all().first()
+        except:
+            bank = Bank.objects.create()
+
+        bank.promotion_coins+= promotions_coins
+        bank.save(update_fields=['promotion_coins'])  
+        
+        create_transactions(
+            amount= promotions_coins,
+            to_user= player,
+            status="cp",
+            type="pro",
+            descriptions=f"El player {player.alias} ha ganado {promotions_coins} por comentar en Google."
+        )
+        
+        DiscordConnector.send_event(
+            "Promoción",
+            {
+                'player': player.alias,
+                "amount": promotions_coins,
+                "type": "Google Review"
+            }
+        )
+
+        FCMNOTIFICATION.send_fcm_message(
+            user = player.user,
+            title = "Promoción en Domino Club",
+            body = f"{player.name} usted ha recibido una promoción en su cuenta de Domino Club con {promotions_coins} monedas."
+            )
+        
+        return Response({'status': 'success', "coins":promotions_coins}, status=status.HTTP_200_OK)
 
     

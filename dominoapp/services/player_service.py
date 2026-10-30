@@ -193,7 +193,8 @@ class PlayerService:
                                         {
                                             'player': str(player.parent.alias),
                                             "amount": ApiConstants.REFER_REWARD,
-                                            "referred_user": str(player.alias)
+                                            "referred_user": str(player.alias),
+                                            "type": "REFER"
                                         }
                                     )   
                                 except Exception as error:
@@ -244,7 +245,8 @@ class PlayerService:
                                         {
                                             'player': str(player.parent.alias),
                                             "amount": ApiConstants.REFER_REWARD,
-                                            "referred_user": str(player.alias)
+                                            "referred_user": str(player.alias),
+                                            "type": "REFER"
                                         }
                                     )   
                                 except Exception as error:
