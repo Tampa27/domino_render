@@ -332,8 +332,8 @@ def notify_player_presence(game_id: int, player_id: int, is_online: bool) -> boo
         # count_key = get_count_and_up(game_id) if changed else get_count_key(game_id)   ## Vamos a notificar siempre para evitar perdida de informacion
         count_key = get_count_and_up(game_id)
 
-        if not changed:
-            return False
+        # if not changed:
+        #     return False
 
         payload = {
             "a": WSActions.PLAYER_ONLINE,
