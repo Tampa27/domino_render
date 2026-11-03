@@ -1,6 +1,6 @@
 import os
 from rest_framework import serializers
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from django.db.models import Sum, Q, Value, IntegerField, Exists, OuterRef
 from django.db.models.functions import Coalesce
@@ -572,7 +572,6 @@ class GameValidateCreateSerializer(serializers.ModelSerializer):
         model = DominoGame
         fields = ["variant", "maxScore", "inPairs", "perPoints", "startWinner", "lostStartInTie", "payPassValue", "max_datas", "max_coins", "payWinValue", "payMatchValue", "startAuto", "sumAllPoints", "capicua", "moveTime", "password","lastTime1","player1"]
 
-
 class GameSerializer(serializers.ModelSerializer):
 
     # players_close = serializers.SerializerMethodField() ## No se esta usando por el momento
@@ -754,13 +753,15 @@ class ListMatchGameSerializer(serializers.ModelSerializer):
     def get_start_at(self, obj: Match_Game):
         timezone = "America/Havana"
         if obj.start_at:
-            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.start_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
 
     def get_end_at(self, obj: Match_Game):
         timezone = "America/Havana"
         if obj.end_at:
-            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.end_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
 
 
@@ -786,13 +787,15 @@ class ListRoundSerializer(serializers.ModelSerializer):
     def get_start_at(self, obj: Round):
         timezone = "America/Havana"
         if obj.start_at:
-            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.start_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
 
     def get_end_at(self, obj: Round):
         timezone = "America/Havana"
         if obj.end_at:
-            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.end_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None    
 
     class Meta:
@@ -856,19 +859,22 @@ class TournamentDetailsSerializer(serializers.ModelSerializer):
     def get_start_at(self, obj: Tournament):
         timezone = "America/Havana"
         if obj.start_at:
-            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.start_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
 
     def get_end_at(self, obj: Tournament):
         timezone = "America/Havana"
         if obj.end_at:
-            return obj.end_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.end_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
     
     def get_deadline(self, obj: Tournament):
         timezone = "America/Havana"
         if obj.deadline:
-            return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.deadline.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
     
     class Meta:
@@ -896,13 +902,15 @@ class TournamentListSerializer(serializers.ModelSerializer):
     def get_start_at(self, obj: Tournament):
         timezone = "America/Havana"
         if obj.start_at:
-            return obj.start_at.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.start_at.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
     
     def get_deadline(self, obj: Tournament):
         timezone = "America/Havana"
         if obj.deadline:
-            return obj.deadline.astimezone(pytz.timezone(timezone)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            dj = obj.deadline.astimezone(pytz.timezone(timezone)) + timedelta(hours=1)   ### Se suma una hora por el cambio en Cuba, Quitar cuando se restablezca
+            return dj.strftime('%Y-%m-%dT%H:%M:%SZ')
         return None
 
     def get_winners(self, obj: Tournament)-> PlayerWinnerTournament:
