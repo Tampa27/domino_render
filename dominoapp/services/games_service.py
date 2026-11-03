@@ -321,7 +321,6 @@ class GameService:
                 # 2. Bloqueamos al jugador que intenta unirse (el "peticionario")
                 try:
                     player = Player.objects.select_for_update(nowait=True).get(user__id=request.user.id)
-                    notify_player_presence(game_id, player.id, True)
                 except:
                     return Response({"status":'error',"message":"No se pudo actualizar el player."}, status=status.HTTP_404_NOT_FOUND)
                 now = timezone.now()

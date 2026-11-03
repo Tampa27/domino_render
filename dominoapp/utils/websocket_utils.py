@@ -325,11 +325,12 @@ def notify_player_presence(game_id: int, player_id: int, is_online: bool) -> boo
             changed = mark_player_online(game_id, player_id)
         else:
             # offline: solo notificamos si realmente estaba online
-            was_online = is_player_online(game_id, player_id)
+            # was_online = is_player_online(game_id, player_id)  ## Vamos a notificar siempre para evitar perdida de informacion
             mark_player_offline(game_id, player_id)
-            changed = was_online
+            # changed = was_online    ## Vamos a notificar siempre para evitar perdida de informacion
         
-        count_key = get_count_and_up(game_id) if changed else get_count_key(game_id)
+        # count_key = get_count_and_up(game_id) if changed else get_count_key(game_id)   ## Vamos a notificar siempre para evitar perdida de informacion
+        count_key = get_count_and_up(game_id)
 
         if not changed:
             return False
