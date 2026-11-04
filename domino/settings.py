@@ -221,6 +221,7 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
+    'REDOC_DIST': 'https://cdn.jsdelivr.net/npm/redoc@2.5.1',  # Fija una versión estable que no use import.meta
     'TITLE': 'DOMINO_CLUB',
     'DESCRIPTION': 'Domino Club project API Documents',
     'VERSION': '0.0.1',
