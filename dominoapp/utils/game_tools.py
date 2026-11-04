@@ -201,7 +201,8 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
             "cs": [p.total_coins for p in players],
             "np": game.next_player,
             "lv": game.leftValue,
-            "rv": game.rightValue
+            "rv": game.rightValue,
+            "online": not automatic
         }
     }
     if game.status in ["fg", "fi"]:

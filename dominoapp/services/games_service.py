@@ -11,7 +11,7 @@ from dominoapp.utils import game_tools
 from dominoapp.utils.async_task_helper import safe_async_task
 from dominoapp.tasks import async_update_player_presence
 from dominoapp.utils.websocket_utils import send_ws_notification, send_ws_to_lobby, get_count_key, delete_count_key, get_count_and_up, get_count_lobby_and_up, \
-    get_count_lobby_key, get_online_players, notify_player_presence
+    get_count_lobby_key, get_online_players
 from dominoapp.utils.constants import WSActions
 from dominoapp.utils.cache_tools import is_table_modification_locked
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
@@ -552,7 +552,6 @@ class GameService:
         error = game_tools.move1(game_id, player, tile)
 
         if error is None:
-            notify_player_presence(game_id, player.id, True)
             return Response({'status': 'success'}, status=status.HTTP_200_OK)
         
         return Response({'status': 'error', 'message': error}, status=status.HTTP_400_BAD_REQUEST)
