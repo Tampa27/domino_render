@@ -980,6 +980,30 @@ class PaymentService:
                 payment_status = Status_Payment.objects.create(status = 'paid')
                 payment.status_list.add(payment_status)
 
+                if transaction.reward.reward_type == "earned_coins":
+                    player = transaction.to_user
+                    if player.total_coins >= transaction.amount: 
+                        player.earned_coins -= transaction.amount
+                        if player.earned_coins<0:
+                            player.recharged_coins += player.earned_coins
+                            player.earned_coins = 0
+                        player.save(update_fields=['earned_coins', 'recharged_coins'])
+
+                        FCMNOTIFICATION.send_fcm_message(
+                            user = player.user,
+                            title = "Nueva Extracción en Domino Club",
+                            body = f"Felicidades {player.name} 🎉, usted ha extraido {transaction.amount} monedas de su cuenta en Domino Club."
+                        )
+                        
+                        DiscordConnector.send_event(
+                            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_NEW_EXTRACTION.key,
+                            {
+                                'player': player.alias,
+                                "amount": transaction.amount,
+                                'admin': transaction.admin.alias if transaction.admin else None
+                            }
+                        )
+
             return Response({'status': 'success', "message":'Premio entregado'}, status=status.HTTP_200_OK)
         else:
             return Response({'status': 'error', "message":'No esta disponible. Contacta algun administrador.'}, status=status.HTTP_409_CONFLICT)
