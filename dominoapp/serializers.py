@@ -1299,9 +1299,17 @@ class Create_Rules_Serializer(serializers.ModelSerializer):
 
 class List_Rules_Game_Serializer(serializers.ModelSerializer):
     is_privated = serializers.SerializerMethodField()
+    number_player = serializers.SerializerMethodField()
         
     def get_is_privated(self, obj: RulesGame)-> bool:
         return True if obj.password != "" else False
+
+    def get_number_player(self, obj: RulesGame)-> int:
+        games = DominoGame.objects.filter(rules__id = obj.id)
+        count_player = 0
+        for game in games:
+            count_player += game.count_players
+        return count_player
     
     class Meta:
         model = RulesGame
@@ -1309,5 +1317,5 @@ class List_Rules_Game_Serializer(serializers.ModelSerializer):
             "id", "variant", "inPairs", "perPoints", 
             "payPassValue", "payWinValue", "payMatchValue", 
             "maxScore", "is_privated", "password", 
-            "max_datas","max_coins"
+            "max_datas","max_coins", "number_player"
             ]

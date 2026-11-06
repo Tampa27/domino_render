@@ -27,7 +27,9 @@ class GameView(viewsets.ModelViewSet):
     ]
     
     def get_queryset(self):
-        if self.action in ["list", "join", "start", "exitGame"]:
+        if self.action in ["list", "join"]:
+            queryset = DominoGame.objects.filter(tournament__isnull=True, rules__isnull = True)
+        elif self.action in ["start", "exitGame"]:
             queryset = DominoGame.objects.filter(tournament__isnull=True)
         else:
             queryset = DominoGame.objects.all()
