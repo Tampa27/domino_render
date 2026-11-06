@@ -287,7 +287,13 @@ class Command(BaseCommand):
                 
                 if player_out_tournament.exists():
                     if free_places == 1:
-                        players_to_notify_qs = player_out_tournament.filter(calculated_total_coins__gte=tournament.registration_fee).order_by("-tournament_played","-lastTimeInSystem")[:4]
+                        ids = list(
+                            player_out_tournament
+                            .filter(calculated_total_coins__gte=tournament.registration_fee)
+                            .order_by("-tournament_played", "-lastTimeInSystem")
+                            .values_list("id", flat=True)[:4]
+                        )
+                        players_to_notify_qs = Player.objects.filter(id__in=ids)
                     else:
                         # Tomamos los más recientes y algunos aleatorios para completar
                         top_players_ids = list(player_out_tournament.filter(calculated_total_coins__gte=tournament.registration_fee).order_by("-tournament_played","-lastTimeInSystem")[:free_places].values_list('id', flat=True))
