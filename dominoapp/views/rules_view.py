@@ -82,4 +82,23 @@ class RuleView(viewsets.ModelViewSet):
             }, status = status_response)
         
         return RuleService.process_join(request, pk)
-    
+
+    @extend_schema(
+            operation_id="rule_fast_join",
+            request= None,
+            responses={
+            200: inline_serializer(
+                name="Join Game",
+                fields={
+                    "status": CharField(default="success"),
+                    "game": GameSerializer(),
+                    "players": PlayerGameSerializer(many=True)
+                    },
+            ),
+            
+        }
+    )
+    @action(detail=False, methods=["post"])
+    def fast_join(self, request):
+        return RuleService.process_fast_join(request)
+

@@ -1327,7 +1327,7 @@ def min_coins(variant: str, perPoints:bool, MatchValue: int, WinValue:int, PassV
     
     return min_amount
 
-def get_game_coins(game: DominoGame)->int:
+def get_game_coins(game: DominoGame | RulesGame)->int:
     '''
         Calcula el minimo de monedas para jugar en la mesa
     '''
@@ -1358,26 +1358,6 @@ def ready_to_play(game: DominoGame, player: Player)->bool:
         return True
     
     return False
-
-def get_coins_rules(rule: RulesGame)->int:
-    '''
-        Calcula el minimo de monedas para jugar en la mesa
-    '''
-    
-    min_amount = min_coins(
-        rule.variant, 
-        rule.perPoints, 
-        rule.payMatchValue,
-        rule.payWinValue,
-        rule.payPassValue
-        )
-
-    if rule.max_coins > 0:
-        min_amount = max(rule.max_coins, min_amount)
-    if rule.max_datas > 0:
-        min_amount = min_amount*rule.max_datas
-    
-    return min_amount
 
 def ready_to_play_rule(rule: RulesGame, player: Player)->bool:
     '''

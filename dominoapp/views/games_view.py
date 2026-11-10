@@ -61,6 +61,31 @@ class GameView(viewsets.ModelViewSet):
         return GameService.process_create(request)
 
     @extend_schema(
+            operation_id="create_v2",
+            request= GameCreateSerializer(),
+            responses={
+            200: inline_serializer(
+                name="Create Game",
+                fields={
+                    "status": CharField(default="success"),
+                    "game": GameSerializer()
+                }
+            )            
+        }
+    )
+    @action(detail=False, methods=["post"], url_name="create_v2", url_path="v2/create")
+    def create_v2(self, request, *args, **kwargs):
+        is_valid, message, status_response = GameRequest.validate_create(request)
+        
+        if not is_valid:
+            return Response(data ={
+                "status":'error',
+                "message": message
+            }, status = status_response)
+        
+        return GameService.process_create_v2(request)
+
+    @extend_schema(
             parameters=[
                 OpenApiParameter("app_version",description="Field to confirm the currently used application version.")
             ],
