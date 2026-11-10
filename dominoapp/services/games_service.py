@@ -16,7 +16,8 @@ from dominoapp.utils.constants import WSActions
 from dominoapp.utils.cache_tools import is_table_modification_locked
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.utils.constants import ApiConstants
-import logging
+from dominoapp.utils.transactions import create_game_transactions
+import logging, os
 logger = logging.getLogger('django')
 
 
@@ -298,6 +299,126 @@ class GameService:
 
         game_response = GameSerializer(game)
         return Response({'status': 'success', "game":game_response.data}, status=200)
+
+    @staticmethod
+    def process_create_v2(request):
+        
+        player1 = Player.objects.get(user__id= request.user.id)
+        check_others_game = DominoGame.objects.filter(
+            Q(player1__id = player1.id)|
+            Q(player2__id = player1.id)|
+            Q(player3__id = player1.id)|
+            Q(player4__id = player1.id)
+        ).exists()
+
+        if check_others_game:
+            return Response({'status': 'error',"message":"the player is play other game"}, status=status.HTTP_409_CONFLICT)
+
+        if player1.registered_in_tournament and player1.registered_in_tournament.start_at - timedelta(minutes=30) <= timezone.now():
+            return Response({'status': 'error',"message":"El torneo comenzará en menos de 30 minutos."}, status=status.HTTP_409_CONFLICT)
+
+        if player1.play_tournament:
+            return Response({'status': 'error',"message":"Estas jugando en un torneo."}, status=status.HTTP_409_CONFLICT)
+
+        max_coins = request.data.get("max_coins", 0)
+        variant = request.data.get("variant", "d6")
+        perpoint = request.data.get("perPoints", False)
+        payPassValue = request.data.get("payPassValue", 0)
+        payWinValue = request.data.get("payWinValue", 0)
+        payMatchValue = request.data.get("payMatchValue", 0)
+
+        min_coins = game_tools.min_coins(variant, perpoint, payMatchValue, payWinValue, payPassValue)
+
+        if max_coins > 0 and payWinValue > 0 and max_coins < payWinValue:
+            return Response({'status': 'error',"message":f"La apuesta mínima debe ser mayor o igual a {payWinValue} monedas."}, status=status.HTTP_409_CONFLICT)
+
+        try:
+            coins_to_create_game = int(os.getenv("COINS_TO_CREATE_GAME", 0))
+        except Exception as error:
+            logger.error(f"No se configuro en las variables de entorno las monedas a cobrar para crear una mesa. Error: {error}")
+            coins_to_create_game = 0
+
+        if player1.total_coins < (min_coins + coins_to_create_game):
+            return Response({"status": "error", "message": "No tienes suficientes monedas para crear esta mesa"}, status=status.HTTP_409_CONFLICT)
+        
+        now = timezone.now()
+        player1.tiles = ""
+        player1.inactive_player = False
+        player1.lastTimeInSystem = now
+        player1.lastTimeInGame = now
+        player1.save(update_fields=["tiles", "inactive_player", "lastTimeInSystem", "lastTimeInGame"])
+        
+        data = request.data.copy()
+        data["lastTime1"] = now
+        data["player1"] = player1.id
+        
+        game_serializer = GameValidateCreateSerializer(data = data)
+        try:
+            with transaction.atomic():
+                game_serializer.is_valid(raise_exception=True)
+                game: DominoGame =  game_serializer.save()
+                if not game_tools.ready_to_play(game,player1):
+                    players = game_tools.playersCount(game)
+                    game_tools.exitPlayer(game,player1,players,len(players))
+        
+                    delete_count_key(game.id)
+                    return Response({"status": "error", "message": "No tienes suficientes monedas para crear esta mesa"}, status=status.HTTP_409_CONFLICT)
+
+                player1.earned_coins -= coins_to_create_game                
+                if player1.earned_coins<0:
+                    player1.recharged_coins += player1.earned_coins
+                    player1.earned_coins = 0
+                player1.save(update_fields=['earned_coins', 'recharged_coins'])
+
+                create_game_transactions(
+                    amount=coins_to_create_game,
+                    game=game,
+                    from_user= player1,
+                    status="cp",
+                    descriptions=f"Por crear la mesa numero {game.table_no}, con id: {game.id}"
+                    )
+
+        except serializers.ValidationError as e:
+            return Response(
+                {'status': 'error', 'message': 'Invalid data', 'errors': e.detail},
+                status=400
+            )
+        except Exception as error:
+            return Response({'status': 'error', "message":"Something is wrong at save game"}, status=409)
+
+        game_tools.updateLastPlayerTime(game,player1.alias)
+
+        try:
+            count_key = get_count_lobby_and_up()
+            transaction.on_commit(lambda ck=count_key: send_ws_to_lobby(
+                payload={
+                    "a": WSActions.NEW_GAME,
+                    "cg": ck,
+                    "d": {
+                        "gn": game.table_no,
+                        "st": game.status,
+                        "gid": game.id,
+                        "inPairs": game.inPairs,
+                        "privated": game_serializer.data.get("is_privated", False),
+                        "maxScore": game.maxScore,
+                        "max_coins": game.max_coins,
+                        "max_datas": game.max_datas,
+                        "number_player": game_serializer.data.get("number_player", 0),
+                        "password": game.password,
+                        "payMatchValue": game.payMatchValue,
+                        "payPassValue": game.payPassValue,
+                        "payWinValue": game.payWinValue,
+                        "perPoints": game.perPoints,
+                        "variant": game.variant
+                    } 
+                }
+            ))
+        except Exception as error:
+            logger.error(f"Error enviando el ws del lobby en el create game. Error: {error}")
+
+        game_response = GameSerializer(game)
+        return Response({'status': 'success', "game":game_response.data}, status=200)
+    
     
     @staticmethod
     def process_join(request, game_id):
