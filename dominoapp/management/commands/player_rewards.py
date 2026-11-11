@@ -14,6 +14,7 @@ logger = logging.getLogger("django")
 
 # mapa explícito
 REWARD_TYPE_LABELS = {
+    "data_wins": "datas ganadas",
     "match_wins": "partidas ganadas",
     "pass_player": "jugadores pasados",
     "earned_coins": "monedas ganadas",
