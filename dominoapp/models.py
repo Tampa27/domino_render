@@ -191,7 +191,8 @@ class PlayerReward(models.Model):
     place = models.IntegerField(default=1)  # Lugar del ranking para otorgar la recompensa (1, 2, 3, etc.)
 
 class Send_Notification(models.Model):
-    players = models.ManyToManyField(Player, related_name='players_list')
+    players = models.ManyToManyField(Player, related_name='players_list', blank=True, null=True)
+    all_player = models.BooleanField(default=False)
     title = models.CharField(max_length=80)
     message = models.TextField()
     fcm_message = models.CharField(max_length=150, null=True, blank= True)
@@ -204,6 +205,9 @@ class Send_Notification(models.Model):
     def save(self, *args, **kwargs):
         if self.send:
             players_list = self.players.all()
+            if self.all_player:
+                players_list = Player.objects.all()
+
             for player in players_list:
                 Notification.objects.create(
                     player = player,
