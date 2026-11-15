@@ -31,25 +31,36 @@ class FCMNOTIFICATION:
             logger.critical(f'No existe la app Firebase "{app_name}": {e}')
             return
 
-        message = MulticastMessage(
-            notification=Notification(title=title, body=body),
-            data={k: str(v) for k, v in (data or {}).items()} or None,
-            tokens=tokens,
-        )
+        # Firebase limita MulticastMessage a 500 tokens por envío
+        MAX_TOKENS_PER_BATCH = 500
+        data_str = {k: str(v) for k, v in (data or {}).items()} or None
 
-        try:
-            response = send_each_for_multicast(message, app=firebase_app)
-            # Limpieza de tokens inválidos
-            if response.failure_count > 0:
-                for idx, resp in enumerate(response.responses):
-                    if not resp.success:
-                        err_str = str(resp.exception).lower() if resp.exception else ''
-                        if ('not a valid fcm registration token' in err_str
-                                or 'requested entity was not found' in err_str
-                                or 'unregistered' in err_str):
-                            FCMDevice.objects.filter(registration_id=tokens[idx]).delete()
-        except Exception as e:
-            logger.critical(f'Error al enviar FCM (app={app_name}): {e}')
+        for i in range(0, len(tokens), MAX_TOKENS_PER_BATCH):
+            batch_tokens = tokens[i:i + MAX_TOKENS_PER_BATCH]
+
+            message = MulticastMessage(
+                notification=Notification(title=title, body=body),
+                data=data_str,
+                tokens=batch_tokens,
+            )
+
+            try:
+                response = send_each_for_multicast(message, app=firebase_app)
+                # Limpieza de tokens inválidos
+                if response.failure_count > 0:
+                    for idx, resp in enumerate(response.responses):
+                        if not resp.success:
+                            err_str = str(resp.exception).lower() if resp.exception else ''
+                            if ('not a valid fcm registration token' in err_str
+                                    or 'requested entity was not found' in err_str
+                                    or 'unregistered' in err_str):
+                                FCMDevice.objects.filter(
+                                    registration_id=batch_tokens[idx]
+                                ).delete()
+            except Exception as e:
+                logger.critical(
+                    f'Error al enviar FCM (app={app_name}, lote {i//MAX_TOKENS_PER_BATCH}): {e}'
+                )
 
     @staticmethod
     def send_fcm_message(user: User, title:str, body:str, data:dict = None):
