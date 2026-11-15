@@ -25,9 +25,9 @@ def validate_tranfer(from_user: Player, to_user: Player, amount:int):
     TRANSFER_PER_DAY = os.getenv("TRANSFER_PER_DAY")
     TO_USER_COINS_TRANSFER = os.getenv("TO_USER_COINS_TRANSFER")
     
-    
-    if to_user.total_coins > int(TO_USER_COINS_TRANSFER):
-        return False, f"Al usuario que intentas transferir tinene más de {TO_USER_COINS_TRANSFER} monedas."
+    # Quitamos restriccion de que el usuario deba tener menos de una cantidad de monedas
+    # if to_user.total_coins > int(TO_USER_COINS_TRANSFER):
+    #     return False, f"Al usuario que intentas transferir tinene más de {TO_USER_COINS_TRANSFER} monedas."
     
     if amount< int(MIN_TRANSFER):
         return False, f"La transferencia debe ser superior a {MIN_TRANSFER} monedas."

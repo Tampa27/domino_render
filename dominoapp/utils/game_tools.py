@@ -5,7 +5,7 @@ from django.db.utils import DatabaseError
 from django.db.models import F
 import random
 from django.db import transaction
-import logging
+import logging, os
 from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.players_tools import update_elo_pair, update_elo
 from dominoapp.utils.payment_utils import custom_round
@@ -229,6 +229,17 @@ def movement(game: DominoGame, player: Player, players: list[Player], tile: str,
             ))
         except Exception as error:
             logger.error(f"Error enviando el ws del lobby en el movement. Error: {error}")
+
+        if game.status == "fg" and game.in_rule and game.inPairs:
+            # asignar 5 monedas de promocion por concluir un juego en una mesa
+            # de reglas por parejas una vez al dia.
+            promotion_coins = int(os.getenv('PROMOTION_PAIR_COINS', '5'))
+            if promotion_coins > 0:
+                from dominoapp.tasks import async_grant_pair_promotion
+                # ✅ Capturamos isPlaying AHORA, en el request, con el estado del fg
+                for p in players:
+                    if p.isPlaying:
+                        safe_async_task(async_grant_pair_promotion, p.id, promotion_coins)
 
 
     try:
