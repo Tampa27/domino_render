@@ -15,7 +15,7 @@ from dominoapp.utils.constants import ApiConstants
 from dominoapp.utils.pdf_helpers import create_resume_game_pdf
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.utils.payment_utils import validate_tranfer, validate_promotion_movie, get_coins_by_country
-from dominoapp.utils.whatsapp_help import get_whatsapp_extraction_text, get_whatsapp_reload_text
+from dominoapp.utils.whatsapp_help import get_admin_phone, get_whatsapp_extraction_text, get_whatsapp_reload_text
 from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.connectors.paypal_connector import PayPalConnector
 from dominoapp.connectors.pusher_connector import PushNotificationConnector
@@ -273,9 +273,15 @@ class PaymentService:
                     }
                 )
         
-        if send_request or transactions_exist:            
-            return Response({'status': 'success', "transaction_id": transaction_id if send_request else transactions.first().external_id
-            }, status=status.HTTP_200_OK)
+        if send_request or transactions_exist:
+            admin_phone = get_admin_phone()
+            return Response(
+                {
+                    'status': 'success', 
+                    "transaction_id": transaction_id if send_request else transactions.first().external_id,
+                    "whatsapp_url": f"https://wa.me/{admin_phone}/?text="
+                }, 
+                status=status.HTTP_200_OK)
 
         return Response({'status': 'error', "message":'Your request could not be processed. Please try again.'}, status=status.HTTP_409_CONFLICT)
     
