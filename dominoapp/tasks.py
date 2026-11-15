@@ -133,6 +133,86 @@ def async_update_player_presence(player_data: dict):
 
     return
 
+@shared_task(name="async_create_transaction", ignore_result=True)
+def async_create_transaction(amount: int, type: str, to_player_id: int = None, from_player_id: int = None, description: str = None):
+    """
+    Procesa la creacion de transacciones.
+    """
+    if to_player_id is None and from_player_id is None:
+        return
+
+    if amount <=0:
+        return
+
+    if not type in ["rl", "ex", "gm", "pro", "pro_mov", "tr", "rw", "pro_pair"]:
+        return
+
+    if to_player_id:
+        try:
+            player = Player.objects.get(id=to_player_id)
+        except:
+            return
+    if from_player_id:
+        try:
+            player = Player.objects.get(id=from_player_id)
+        except:
+            return
+
+    create_transactions(
+            to_user=player if to_player_id else None,
+            from_user=player if from_player_id else None,
+            amount= amount,
+            status="cp",
+            type= type,
+            descriptions= description
+        )
+
+    return
+
+@shared_task(name="async_grant_pair_promotion", ignore_result=True)
+def async_grant_pair_promotion(player_id: int, amount: int):
+    """
+    Atómico e idempotente. NO verifica isPlaying: la elegibilidad
+    se decidió en el request cuando el juego terminó (fg).
+    """
+    if amount <= 0:
+        return
+
+    day_start = datetime.now().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    try:
+        with transaction.atomic():
+            # ✅ Lock del player para evitar doble promoción concurrente
+            player = Player.objects.select_for_update(nowait=True).get(id=player_id)
+
+            # ✅ Solo idempotencia: ¿ya tiene pro_pair hoy?
+            if Transaction.objects.filter(
+                to_user_id=player.id,
+                type='pro_pair',
+                time__gte=day_start,
+            ).exists():
+                return
+
+            # ✅ Incremento atómico
+            Player.objects.filter(id=player.id).update(
+                earned_coins=F('earned_coins') + amount
+            )
+
+            # ✅ Transacción en la MISMA transacción DB
+            status_cp, _ = Status_Transaction.objects.get_or_create(status='cp')
+            tx = Transaction.objects.create(
+                to_user=player,
+                amount=amount,
+                type='pro_pair',
+                descriptions="Por jugar en una mesa de reglas por parejas.",
+            )
+            tx.status_list.add(status_cp)
+    except Player.DoesNotExist:
+        logger.warning(f"Player {player_id} ya no existe, promoción omitida")
+    except Exception as error:
+        logger.error(f"Error otorgando promoción por parejas player {player_id}. Error: {error}")
 
 @shared_task(name="async_send_fcm_message", ignore_result=True)
 def async_send_fcm_message(users_id: list[int], title: str, message: str):

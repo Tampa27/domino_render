@@ -157,6 +157,7 @@ class TransactionTypes:
     TRANSACTION_PROMOTION_MOVIE = ("pro_mov", "promotion by movie")
     TRANSACTION_TRANSFER = ("tr", "transfer")
     TRANSACTION_REWARD = ("rw", "reward")
+    TRANSACTION_PROMOTION_PAIR = ("pro_pair", "promotion to play in pair")
 
     transaction_type = [
         TRANSACTION_RELOAD, 
@@ -165,7 +166,8 @@ class TransactionTypes:
         TRANSACTION_PROMOTION,
         TRANSACTION_PROMOTION_MOVIE,
         TRANSACTION_TRANSFER,
-        TRANSACTION_REWARD
+        TRANSACTION_REWARD,
+        TRANSACTION_PROMOTION_PAIR
     ]
 
 class ChatRoomTypes:
