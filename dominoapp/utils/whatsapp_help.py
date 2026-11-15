@@ -1,5 +1,20 @@
-import urllib.parse
+import urllib.parse, os, logging
 from dominoapp.models import Player
+
+logger = logging.getLogger("django")
+
+def get_admin_phone():
+    """
+    telefono de administracion
+    """
+    for var in ("ADMIN_PHONE", "ADMIN_PHONE_1"):
+        value = os.environ.get(var)
+        if value:
+            return value
+    logger.critical(
+        "ADMIN_PHONE/ADMIN_PHONE_1 no configurados; usando número por defecto."
+    )
+    return "+5352459418"
 
 def get_whatsapp_reload_text(player: Player, amount: int, transaction_id:str, player_phone:str, paymentmethod:str=None):
     texto_original = f"""

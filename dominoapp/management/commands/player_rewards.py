@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 from dominoapp.models import PlayerReward, SummaryPlayer, Notification, Player, BlockPlayer
 from dominoapp.utils.transactions import create_reward_transactions
 from dominoapp.utils.fcm_message import FCMNOTIFICATION
-from dominoapp.utils.whatsapp_help import get_whatsapp_reward_text
+from dominoapp.utils.whatsapp_help import get_whatsapp_reward_text, get_admin_phone
 
 logger = logging.getLogger("django")
 
@@ -25,19 +25,6 @@ REWARD_TYPE_LABELS = {
     "play_by_points": "juegos por puntos jugados",
     "play_without_points": "juegos sin puntos jugados",
 }
-
-def _get_admin_phone():
-    """
-    telefono de administracion
-    """
-    for var in ("ADMIN_PHONE", "ADMIN_PHONE_1"):
-        value = os.environ.get(var)
-        if value:
-            return value
-    logger.critical(
-        "ADMIN_PHONE/ADMIN_PHONE_1 no configurados; usando número por defecto."
-    )
-    return "+5352459418"
 
 def _month_start(reference):
     """primer día del mes anterior"""
@@ -62,7 +49,7 @@ class Command(BaseCommand):
                 )
             )
         )
-        admin_phone = _get_admin_phone()
+        admin_phone = get_admin_phone()
 
         for reward in rewards:
             period = None  # "semana" | "mes"

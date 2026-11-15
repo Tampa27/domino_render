@@ -53,7 +53,6 @@ class RuleView(viewsets.ModelViewSet):
         
         queryset = self.filter_queryset(self.get_queryset())
         return RuleService.process_list(request, queryset)
-
      
     @extend_schema(
             operation_id="rule_join",

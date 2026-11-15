@@ -599,6 +599,7 @@ class GameSerializer(serializers.ModelSerializer):
 
     # players_close = serializers.SerializerMethodField() ## No se esta usando por el momento
     in_tournament = serializers.SerializerMethodField()
+    in_rule = serializers.SerializerMethodField()
 
     # def get_players_close(self, obj: DominoGame) -> bool:
     #     # Recopilar IDs de jugadores (igual que antes)
@@ -638,6 +639,9 @@ class GameSerializer(serializers.ModelSerializer):
     def get_in_tournament(self, obj: DominoGame) -> bool:
         return obj.in_tournament
 
+    def get_in_rule(self, obj: DominoGame) -> bool:
+            return obj.in_rule
+
     class Meta:
         model = DominoGame
         fields = [
@@ -669,6 +673,7 @@ class GameSerializer(serializers.ModelSerializer):
             "moveTime",
             "starter",
             "in_tournament",
+            "in_rule"
             
             #### Revisar estos parametros####
             # "players_close",
@@ -735,7 +740,7 @@ class ListGameSerializer(serializers.ModelSerializer):
             "id",
             "table_no", "status", 
             "variant", "inPairs", "perPoints", "payPassValue", "payWinValue", "payMatchValue", "maxScore", "is_privated", "password", 
-            "number_player", "max_datas","max_coins"
+            "number_player", "max_datas","max_coins", "sumAllPoints", "capicua","moveTime"
                 #   , "players_close"
                   ]
 
@@ -1316,6 +1321,7 @@ class List_Rules_Game_Serializer(serializers.ModelSerializer):
         fields = [
             "id", "variant", "inPairs", "perPoints", 
             "payPassValue", "payWinValue", "payMatchValue", 
-            "maxScore", "is_privated", "password", 
+            "maxScore", "sumAllPoints", "capicua","moveTime", 
+            "is_privated", "password", 
             "max_datas","max_coins", "number_player"
             ]

@@ -442,6 +442,12 @@ class DominoGame(models.Model):
         if self.tournament is not None:
             return True
         return False
+
+    @property
+    def in_rule(self):
+        if self.rules is not None:
+            return True
+        return False
     
     @property
     def with_coins(self):
