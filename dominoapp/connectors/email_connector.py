@@ -63,24 +63,33 @@ class EmailConnector:
             )
     
     @staticmethod
-    def email_players_db_backup(players_data):
-        subject = f"⚠ Salvado de Base de Datos - Dominó Club ⚠"
-        
+    def email_players_db_backup(xlsx_bytes: bytes, total_players: int = 0):
+        """
+        Envía el backup de jugadores como adjunto XLSX.
+        El cuerpo del correo es un HTML simple con la fecha y el número de jugadores.
+        """
+        subject = "⚠ Salvado de Base de Datos - Dominó Club ⚠"
         current_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
         html_message = render_to_string('email/backups_db_player.html', {
             'current_date': current_date,
-            'players': players_data,
-            })
+            'total_players': total_players,
+            # 'players': [],  # ya no se usa para la tabla
+        })
         text_content = strip_tags(html_message)
-        
-        return EmailConnector.django_send_email(
-                [EmailConnector.admin_email],
-                subject,
-                from_email=EmailConnector.admin_email,
-                text= text_content,
-                html = html_message
-            )
+
+        filename = f"player_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        return EmailConnector.django_send_email_with_attachment(
+            to_email=[EmailConnector.admin_email],
+            subject=subject,
+            attachment=xlsx_bytes,
+            filename=filename,
+            from_email=EmailConnector.admin_email,
+            text=text_content,
+            html=html_message,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
     
     @staticmethod
     def django_send_email_with_attachment(
