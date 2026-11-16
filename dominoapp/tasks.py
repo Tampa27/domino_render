@@ -344,8 +344,8 @@ def async_save_place_tournament_notification(place_1_notification: dict, place_2
 
     return
 
-##### Admin Task #######################
 
+##### Admin Task #######################
 @shared_task(bind=True, max_retries=2, default_retry_delay=30, ignore_result=True)
 def generate_transaction_pdf_and_email(
     self,
@@ -610,3 +610,107 @@ def generate_transaction_resume_task(self, filters: dict, admin_tuples: list, to
             logger.critical(f"generate_transaction_resume_task FALLÓ definitivamente: {exc}")
             return
         raise self.retry(exc=exc)
+
+
+#### Notificar Players Inactivos #######
+@shared_task(name="async_send_inactive_player_email", ignore_result=True, soft_time_limit=120, time_limit=180)
+def async_send_inactive_player_email(player_id: int, email: str, days: int, phase: str):
+    """
+    Envía el email de inactividad a un jugador y notifica a Discord.
+    Se ejecuta en el worker para no bloquear el comando de limpieza.
+
+    - phase="warning_30": aviso de 30 días (fase 1)
+    - phase="warning_7":  aviso de 7 días  (fase 2)
+
+    Si el email se envía correctamente, actualiza el flag correspondiente
+    en el Player de forma atómica (idempotente).
+    """
+    from dominoapp.models import Player
+    from dominoapp.connectors.email_connector import EmailConnector
+    from dominoapp.connectors.discord_connector import DiscordConnector
+    from dominoapp.utils.constants import ApiConstants
+    from django.utils.timezone import now
+    from datetime import timedelta
+
+    if phase == "warning_30":
+        flag_field = "send_delete_email"
+        expiration_time = now() + timedelta(days=30)
+        discord_days = 30
+    elif phase == "warning_7":
+        flag_field = "inactive_player"
+        expiration_time = now() + timedelta(days=7)
+        discord_days = 7
+    else:
+        logger.error(f"async_send_inactive_player_email: phase inválida '{phase}' para player {player_id}")
+        return
+
+    # 1. Enviar email
+    try:
+        # Reconstruimos un Player mínimo para el EmailConnector.
+        # Si el connector necesita más campos, usa Player.objects.only(...).get(id=player_id)
+        player = Player.objects.only("id", "email", "alias").get(id=player_id)
+    except Player.DoesNotExist:
+        logger.warning(f"async_send_inactive_player_email: player {player_id} ya no existe")
+        return
+
+    try:
+        ok = EmailConnector.email_inactive_players(player, expiration_time)
+    except Exception as e:
+        logger.error(f"async_send_inactive_player_email: error enviando email a {email}: {e}")
+        return
+
+    if not ok:
+        logger.warning(f"async_send_inactive_player_email: email NO enviado a {email} (phase={phase})")
+        return
+
+    # 2. Actualizar flag de forma atómica (idempotente)
+    try:
+        updated = Player.objects.filter(id=player_id).update(**{flag_field: True})
+        if not updated:
+            logger.warning(f"async_send_inactive_player_email: player {player_id} no actualizado (¿borrado?)")
+            return
+    except Exception as e:
+        logger.error(f"async_send_inactive_player_email: error actualizando {flag_field} para {player_id}: {e}")
+        return
+
+    # 3. Notificar a Discord
+    try:
+        DiscordConnector.send_event(
+            ApiConstants.AdminNotifyEvents.ADMIN_EVENT_EMAIL_DELETE_PLAYER.key,
+            params={"email": email, "days": discord_days},
+        )
+    except Exception as e:
+        # Discord no es crítico: el email y el flag ya están hechos
+        logger.error(f"async_send_inactive_player_email: error notificando a Discord para {email}: {e}")
+
+
+##### Guardar salba de players en DB #########
+@shared_task(name="async_email_players_backup", ignore_result=True, soft_time_limit=300, time_limit=360)
+def async_email_players_backup(xlsx_b64: str, total_players: int = 0):
+    """
+    Recibe el XLSX en base64 y lo envía por email como adjunto.
+    """
+    import base64
+    from dominoapp.connectors.email_connector import EmailConnector
+
+    try:
+        xlsx_bytes = base64.b64decode(xlsx_b64)
+    except Exception as e:
+        logger.error(f"async_email_players_backup: error decodificando base64: {e}")
+        return
+
+    try:
+        ok = EmailConnector.email_players_db_backup(xlsx_bytes, total_players)
+        if not ok:
+            logger.error("async_email_players_backup: EmailConnector devolvió False")
+        else:
+            logger.info(
+                f"async_email_players_backup: backup de {total_players} jugadores "
+                f"enviado ({len(xlsx_bytes)} bytes)"
+            )
+    except Exception as e:
+        logger.error(f"async_email_players_backup: error enviando backup: {e}", exc_info=True)
+
+
+
+
