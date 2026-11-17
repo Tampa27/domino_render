@@ -433,8 +433,9 @@ class TransactionAdmin(admin.ModelAdmin):
     ]
     form = TransactionForm
     ordering = ["-time"]
-    search_fields = ["from_user__alias", "to_user__alias", "from_user__email", "to_user__email"]
+    search_fields = ["from_user__alias", "to_user__alias"]
     actions = [AdminHelpers.get_pdf_resume_transaction]
+    show_full_result_count = False
 
     def status(self, obj):
         if obj.status_list.count() == 0:
@@ -461,6 +462,7 @@ class PaymentAdmin(admin.ModelAdmin):
     ordering = ["-paid_time", "-created_at"]
     search_fields = ["user__alias", "user__email", "external_id", "transaction__id"]
     actions = []
+    show_full_result_count = False
 
     def status(self, obj):
         return obj.status_list.last().status if obj.status_list.count()>0 else None
@@ -569,6 +571,7 @@ class MoveRegisterAdmin(admin.ModelAdmin):
         ]
     inlines = [TransactionInline, PlayersInline]
     form = MoveRegisterForm
+    show_full_result_count = False
 
 class ReferralAdmin(admin.ModelAdmin):
     list_display = [
