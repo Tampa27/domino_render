@@ -1,5 +1,5 @@
 from celery import shared_task
-import logging, os
+import logging, os, base64
 from dominoapp.models import DominoGame, Tournament, Player, SummaryPlayer, Bank, Notification, Transaction, \
     Status_Transaction
 from django.db import transaction
@@ -15,6 +15,7 @@ from dominoapp.utils.fcm_message import FCMNOTIFICATION
 from dominoapp.utils.whatsapp_help import get_whatsapp_tournament_notify
 from dominoapp.utils.pdf_helpers import create_resume_pdf
 from dominoapp.connectors.email_connector import EmailConnector
+from dominoapp.connectors.discord_connector import DiscordConnector
 logger = logging.getLogger('django')
 
 @shared_task(name="task_maestra_domino", ignore_result=True)
@@ -625,12 +626,8 @@ def async_send_inactive_player_email(player_id: int, email: str, days: int, phas
     Si el email se envía correctamente, actualiza el flag correspondiente
     en el Player de forma atómica (idempotente).
     """
-    from dominoapp.models import Player
-    from dominoapp.connectors.email_connector import EmailConnector
-    from dominoapp.connectors.discord_connector import DiscordConnector
-    from dominoapp.utils.constants import ApiConstants
-    from django.utils.timezone import now
-    from datetime import timedelta
+
+    from dominoapp.utils.constants import ApiConstants    
 
     if phase == "warning_30":
         flag_field = "send_delete_email"
@@ -690,8 +687,6 @@ def async_email_players_backup(xlsx_b64: str, total_players: int = 0):
     """
     Recibe el XLSX en base64 y lo envía por email como adjunto.
     """
-    import base64
-    from dominoapp.connectors.email_connector import EmailConnector
 
     try:
         xlsx_bytes = base64.b64decode(xlsx_b64)
@@ -711,6 +706,22 @@ def async_email_players_backup(xlsx_b64: str, total_players: int = 0):
     except Exception as e:
         logger.error(f"async_email_players_backup: error enviando backup: {e}", exc_info=True)
 
+
+#### Notificar por Discor Eliminacion de Players Inactivos #######
+@shared_task(name="async_send_discord_event", ignore_result=True, soft_time_limit=120, time_limit=180)
+def async_send_discord_event(event_type, params: dict):
+    """
+    Envía notificaion a Discord.
+    """
+
+    # 3. Notificar a Discord
+    try:
+        DiscordConnector.send_event(
+            event_type= event_type,
+            params=params
+        )
+    except Exception as e:
+        logger.error(f"async_send_discord_event: error notificando a Discord para {event_type}. Error: {e}")
 
 
 
