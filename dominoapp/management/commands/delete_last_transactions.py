@@ -1,5 +1,4 @@
-import os
-import django
+import os, django, time
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'domino.settings')
 django.setup()
@@ -36,6 +35,7 @@ def _delete_transactions_in_batches(qs, batch=BATCH):
             # 2. Borrar las transacciones en bloque
             deleted_tx, _ = Transaction.objects.filter(id__in=ids).delete()
             total_tx += deleted_tx
+        time.sleep(0.2)
     return total_tx, total_status
 
 
