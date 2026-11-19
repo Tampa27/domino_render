@@ -11,9 +11,8 @@ from django.db.models import OuterRef, Exists
 from django.db.models.deletion import ProtectedError
 
 from dominoapp.models import Player, BlockPlayer
-from dominoapp.connectors.discord_connector import DiscordConnector
 from dominoapp.utils.async_task_helper import enqueue_heavy_task
-from dominoapp.tasks import async_send_inactive_player_email
+from dominoapp.tasks import async_send_inactive_player_email, async_send_discord_event
 
 import logging
 logger = logging.getLogger('django')
@@ -116,7 +115,7 @@ class Command(BaseCommand):
                     total_deleted += 1
                     # Discord en background (no bloquea el borrado)
                     enqueue_heavy_task(
-                        DiscordConnector.send_event,
+                        async_send_discord_event,
                         "Eliminar Player Inactivo",
                         params={'email': email},
                     )
