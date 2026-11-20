@@ -708,7 +708,7 @@ def async_email_players_backup(xlsx_b64: str, total_players: int = 0):
 
 
 #### Notificar por Discor Eliminacion de Players Inactivos #######
-@shared_task(name="async_send_discord_event", ignore_result=True, soft_time_limit=120, time_limit=180)
+@shared_task(name="async_send_discord_event", ignore_result=True)
 def async_send_discord_event(event_type, params: dict):
     """
     Envía notificaion a Discord.
