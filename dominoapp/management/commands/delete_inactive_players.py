@@ -98,8 +98,11 @@ class Command(BaseCommand):
 
         from django.contrib.auth.models import User
 
+        excluded_ids = set()
         while True:
-            ids = list(qs3.values_list('id', flat=True)[:BATCH])
+            ids = list(
+                qs3.exclude(id__in=excluded_ids).values_list('id', flat=True)[:BATCH]
+            )
             if not ids:
                 break
 
@@ -121,12 +124,14 @@ class Command(BaseCommand):
                     )
                 except ProtectedError as e:
                     total_protected += 1
+                    excluded_ids.add(player_id)
                     logger.warning(
                         f"Fase 3: player {email} (id={player_id}) no se puede borrar "
                         f"por ProtectedError: {e}"
                     )
                 except Exception as e:
                     total_errors += 1
+                    excluded_ids.add(player_id)
                     logger.critical(
                         f"Fase 3: error borrando player {email} (id={player_id}): {e}"
                     )
@@ -140,3 +145,5 @@ class Command(BaseCommand):
             f"[Fase 3] TOTAL: borrados={total_deleted}, "
             f"protegidos={total_protected}, errores={total_errors}"
         )
+
+        return
