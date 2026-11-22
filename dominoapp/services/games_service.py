@@ -866,6 +866,9 @@ class GameService:
                 )
         title= "🏆 ¡Te retan en Dominó Club!"
         text= f"{player_send.name} te invita a unirte a la mesa {game.table_no} para jugar unas partidas de dominó. ¡Ven y diviértete! 😄🁫"
+        if game.in_rule and game.rules.inPairs:
+            text= f"Te invitan a unirte a la mesa {game.table_no} para jugar en parejas unas partidas de dominó. ¡Ven y diviértete! 😄🁫"
+
         try:     
             FCMNOTIFICATION.send_fcm_message(
                 user = player_invited.user,
