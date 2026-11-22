@@ -18,6 +18,63 @@ class PaymentListPagination(PageNumberPagination):
     page_size = 3
     page_size_query_param = "page_size"
 
+    def paginate_queryset(self, queryset, request, view=None):
+        page_size = self.get_page_size(request)
+        if not page_size:
+            return None
+
+        try:
+            page_number = int(request.query_params.get(self.page_query_param, 1))
+        except (TypeError, ValueError):
+            page_number = 1
+        if page_number < 1:
+            page_number = 1
+
+        offset = (page_number - 1) * page_size
+
+        # Trae page_size + 1 filas para saber si hay siguiente página
+        rows = list(queryset[offset:offset + page_size + 1])
+        has_next = len(rows) > page_size
+        rows = rows[:page_size]
+
+        # Guarda el estado para get_paginated_response
+        self._page_number = page_number
+        self._page_size = page_size
+        self._offset = offset
+        self._has_next = has_next
+        self._rows_count = len(rows)
+
+        # count aproximado: suficiente para que el front no falle
+        if has_next:
+            self._count = offset + page_size + 1
+        else:
+            self._count = offset + len(rows)
+
+        self.request = request
+        return rows
+
+    def get_paginated_response(self, data):
+        next_url = None
+        if self._has_next:
+            next_url = self._build_url(self._page_number + 1)
+
+        previous_url = None
+        if self._page_number > 1:
+            previous_url = self._build_url(self._page_number - 1)
+
+        return Response({
+            "count": self._count,
+            "next": next_url,
+            "previous": previous_url,
+            "results": data,
+        })
+
+    def _build_url(self, page_number):
+        request = self.request
+        params = request.query_params.copy()
+        params[self.page_query_param] = page_number
+        return request.build_absolute_uri(f"{request.path}?{params.urlencode()}")
+
 class PaymentView(viewsets.GenericViewSet, mixins.ListModelMixin):
     queryset = Transaction.objects.all()
     permission_classes = [IsAuthenticated]
