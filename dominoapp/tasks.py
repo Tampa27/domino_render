@@ -202,7 +202,7 @@ def async_grant_pair_promotion(player_id: int, amount: int):
             )
 
             # ✅ Transacción en la MISMA transacción DB
-            status_cp, _ = Status_Transaction.objects.get_or_create(status='cp')
+            status_cp, _ = Status_Transaction.objects.create(status='cp')
             tx = Transaction.objects.create(
                 to_user=player,
                 amount=amount,
