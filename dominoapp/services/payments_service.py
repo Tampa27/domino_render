@@ -1425,7 +1425,8 @@ class PaymentService:
             return Response(data={'status': 'error', "message":'Error en la configuración del sistema, contacte a los administradores.'}, status=status.HTTP_409_CONFLICT)
 
         player.recharged_coins+= promotions_coins
-        player.save(update_fields=["recharged_coins"])
+        player.google_review = True
+        player.save(update_fields=["recharged_coins", "google_review"])
 
         try:
             bank = Bank.objects.all().first()
