@@ -186,7 +186,7 @@ def async_grant_pair_promotion(player_id: int, amount: int):
     try:
         with transaction.atomic():
             # ✅ Lock del player para evitar doble promoción concurrente
-            player = Player.objects.select_for_update(nowait=True).get(id=player_id)
+            player = Player.objects.get(id=player_id)
 
             # ✅ Solo idempotencia: ¿ya tiene pro_pair hoy?
             if Transaction.objects.filter(
@@ -202,7 +202,7 @@ def async_grant_pair_promotion(player_id: int, amount: int):
             )
 
             # ✅ Transacción en la MISMA transacción DB
-            status_cp, _ = Status_Transaction.objects.create(status='cp')
+            status_cp = Status_Transaction.objects.create(status='cp')
             tx = Transaction.objects.create(
                 to_user=player,
                 amount=amount,
