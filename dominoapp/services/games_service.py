@@ -2,7 +2,8 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count, F, Case, Value, When,IntegerField
+from django.db.models.functions import Coalesce
 from django.db.utils import DatabaseError
 from django.db import transaction
 from dominoapp.models import Player, DominoGame, AppVersion, BlockPlayer, Round, Tournament
@@ -98,7 +99,53 @@ class GameService:
                     Q(player1__alias=alias) | Q(player2__alias=alias) | 
                     Q(player3__alias=alias) | Q(player4__alias=alias)
                 )
-
+        
+        target_games = target_games.select_related(
+            'rules',
+            'player1__user', 'player2__user', 'player3__user', 'player4__user',
+            'tournament',
+        ).annotate(
+            num_players=Coalesce(
+                Case(
+                    When(player1__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                Value(0),
+            ) + Coalesce(
+                Case(
+                    When(player2__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                Value(0),
+            ) + Coalesce(
+                Case(
+                    When(player3__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                Value(0),
+            ) + Coalesce(
+                Case(
+                    When(player4__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+                Value(0),
+            )
+        ).order_by(
+            Case(
+                When(num_players=1, then=Value(0)),
+                When(num_players=2, then=Value(1)),
+                When(num_players=3, then=Value(2)),
+                When(num_players=4, then=Value(3)),
+                When(num_players=0, then=Value(4)),
+                default=Value(5),
+                output_field=IntegerField(),
+            ),
+            '-start_time'  # orden secundario para consistencia
+        )
         serializer = ListGameSerializer(target_games, many=True)
         
         ultimo_torneo = Tournament.objects.filter(status='tf').order_by('-end_at').first()
@@ -118,10 +165,10 @@ class GameService:
                 winner_tournament.append(winner_data)
         elif ultimo_torneo and ultimo_torneo.place_content_type.model == "player":
             if ultimo_torneo.first_place:
-                player = ultimo_torneo.first_place
+                winner_player  = ultimo_torneo.first_place
                 winner_data = {
-                    "name": player.name,
-                    "url_photo": player.photo_url
+                    "name": winner_player.name,
+                    "url_photo": winner_player.photo_url
                     }
                 winner_tournament.append(winner_data)
 
